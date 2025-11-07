@@ -1,0 +1,67 @@
+# -----------------------
+# Laravel / PHP
+# -----------------------
+/vendor/
+/node_modules/
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+.phpactor.json
+Homestead.json
+Homestead.yaml
+
+# -----------------------
+# Laravel storage & cache
+# -----------------------
+/storage/*.key
+/storage/pail
+/storage/*.log
+/bootstrap/cache/*.php
+
+# -----------------------
+# Node / Package
+# -----------------------
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+dist/
+dist-ssr/
+*.local
+
+# -----------------------
+# Frontend build / cache
+# -----------------------
+/lahza_FrontEnd/build/
+/lahza_FrontEnd/public/build/
+/lahza_FrontEnd/public/hot/
+/lahza_backend/dist/
+
+# -----------------------
+# Logs
+# -----------------------
+logs
+*.log
+
+# -----------------------
+# OS / Editor files
+# -----------------------
+.DS_Store
+Thumbs.db
+/.vscode/*
+!.vscode/extensions.json
+/.idea
+/.fleet
+/.nova
+/.zed
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# -----------------------
+# Misc
+# -----------------------
+.auth.json
