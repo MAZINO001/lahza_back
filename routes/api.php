@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\Route; // <-- FIXED
 use App\Models\User;
 use App\Http\Controllers\QuotesController;
 use App\Http\Controllers\ServicesController;
+use App\Mail\TestMail;
+use Illuminate\Support\Facades\Mail;
+use App\Http\Controllers\EmailController;
+
 
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
@@ -34,3 +38,9 @@ Route::get('clients/me', [ClientController::class, 'me']);
 Route::apiResource('quotes', QuotesController::class);
 //////////////////// services Section \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 Route::apiResource('services', ServicesController::class);
+
+
+
+
+Route::post('/send-email', [EmailController::class, 'sendEmail']);
+
