@@ -15,6 +15,7 @@ class Client extends Model
         'country',
         'currency',
         'client_type',
+        'client_number',
         'siren',
         'vat',
         'ice',
