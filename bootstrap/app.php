@@ -29,10 +29,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
+            'role' => \App\Http\Middleware\CheckRole::class,
             // 'handle.cors.cookies' => \App\Http\Middleware\HandleCorsCookies::class,
         ]);
 
         //
+
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

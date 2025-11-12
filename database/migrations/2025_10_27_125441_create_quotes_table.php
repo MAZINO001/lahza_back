@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('client_id')->constrained('users')->onDelete('cascade');
             $table->date("quotation_date");
             $table->enum("status",["pending","accepted","rejected"]);
-            $table->decimal("total_amount", 10,2);
+            $table->decimal("total_amount", 10, 2);
             $table->timestamps();
         });
     }
