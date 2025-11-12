@@ -28,7 +28,7 @@ class QuotesController extends Controller
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'quotation_date' => 'required|date',
-            'status' => 'required|in:draft,sended,confirmed,signed,rejected',
+            'status' => 'required|in:draft,sent,confirmed,signed,rejected',
             'notes' => 'nullable|string',
             'total_amount' => 'required|numeric',
             'services' => 'array',
@@ -41,12 +41,19 @@ class QuotesController extends Controller
 
         return DB::transaction(function () use ($validated) {
 
+
+
+            // Generate the next quote number
+            $latestQuote = Quotes::latest('id')->first();
+            $nextNumber = $latestQuote ? $latestQuote->id + 1 : 1;
+            $quoteNumber = 'Quote-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
             // Create the quote
             $quote = Quotes::create([
                 'client_id' => $validated['client_id'],
                 'quotation_date' => $validated['quotation_date'],
                 'status' => $validated['status'],
                 'notes' => $validated['notes'],
+                'quote_number' => $quoteNumber,
                 'total_amount' => $validated['total_amount'],
             ]);
 

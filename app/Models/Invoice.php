@@ -4,26 +4,38 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Quotes extends Model
+class Invoice extends Model
 {
     protected $fillable = [
         'client_id',
-        'quotation_date',
+        'quote_id',
+        'invoice_number',
+        'invoice_date',
+        'due_date',
         'status',
         'notes',
-        'quote_number',
         'total_amount',
+        'balance_due',
     ];
 
-    // 🔗 Relationships
     public function client()
     {
         return $this->belongsTo(Client::class);
     }
 
+    public function quote()
+    {
+        return $this->belongsTo(Quotes::class);
+    }
+
+    public function invoiceServices()
+    {
+        return $this->hasMany(InvoiceService::class, 'invoice_id');
+    }
+
     public function services()
     {
-        return $this->belongsToMany(Service::class, 'quotes_services')
+        return $this->belongsToMany(Service::class, 'invoice_services', 'invoice_id', 'service_id')
             ->withPivot(['quantity', 'tax', 'individual_total'])
             ->withTimestamps();
     }
@@ -31,9 +43,5 @@ class Quotes extends Model
     public function files()
     {
         return $this->morphMany(File::class, 'fileable');
-    }
-    public function quoteServices()
-    {
-        return $this->hasMany(Quotes_service::class, 'quote_id');
     }
 }
