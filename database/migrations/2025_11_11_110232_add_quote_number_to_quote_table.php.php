@@ -12,13 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('quotes', function (Blueprint $table) {
-            $table->enum('status', [
-                'draft',
-                'sent',
-                'confirmed',
-                'signed',
-                'rejected'
-            ])->default('draft')->change();
+            $table->text('quote_number')->nullable()->after('client_id')->unique();
         });
     }
 
@@ -27,9 +21,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('quotes', function (Blueprint $table) {
-            // Rollback to string if needed
-            $table->string('status')->default('pending')->change();
-        });
+        Schema::table('quotes', function (Blueprint $table) {});
     }
 };

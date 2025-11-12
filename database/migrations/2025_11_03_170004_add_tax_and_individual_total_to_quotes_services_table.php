@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('quotes_services', function (Blueprint $table) {
             $table->decimal('tax', 8, 2)->nullable()->after('quantity');
-            $table->decimal('individual_total', 10, 2)->nullable()->after('tax');
+            $table->decimal('individual_total', 10, 0)->nullable()->after('tax');
         });
     }
 
