@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('quotes', function (Blueprint $table) {
             $table->enum('status', [
                 'draft',
-                'sent',
+                'sended',
                 'confirmed',
                 'signed',
                 'rejected'

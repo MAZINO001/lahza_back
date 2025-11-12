@@ -83,10 +83,6 @@ class RegisteredUserController extends Controller
 
         switch ($request->user_type) {
             case 'client':
-                $latestClient = Client::latest('id')->first();
-                $nextNumber = $latestClient ? $latestClient->id + 1 : 1;
-                $clientNumber = 'Client-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
-
                 Client::create([
                     'user_id' => $user->id,
                     'company' => $request->company,
@@ -99,9 +95,7 @@ class RegisteredUserController extends Controller
                     'siren' => $request->siren,
                     'vat' => $request->vat,
                     'ice' => $request->ice,
-                    'client_number' => $clientNumber,
                 ]);
-
                 DB::table('user_permissions')->insert([
                     ['user_id' => $user->id, 'permission_id' => 2],
                 ]);
