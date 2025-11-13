@@ -30,8 +30,6 @@
 //                     ]);
 //     }
 // }
-
-
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
@@ -53,10 +51,16 @@ class SendReportMail extends Mailable
 
     public function build()
     {
-        return $this->subject('Your Invoice')
-            ->view('emails.invoice') // Simple email body
+        $subject = $this->data['subject'] ?? 'Your Document';
+        $message = $this->data['message'] ?? 'Please find the attached document.';
+        $name = $this->data['name'] ?? 'Customer';
+
+        $html = "<p>Hi {$name},</p><p>{$message}</p><p>Regards,<br/>LAHZA HM</p>";
+
+        return $this->subject($subject)
+            ->html($html)
             ->attach($this->pdfPath, [
-                'as' => 'invoice.pdf',
+                'as' => 'document.pdf',
                 'mime' => 'application/pdf',
             ]);
     }

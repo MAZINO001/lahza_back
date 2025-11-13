@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use App\Mail\SendReportMail;
 
 class EmailController extends Controller
@@ -34,12 +34,8 @@ class EmailController extends Controller
         });
 
         // Generate PDF
-        
-        $pdf = Pdf::loadView('pdf.report', [
-            'name' => $name,
-            'items' => $items,
-            'grandTotal' => $grandTotal
-        ]);
+
+        $pdf = PDF::loadView('pdf.report', compact('name', 'items', 'grandTotal'));
 
 
 
@@ -52,6 +48,7 @@ class EmailController extends Controller
         }
 
         Mail::to($validated['email'])->send(new SendReportMail($validated, $fullPdfPath));
+
 
         if (file_exists($fullPdfPath)) {
             unlink($fullPdfPath);

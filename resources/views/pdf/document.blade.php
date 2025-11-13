@@ -1,100 +1,3 @@
-{{-- <!DOCTYPE html>
-<html>
-<head>
-    <title>Quotation</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            color: #333;
-        }
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        h1 {
-            margin: 0;
-            font-size: 24px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        table, th, td {
-            border: 1px solid #999;
-        }
-        th, td {
-            padding: 10px;
-            text-align: left;
-        }
-        tfoot td {
-            font-weight: bold;
-        }
-        .footer {
-            margin-top: 40px;
-            text-align: center;
-            font-size: 12px;
-            color: #777;
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>Quotation from Agence LAHZA</h1>
-        <p>Date: {{ date('d/m/Y') }}</p>
-    </header>
-
-    <p>From Agence LAHZA Team,</p>
-    <p>We are pleased to provide you with the following quotation:</p>
-
-    <table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Item/Service</th>
-                <th>Quantity</th>
-                <th>Unit Price</th>
-                <th>Total</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>1</td>
-                <td>SEO Optimization</td>
-                <td>1</td>
-                <td>USD 1,000.00</td>
-                <td>USD 1,000.00</td>
-            </tr>
-            <tr>
-                <td>2</td>
-                <td>Graphic Design Services</td>
-                <td>1</td>
-                <td>USD 1,000.00</td>
-                <td>USD 1,000.00</td>
-            </tr>
-            <tr>
-                <td>3</td>
-                <td>Web Development</td>
-                <td>1</td>
-                <td>USD 1,000.00</td>
-                <td>USD 1,000.00</td>
-            </tr>
-        </tbody>
-        <tfoot>
-            <tr>
-                <td colspan="4">Grand Total</td>
-                <td>USD 3,000.00</td>
-            </tr>
-        </tfoot>
-    </table>
-
-    <p>Please contact us if you have any questions or require further clarification.</p>
-
-    <div class="footer">
-        Thank you for considering our services.
-    </div>
-</body>
-</html> --}}
 <!DOCTYPE html>
 <html lang="fr">
 
@@ -102,10 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Facture INV-000634</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
-        rel="stylesheet">
+    <link rel="stylesheet" href="{{ public_path('fonts/roboto.css') }}">
+
     <style>
         * {
             margin: 0;
@@ -115,31 +16,44 @@
 
         body {
             font-family: "Roboto", sans-serif;
-            padding: 40px;
+            /* padding: 40px; */
             background: #f5f5f5;
+            letter-spacing: 1.5px;
+            line-height: 1.8;
         }
 
         .invoice-container {
-            max-width: 800px;
-            margin: 0 auto;
+            /* max-width: 800px; */
+            /* margin: 0 auto; */
+            /* padding: 30px; */
+            /* box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); */
             background: white;
-            padding: 30px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
 
         .header {
             display: flex;
             justify-content: space-between;
-
-
         }
 
-        .company-info {
+        /* .company-info {
             display: flex;
-            align-items: start;
+            align-items: flex-start;
             justify-content: space-between;
             width: 100%;
+        } */
+
+        .company-info {
+            display: table;
+            width: 100%;
+            margin-bottom: 10px;
         }
+
+        .company-info>div {
+            display: table-cell;
+            vertical-align: top;
+            padding: 5px;
+        }
+
 
         .company-logo img {
             width: 170px;
@@ -198,18 +112,17 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            margin-bottom: 20px;
-
+            margin-bottom: 25px;
         }
 
-        .client-info {
+        /* .client-info {
             display: flex;
             align-items: start;
             justify-content: space-between;
             width: 100%;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
+        } */
 
-        }
 
         .client-info h3 {
             font-size: 14px;
@@ -218,7 +131,7 @@
         }
 
         .client-info p {
-            font-size: 12px;
+            font-size: 13px;
             line-height: 1.6;
             color: #222;
             font-weight: 900;
@@ -283,7 +196,7 @@
             border: 1px solid #ebe6e6;
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
 
         .items-table thead {
@@ -312,7 +225,7 @@
 
         .items-table td {
             padding: 15px 10px;
-            font-size: 11px;
+            font-size: 12px;
             border-bottom: 1px solid #ebe6e6;
             vertical-align: top;
             text-align: right;
@@ -330,20 +243,19 @@
             margin-left: 15px;
         }
 
-        .totals {
+        /* .totals {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             margin-left: auto;
             text-align: right;
-
-        }
+        } */
 
         .total-div {
             width: 50%;
-            font-weight: bold;
-            font-size: 14px;
+            font-weight: 900;
+            font-size: 16px;
             padding-bottom: 10px;
             border-bottom: 1px solid #ebe6e6;
             display: flex;
@@ -352,17 +264,25 @@
         }
 
         .payment-info {
-            margin-bottom: 20px;
-
+            width: 100%;
+            margin-bottom: 25px;
         }
 
         .payment-info p {
-            font-size: 11px;
+            font-size: 13px;
         }
 
         .payment-info strong:not(.mode) {
             font-weight: 400;
+            width: 17%;
         }
+
+        .payment-info .mode {
+            width: 17%;
+            font-weight: 800;
+            color: #000;
+        }
+
 
         .bank-details {
             margin-top: 10px;
@@ -383,9 +303,9 @@
 
         .conditions {
 
-            font-size: 11px;
+            font-size: 13px;
             line-height: 1.6;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
 
         .thank-you {
@@ -393,16 +313,14 @@
             font-weight: normal;
         }
 
-        .mode {
-            font-weight: 800;
-            color: #000;
-        }
 
+        /*
         .signatures {
             display: flex;
             align-items: center;
             justify-content: space-between;
-        }
+        } */
+
 
         * .signatures .admin_sign {
             border: 1px solid #051630;
@@ -413,6 +331,74 @@
             border: 1px solid #051630;
             padding: 20px 30px;
         }
+
+
+        /* testing this shit  */
+        .signatures {
+            width: 100%;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+
+        .signatures>.admin_sign {
+            float: left;
+            width: 30%;
+            padding: 30px 20px;
+            text-align: center
+        }
+
+        .signatures>.client_sign {
+            float: right;
+            width: 30%;
+            padding: 30px 20px;
+            text-align: center
+        }
+
+        .client-info {
+            width: 100%;
+            margin-bottom: 25px;
+            position: relative;
+            height: auto;
+        }
+
+        .client-info>div:first-child {
+            display: inline-block;
+            vertical-align: top;
+            padding: 5px;
+        }
+
+        .client-info>div:nth-child(2) {
+            display: inline-block;
+            vertical-align: top;
+            padding: 5px;
+            position: absolute;
+            right: 0;
+            top: 0;
+            text-align: right;
+            width: 100px;
+        }
+
+        .totals {
+            width: 100%;
+            margin-bottom: 25px;
+            overflow: hidden;
+            /* ensures floats stay inside */
+        }
+
+        .totals>div:first-child {
+            display: inline-block;
+            vertical-align: middle;
+            padding: 5px;
+            width: 250px;
+        }
+
+        .totals>div:last-child {
+            display: inline-block;
+            vertical-align: middle;
+            padding: 5px;
+            float: right;
+            text-align: right;
+        }
     </style>
 </head>
 
@@ -421,8 +407,9 @@
         <div class="header">
             <div class="company-info">
                 <div class="company-logo">
-                    <img src="/public/images/logo.png" alt="lahza logo">
+                    <img src="{{ asset('logo.png') }}" alt="lahza logo">
                 </div>
+
                 <div class="data">
                     <h1>LAHZA HM SARL</h1>
                     <p>
