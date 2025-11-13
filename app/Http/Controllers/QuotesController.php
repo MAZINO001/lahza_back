@@ -10,7 +10,7 @@ use App\Models\Service;
 
 class QuotesController extends Controller
 {
-    // GET /api/Quotess
+    // GET /api/Quotes
     public function index()
     {
         $quotes = Quotes::with(['quoteServices', 'client.user:id,name'])->get();
@@ -22,7 +22,7 @@ class QuotesController extends Controller
         ]);
     }
 
-    // POST /api/Quotess
+    // POST /api/Quotes
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -89,7 +89,7 @@ class QuotesController extends Controller
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'quotation_date' => 'required|date',
-            'status' => 'required|in:draft,sended,confirmed,signed,rejected',
+            'status' => 'required|in:draft,sent,confirmed,signed,rejected',
             'notes' => 'nullable|string',
             'total_amount' => 'required|numeric',
             'services' => 'array',
