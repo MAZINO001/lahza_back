@@ -18,7 +18,6 @@ return new class extends Migration
             $table->string('password');
             $table->enum('role', ['admin', 'manager', 'member', 'client'])->default('client'); // system role
             $table->enum('user_type', ['client', 'team', 'intern', 'other'])->default('client'); // category
-
             $table->timestamps();
         });
 
