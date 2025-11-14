@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('client_id')->constrained('clients')->onDelete('cascade');
             // $table->foreignId('quote_id')->nullable()->constrained('quotes')->onDelete('cascade');
-            $table->unsignedBigInteger('quote_id')->nullable();
-            $table->foreign('quote_id')->references('id')->on('quotes')->onDelete('cascade');
+            // $table->unsignedBigInteger('quote_id')->nullable();
+            // $table->foreign('quote_id')->references('id')->on('quotes')->onDelete('cascade');
             $table->foreignId('quote_id')->nullable()->constrained('quotes')->onDelete('cascade');
             $table->string('invoice_number')->unique();
             $table->date('invoice_date');
