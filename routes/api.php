@@ -48,10 +48,11 @@ Route::middleware(['auth:sanctum',   'role:admin,client'])->group(function () {
     Route::apiResource('quotes', QuotesController::class);
     Route::apiResource('invoices', InvoicesController::class);
     Route::apiResource('services', ServicesController::class);
+
+    // Send invoice/quote PDF via email
 });
+Route::post('/email/send', [EmailController::class, 'sendEmail']);
 
 
-
-Route::post('/invoices/{id}/send-email', [EmailController::class, 'sendInvoice']);
-Route::post('/quotes/{id}/send-email', [EmailController::class, 'sendQuote']);
-
+// Route::post('/invoices/{id}/send-email', [EmailController::class, 'sendInvoice']);
+// Route::post('/quotes/{id}/send-email', [EmailController::class, 'sendQuote']);
