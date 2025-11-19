@@ -623,7 +623,7 @@
                     consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/
                 </div>
             </div>
-            @if ($type !== 'invoice')
+            @if ($type === 'invoice')
                 <div class="signatures">
                     <div class="admin_sign">
                         @if ($adminSignatureBase64)
