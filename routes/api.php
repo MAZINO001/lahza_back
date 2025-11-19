@@ -58,4 +58,4 @@ Route::post('/email/send', [EmailController::class, 'sendEmail']);
 Route::post('/invoices/{id}/send-email', [EmailController::class, 'sendInvoice']);
 Route::post('/quotes/{id}/send-email', [EmailController::class, 'sendQuote']);
 
-Route::post('/uploadClients', [ClientController::class, 'uploadClients']);
+Route::post('/uploadClients',[ClientController::class,'uploadClients']);
