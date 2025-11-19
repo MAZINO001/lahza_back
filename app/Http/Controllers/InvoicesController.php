@@ -21,6 +21,7 @@ class InvoicesController extends Controller
     //         "services"  => $allServices
     //     ]);
     // }
+    
     public function index(Request $request)
     {
         $query = Invoice::with(['invoiceServices', 'client.user:id,name']);
