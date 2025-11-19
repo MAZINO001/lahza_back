@@ -11,32 +11,14 @@ use Illuminate\Validation\Rule;
 
 class InvoicesController extends Controller
 {
-    // public function index()
-    // {
-    //     $invoices = Invoice::with(['invoiceServices', 'client.user:id,name'])->get();
-    //     $allServices = Service::all();
-
-    //     return response()->json([
-    //         "invoices"  => $invoices,
-    //         "services"  => $allServices
-    //     ]);
-    // }
-    
-    public function index(Request $request)
+    public function index()
     {
-        $query = Invoice::with(['invoiceServices', 'client.user:id,name']);
-
-        // filter by quote_id if it's in the query
-        if ($request->has('quote_id')) {
-            $query->where('quote_id', $request->quote_id);
-        }
-
-        $invoices = $query->get();
+        $invoices = Invoice::with(['invoiceServices', 'client.user:id,name'])->get();
         $allServices = Service::all();
 
         return response()->json([
-            "invoices" => $invoices,
-            "services" => $allServices
+            "invoices"  => $invoices,
+            "services"  => $allServices
         ]);
     }
     public function store(Request $request)

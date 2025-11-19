@@ -44,13 +44,11 @@ Route::middleware(['auth:sanctum',   'role:admin,client'])->group(function () {
             'role' => $request->user()->role,
         ];
     });
-    Route::post('/quotes/{quote}/signature', [SignatureController::class, 'upload']);
+    Route::post('/invoices/{invoice}/signature', [SignatureController::class, 'upload']);
     Route::apiResource('quotes', QuotesController::class);
     Route::apiResource('invoices', InvoicesController::class);
     Route::apiResource('services', ServicesController::class);
 });
-Route::apiResource('quotes', QuotesController::class);
-Route::apiResource('invoices', InvoicesController::class);
 
 Route::post('/email/send', [EmailController::class, 'sendEmail']);
 

@@ -4,12 +4,12 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\File;
-use App\Models\Quotes;
+use App\Models\Invoice;
 use Illuminate\Support\Facades\Auth;
 
 class SignatureController extends Controller
 {
-    public function upload(Request $request, Quotes $quote)
+    public function upload(Request $request, Invoice $invoice)
     {
         $request->validate([
             'signature' => 'required|image|max:2048',
@@ -18,7 +18,7 @@ class SignatureController extends Controller
 
         $path = $request->file('signature')->store('signatures', 'public');
 
-        $file = $quote->files()->updateOrCreate(
+        $file = $invoice->files()->updateOrCreate(
             ['type' => $request->type],
             [
                 'path' => $path,
