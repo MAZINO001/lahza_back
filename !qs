@@ -1,0 +1,54 @@
+[33mcommit bbd4d9d940957e48a957454f706740b2286b3ca9[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mtest[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m
+Author: MAZINO001 <marnissimounir05@gmail.com>
+Date:   Fri Nov 14 11:29:53 2025 +0100
+
+    saving
+
+[33mcommit 80834a6705be46c601ad57a5490adcff022c7dcf[m
+Author: MAZINO001 <marnissimounir05@gmail.com>
+Date:   Thu Nov 13 17:09:55 2025 +0100
+
+    saving progress
+
+[33mcommit 5de336832bb2e4eea84a8f5ff64e034b162f09b6[m
+Author: MAZINO001 <marnissimounir05@gmail.com>
+Date:   Thu Nov 13 12:01:11 2025 +0100
+
+    savng in case this snappy is a problem
+
+[33mcommit 1932fc8476a16d6b110bc07f44490c3721ed8703[m
+Merge: eb46823 cbfe6d1
+Author: MAZINO001 <marnissimounir05@gmail.com>
+Date:   Wed Nov 12 16:21:55 2025 +0100
+
+    Finish merge after restoring lost files
+
+[33mcommit cbfe6d163cd441a87577516f3f789b565f82194b[m[33m ([m[1;32mtemp-local-backup[m[33m)[m
+Author: MAZINO001 <marnissimounir05@gmail.com>
+Date:   Wed Nov 12 15:58:11 2025 +0100
+
+    Restore lost files from commit 3f09836
+
+[33mcommit df7bb3166b3e8d79701e6a82eb8909b2c294d7a0[m
+Author: MAZINO001 <marnissimounir05@gmail.com>
+Date:   Wed Nov 12 15:43:45 2025 +0100
+
+    WIP: save current changes before rebase
+
+[33mcommit 3f0983657eb0b4ac708175ef263d05824b53d769[m
+Author: MAZINO001 <marnissimounir05@gmail.com>
+Date:   Wed Nov 12 14:51:32 2025 +0100
+
+    save current progress
+
+[33mcommit eb46823f6f583419c27d49b751f6692596e46cdf[m
+Author: stufflhd <stufflhd@gmail.com>
+Date:   Mon Nov 10 15:54:59 2025 +0100
+
+    pdf template
+
+[33mcommit 6f2c802b4d3581d10000a200ed46235a732eea49[m
+Author: MAZINO001 <marnissimounir05@gmail.com>
+Date:   Fri Nov 7 13:01:08 2025 +0100
+
+    moving the back end to serpret folder
