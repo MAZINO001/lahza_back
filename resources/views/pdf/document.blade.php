@@ -334,12 +334,12 @@
 
 
         * .signatures .admin_sign {
-            border: 1px solid #051630;
+            /* border: 1px solid #051630; */
             padding: 20px 30px;
         }
 
         .signatures .client_sign {
-            border: 1px solid #051630;
+            /* border: 1px solid #051630; */
             padding: 20px 30px;
         }
 
@@ -357,6 +357,8 @@
             padding: 30px 20px;
             text-align: center
         }
+
+
 
         .signatures>.client_sign {
             float: right;
@@ -418,6 +420,16 @@
             /* bottom: 0; */
             /* width: 100%; */
         }
+
+        .status {
+            border: 1px solid #8a7d7d;
+            padding: 4px;
+            border-radius: 5px;
+            text-align: center;
+            width: 100px;
+            float: right;
+            text-transform: capitalize;
+        }
     </style>
 </head>
 
@@ -456,21 +468,24 @@
             <div class="client-info">
                 <div>
                     @php($client = $type === 'invoice' ? $invoice->client ?? null : $quote->client ?? null)
-                    <h3>{{ $client->company ?? ($client->name ?? '') }}</h3>
+                    <h3>{{ $client?->company ?? ($client?->name ?? '') }}</h3>
                     <p>
-                        {{ $client->address ?? '' }}<br>
-                        {{ $client->city ?? '' }}<br>
-                        {{ $client->country ?? '' }}<br>
-                        {{ empty($client->ice) ? 'SIREN : ' . $client->siren : 'ICE : ' . $client->ice }}
+                        {{ $client?->address ?? '' }}<br>
+                        {{ $client?->city ?? '' }}<br>
+                        {{ $client?->country ?? '' }}<br>
+                        {{ empty($client?->ice) ? 'SIREN : ' . ($client?->siren ?? '') : 'ICE : ' . ($client?->ice ?? '') }}
                     </p>
                 </div>
                 <div>
                     @if ($type === 'invoice')
                         <p>N° de facture</p>
                         <h3>{{ $invoice->invoice_number ?? 'INV-00' . ($invoice->id ?? '') }}</h3>
+                        <h3>{{ $invoice->status }}</h3>
                     @else
                         <p>N° de devis</p>
                         <h3>{{ $quote->quote_number ?? 'Q-' . ($quote->id ?? '') }}</h3>
+                        <h3 class="status">{{ $quote->status }}</h3>
+                        {{-- <h3 class="status">kqsdfkqsdkf qskf oq</h3> --}}
                     @endif
                 </div>
             </div>
@@ -490,7 +505,7 @@
                     <tbody>
                         <tr>
                             @if ($type === 'invoice')
-                                <td>{{ optional($invoice->invoice_date ? \Carbon\Carbon::parse($invoice->invoice_date) : null)->translatedFormat('d F Y') }}
+                                <td>{{ optional($invoice->invoice_date ? \Carbon\Carbon::parse($invoice->invoice_date) : '-')->translatedFormat('d F Y') }}
                                 </td>
                                 <td>{{ optional($invoice->due_date ? \Carbon\Carbon::parse($invoice->due_date) : null)->translatedFormat('d F Y') }}
                                 </td>
@@ -552,7 +567,7 @@
                     <span>Sous-total</span>
                 </td>
                 <td>
-                    @php($currency = $type === 'invoice' ? $invoice->client->currency ?? 'MAD' : $quote->client->currency ?? 'MAD')
+                    @php($currency = $type === 'invoice' ? $invoice->client?->currency ?? 'MAD' : $quote->client?->currency ?? 'MAD')
                     @if ($type === 'invoice')
                         {{ number_format((float) ($invoice->total_amount ?? 0), 2, '.', ' ') }}
                     @else
@@ -608,15 +623,25 @@
                     consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/
                 </div>
             </div>
-            <div class="signatures">
-                <div class="admin_sign">
-                    {{-- <img src="{{$quote->total_amount}}" alt="lahza logo"> --}}
-                    admin signature
+            @if ($type !== 'invoice')
+                <div class="signatures">
+                    <div class="admin_sign">
+                        @if ($adminSignatureBase64)
+                            <img src="{{ $adminSignatureBase64 }}" alt="Admin Signature" style="width:200px;">
+                        @else
+                            <span>No admin signature</span>
+                        @endif
+                    </div>
+                    <div class="client_sign">
+                        @if ($clientSignatureBase64)
+                            <img src="{{ $clientSignatureBase64 }}" alt="Client Signature" style="width:200px;">
+                        @else
+                            <span>No client signature</span>
+                        @endif
+                    </div>
                 </div>
-                <div class="client_sign">client signature </div>
-            </div>
+            @endif
         </div>
-
     </div>
 </body>
 

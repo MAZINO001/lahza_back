@@ -23,7 +23,7 @@ class Quotes extends Model
 
     public function services()
     {
-        return $this->belongsToMany(Service::class, 'quotes_services')
+        return $this->belongsToMany(Service::class, 'quotes_services', 'quote_id', 'service_id')
             ->withPivot(['quantity', 'tax', 'individual_total'])
             ->withTimestamps();
     }
@@ -47,7 +47,6 @@ class Quotes extends Model
     {
         return $this->hasMany(Quotes_service::class, 'quote_id');
     }
-    // ro check if the quote is singed from both parties
     protected $appends = ['is_fully_signed'];
 
     public function getIsFullySignedAttribute()

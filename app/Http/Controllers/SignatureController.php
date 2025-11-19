@@ -16,7 +16,7 @@ class SignatureController extends Controller
             'type' => 'required|in:admin_signature,client_signature',
         ]);
 
-        $path = $request->file('signature')->store('signatures');
+        $path = $request->file('signature')->store('signatures', 'public');
 
         $file = $quote->files()->updateOrCreate(
             ['type' => $request->type],
