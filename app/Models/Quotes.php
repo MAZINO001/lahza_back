@@ -47,10 +47,5 @@ class Quotes extends Model
     {
         return $this->hasMany(Quotes_service::class, 'quote_id');
     }
-    protected $appends = ['is_fully_signed'];
-
-    public function getIsFullySignedAttribute()
-    {
-        return $this->adminSignature() && $this->clientSignature();
-    }
+ 
 }
