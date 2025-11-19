@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class File extends Model
@@ -23,5 +24,19 @@ class File extends Model
     public function getUrlAttribute()
     {
         return Storage::url($this->path);
+    }
+    public function getBase64Attribute()
+    {
+        try {
+            if (Storage::exists($this->path)) {
+                $imageData = Storage::get($this->path);
+                $mimeType = Storage::mimeType($this->path);
+                return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error getting base64: ' . $e->getMessage());
+        }
+
+        return null;
     }
 }
