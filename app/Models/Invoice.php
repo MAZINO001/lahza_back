@@ -54,4 +54,10 @@ class Invoice extends Model
     {
         return $this->files()->where('type', 'client_signature')->first();
     }
+    protected $appends = ['is_fully_signed'];
+
+    public function getIsFullySignedAttribute()
+    {
+        return $this->adminSignature() && $this->clientSignature();
+    }
 }

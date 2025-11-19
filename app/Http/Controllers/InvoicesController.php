@@ -67,7 +67,7 @@ class InvoicesController extends Controller
                     ]);
                 }
             }
-            return response()->json($invoice->load("invoiceServices"), 201);
+            return response()->json([$invoice->load("invoiceServices"), 'invoice_id' => $invoice->id], 201);
         });
     }
 

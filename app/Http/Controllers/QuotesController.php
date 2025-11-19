@@ -70,7 +70,7 @@ class QuotesController extends Controller
                 }
             }
 
-            return response()->json($quote->load('quoteServices'), 201);
+            return response()->json([$quote->load('quoteServices'), 'quote_id' => $quote->id], 201);
         });
     }
 

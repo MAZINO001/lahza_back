@@ -45,6 +45,7 @@ Route::middleware(['auth:sanctum',   'role:admin,client'])->group(function () {
         ];
     });
     Route::post('/invoices/{invoice}/signature', [SignatureController::class, 'upload']);
+    Route::delete('/invoices/{invoice}/signature', [SignatureController::class, 'destroy']);
     Route::apiResource('quotes', QuotesController::class);
     Route::apiResource('invoices', InvoicesController::class);
     Route::apiResource('services', ServicesController::class);
