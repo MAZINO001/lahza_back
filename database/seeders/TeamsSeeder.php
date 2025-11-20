@@ -9,7 +9,7 @@ class TeamsSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('teams')->insert([
+        DB::table('team_users')->insert([
             [
                 'name' => 'Default Team',
                 'department' => 'General',

@@ -1,6 +1,6 @@
 name,email,client_number,client_type,company,phone,address,city,country,currency,vat,siren,ice
-Othman Idrissi,othman.idrissi@example.com,C001,company,Idrissi Logistics,0661223344,12 Rue Hassan II,Casablanca,Morocco,MAD,MA12345678,852963147,MA987654321
-Sara Benali,sara.benali@example.com,C002,individual,Sara Boutique,0677889900,45 Avenue Mohammed V,Rabat,Morocco,MAD,MA99887766,741258963,MA112233445
-Youssef Chafik,youssef.chafik@example.com,C003,company,Chafik Transport,0655332211,Zone Industrielle Sidi Ghanem,Marrakech,Morocco,MAD,MA56473829,963258741,MA665544332
-Imane El Fassi,imane.fassi@example.com,C004,individual,Imane Consulting,0612345678,Hay Riyad,Rabat,Morocco,MAD,MA44556677,357159486,MA779988665
-Hicham Amrani,hicham.amrani@example.com,C005,company,Amrani Global,0688221144,Quartier Maarif,Casablanca,Morocco,MAD,MA22334455,159357468,MA334455667
+Othman Idrissi,othman.idrissi1@example.com,C001,company,Idrissi Logistics,0661223344,12 Rue Hassan II,Casablanca,Morocco,MAD,MA12345678,852963147,MA987654321
+Sara Benali,sara.benali1@example.com,C002,individual,Sara Boutique,0677889900,45 Avenue Mohammed V,Rabat,Morocco,MAD,MA99887766,741258963,MA112233445
+Youssef Chafik,youssef.chafik1@example.com,C003,company,Chafik Transport,0655332211,Zone Industrielle Sidi Ghanem,Marrakech,Morocco,MAD,MA56473829,963258741,MA665544332
+Imane El Fassi,imane.fassi1@example.com,C004,individual,Imane Consulting,0612345678,Hay Riyad,Rabat,Morocco,MAD,MA44556677,357159486,MA779988665
+Hicham Amrani,hicham.amrani1@example.com,C005,company,Amrani Global,0688221144,Quartier Maarif,Casablanca,Morocco,MAD,MA22334455,159357468,MA334455667

@@ -47,10 +47,8 @@ class ClientController extends Controller
         return $request->Client();
     }
 
-    public function uploadClients (Request $request ){
-
-
- // Validate file 
+public function uploadClients (Request $request ){
+     // Validate file 
         $request->validate([
             'file' => 'required|mimes:csv,txt',
         ]);
