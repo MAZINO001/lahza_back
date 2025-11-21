@@ -58,7 +58,16 @@ class Invoice extends Model
     $number = (int) str_replace('INV-', '', $latest);
 
     $number++;
-
+    
     return "INV-" . str_pad($number, 3, '0', STR_PAD_LEFT);
+    
+}
+
+
+
+
+public function payment()
+{
+    return $this->belongsTo(Payment::class);
 }
 }
