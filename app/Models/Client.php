@@ -28,4 +28,13 @@ class Client extends Model
     {
         return $this->hasMany(Quotes::class);
     }
+public function invoices()
+    {
+        return $this->hasMany(Invoice::class, 'customer_id');
+    }
+
+    public function payments()
+    {
+        return $this->hasManyThrough(Payment::class, Quotes::class);
+    }
 }

@@ -54,4 +54,12 @@ class Quotes extends Model
     {
         return $this->adminSignature() && $this->clientSignature();
     }
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
 }
