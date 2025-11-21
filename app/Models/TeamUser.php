@@ -6,15 +6,29 @@ use Illuminate\Database\Eloquent\Model;
 
 class TeamUser extends Model
 {
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'team_users';
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array
+     */
     protected $fillable = [
-        'team_id',   // if you want to mass assign
         'user_id',   // needed for your registration logic
-        'poste',     // optional, but included if set
+        'department',// department information
+        'poste',     // position/role
     ];
-    public function users()
+
+    /**
+     * Get the user that owns the team user record.
+     */
+    public function user()
     {
-        return $this->belongsToMany(User::class, 'team_users')
-                    ->withPivot('poste')
-                    ->withTimestamps();
+        return $this->belongsTo(User::class);
     }
 }

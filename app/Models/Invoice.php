@@ -16,6 +16,7 @@ class Invoice extends Model
         'notes',
         'total_amount',
         'balance_due',
+        'checksum'
     ];
 
     public function client()
@@ -44,4 +45,20 @@ class Invoice extends Model
     {
         return $this->morphMany(File::class, 'fileable');
     }
+
+    public static function generateInvoiceNumber()
+{
+    $latest = Invoice::orderBy('id', 'desc')->value('invoice_number');
+
+    if (!$latest) {
+        return "INV-001";
+    }
+
+    // Extract number part
+    $number = (int) str_replace('INV-', '', $latest);
+
+    $number++;
+
+    return "INV-" . str_pad($number, 3, '0', STR_PAD_LEFT);
+}
 }
