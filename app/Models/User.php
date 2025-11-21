@@ -41,11 +41,28 @@ class User extends Authenticatable
         return $this->belongsToMany(Permission::class, 'user_permissions');
     }
 
-    public function teams()
+    /**
+     * Get the team user record associated with the user.
+     */
+    public function teamUser()
     {
-        return $this->belongsToMany(TeamUser::class, 'team_users')
-            ->withPivot('poste')
-            ->withTimestamps();
+        return $this->hasOne(TeamUser::class, 'user_id');
+    }
+
+    /**
+     * Get the user's department.
+     */
+    public function getDepartmentAttribute()
+    {
+        return $this->teamUser ? $this->teamUser->department : null;
+    }
+
+    /**
+     * Get the user's position.
+     */
+    public function getPosteAttribute()
+    {
+        return $this->teamUser ? $this->teamUser->poste : null;
     }
 
     public function histories()
