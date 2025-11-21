@@ -40,10 +40,10 @@ class InvoicesController extends Controller
         ]);
 
         return  DB::transaction(function () use ($validate) {
-            // Generate the next quote number
+            // Generate the next invoice number
             $latestInvoice = Invoice::latest('id')->first();
             $nextNumber = $latestInvoice ? $latestInvoice->id + 1 : 1;
-            $invoiceNumber = 'INV-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+            $invoiceNumber = 'INVOICE-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
 
             $invoice = Invoice::create([
                 'client_id' => $validate["client_id"],

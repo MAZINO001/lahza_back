@@ -45,8 +45,10 @@ Route::middleware(['auth:sanctum',   'role:admin,client'])->group(function () {
             'role' => $request->user()->role,
         ];
     });
-    Route::post('/invoices/{invoice}/signature', [SignatureController::class, 'upload']);
-    Route::delete('/invoices/{invoice}/signature', [SignatureController::class, 'destroy']);
+    Route::post('/{model}/{id}/signature', [SignatureController::class, 'upload'])
+        ->where('model', 'invoices|quotes');
+    Route::delete('/{model}/{id}/signature', [SignatureController::class, 'destroy'])
+        ->where('model', 'invoices|quotes');
     Route::apiResource('quotes', QuotesController::class);
     Route::apiResource('invoices', InvoicesController::class);
     Route::apiResource('services', ServicesController::class);
@@ -58,8 +60,6 @@ Route::post('/email/send', [EmailController::class, 'sendEmail']);
 Route::post('/invoices/{id}/send-email', [EmailController::class, 'sendInvoice']);
 Route::post('/quotes/{id}/send-email', [EmailController::class, 'sendQuote']);
 
-Route::post('/uploadClients',[ClientController::class,'uploadClients']);
-
-Route::post('/uploadClients',[csvController::class,'uploadClients']);
-Route::post('/uploadInvoices',[csvController::class,'uploadInvoices']);
-Route::post('/uploadServices',[csvController::class,'uploadServices']);
+Route::post('/uploadClients', [csvController::class, 'uploadClients']);
+Route::post('/uploadInvoices', [csvController::class, 'uploadInvoices']);
+Route::post('/uploadServices', [csvController::class, 'uploadServices']);

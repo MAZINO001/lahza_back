@@ -41,24 +41,19 @@ class Invoice extends Model
             ->withTimestamps();
     }
 
+
     public function files()
     {
         return $this->morphMany(File::class, 'fileable');
     }
 
-    public static function generateInvoiceNumber()
-{
-    $latest = Invoice::orderBy('id', 'desc')->value('invoice_number');
-
-    if (!$latest) {
-        return "INV-001";
+    public function adminSignature()
+    {
+        return $this->files()->where('type', 'admin_signature')->first();
     }
 
-    // Extract number part
-    $number = (int) str_replace('INV-', '', $latest);
-
-    $number++;
-
-    return "INV-" . str_pad($number, 3, '0', STR_PAD_LEFT);
-}
+    public function clientSignature()
+    {
+        return $this->files()->where('type', 'client_signature')->first();
+    }
 }
