@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('password');
             $table->enum('role', ['admin', 'manager', 'member', 'client'])->default('client'); // system role
-            $table->enum('user_type', ['client', 'team', 'intern', 'other'])->default('client'); // category
+            $table->enum('user_type', ['client', 'teams', 'intern', 'other'])->default('client'); // category
             $table->timestamps();
         });
 

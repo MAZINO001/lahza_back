@@ -13,6 +13,7 @@ use App\Http\Controllers\EmailController;
 use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\SignatureController;
 use Illuminate\Http\Request;
+use App\Http\Controllers\csvController;
 
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
@@ -58,3 +59,7 @@ Route::post('/invoices/{id}/send-email', [EmailController::class, 'sendInvoice']
 Route::post('/quotes/{id}/send-email', [EmailController::class, 'sendQuote']);
 
 Route::post('/uploadClients',[ClientController::class,'uploadClients']);
+
+Route::post('/uploadClients',[csvController::class,'uploadClients']);
+Route::post('/uploadInvoices',[csvController::class,'uploadInvoices']);
+Route::post('/uploadServices',[csvController::class,'uploadServices']);

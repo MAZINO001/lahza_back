@@ -16,6 +16,7 @@ class Invoice extends Model
         'notes',
         'total_amount',
         'balance_due',
+        'checksum'
     ];
 
     public function client()
@@ -45,19 +46,19 @@ class Invoice extends Model
         return $this->morphMany(File::class, 'fileable');
     }
 
-    public function adminSignature()
-    {
-        return $this->files()->where('type', 'admin_signature')->first();
+    public static function generateInvoiceNumber()
+{
+    $latest = Invoice::orderBy('id', 'desc')->value('invoice_number');
+
+    if (!$latest) {
+        return "INV-001";
     }
 
-    public function clientSignature()
-    {
-        return $this->files()->where('type', 'client_signature')->first();
-    }
-    protected $appends = ['is_fully_signed'];
+    // Extract number part
+    $number = (int) str_replace('INV-', '', $latest);
 
-    public function getIsFullySignedAttribute()
-    {
-        return $this->adminSignature() && $this->clientSignature();
-    }
+    $number++;
+
+    return "INV-" . str_pad($number, 3, '0', STR_PAD_LEFT);
+}
 }
