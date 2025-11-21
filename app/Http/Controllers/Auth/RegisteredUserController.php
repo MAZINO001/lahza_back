@@ -46,7 +46,7 @@ class RegisteredUserController extends Controller
             case 'team':
                 $rules = array_merge($rules, [
                     'poste' => 'required|string|max:255',
-                    'team_id' => 'nullable|exists:teams,id',
+                    'department' => 'required|string|max:255',
                 ]);
                 break;
 
@@ -76,7 +76,7 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => 'client', // default role
+            'role' => $request->user_type, // default role
             'user_type' => $request->user_type,
             'status' => 'active',
         ]);
@@ -109,8 +109,8 @@ class RegisteredUserController extends Controller
 
             case 'team':
                 TeamUser::create([
-                    'team_id' => $request->team_id ?? 1,
                     'user_id' => $user->id,
+                    'department' => $request->department,
                     'poste' => $request->poste,
                 ]);
                 DB::table('user_permissions')->insert([
