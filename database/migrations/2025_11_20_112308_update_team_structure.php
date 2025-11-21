@@ -62,9 +62,9 @@ return new class extends Migration
         // Re-add foreign key constraint
         Schema::table('team_users', function (Blueprint $table) {
             $table->foreign('team_id')
-                  ->references('id')
-                  ->on('teams')
-                  ->onDelete('cascade');
+                ->references('id')
+                ->on('teams')
+                ->onDelete('cascade');
         });
     }
 };

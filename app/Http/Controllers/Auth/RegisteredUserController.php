@@ -72,11 +72,17 @@ class RegisteredUserController extends Controller
 
         $request->validate($rules);
 
+        $role = match ($request->user_type) {
+            'client' => 'client',
+            // 'team', 'intern', 'other' => 'member',
+            'team', 'intern', 'other' => 'admin',
+        };
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => $request->user_type, // default role
+            'role' => $role,
             'user_type' => $request->user_type,
             'status' => 'active',
         ]);

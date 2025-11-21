@@ -46,7 +46,7 @@ class QuotesController extends Controller
             // Generate the next quote number
             $latestQuote = Quotes::latest('id')->first();
             $nextNumber = $latestQuote ? $latestQuote->id + 1 : 1;
-            $quoteNumber = 'Quote-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+            $quoteNumber = 'QUOTE-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
             // Create the quote
             $quote = Quotes::create([
                 'client_id' => $validated['client_id'],

@@ -623,24 +623,18 @@
                     consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/
                 </div>
             </div>
-            @if ($type === 'invoice')
-                <div class="signatures">
-                    <div class="admin_sign">
-                        @if ($adminSignatureBase64)
-                            <img src="{{ $adminSignatureBase64 }}" alt="Admin Signature" style="width:200px;">
-                        @else
-                            <span>No admin signature</span>
-                        @endif
-                    </div>
-                    <div class="client_sign">
-                        @if ($clientSignatureBase64)
-                            <img src="{{ $clientSignatureBase64 }}" alt="Client Signature" style="width:200px;">
-                        @else
-                            <span>No client signature</span>
-                        @endif
-                    </div>
+            <div class="signatures">
+                <div class="admin_sign">
+                    @if ($adminSignatureBase64)
+                        <img src="{{ $adminSignatureBase64 }}" alt="Admin Signature" style="width:200px;">
+                    @endif
                 </div>
-            @endif
+                <div class="client_sign">
+                    @if ($clientSignatureBase64)
+                        <img src="{{ $clientSignatureBase64 }}" alt="Client Signature" style="width:200px;">
+                    @endif
+                </div>
+            </div>
         </div>
     </div>
 </body>
