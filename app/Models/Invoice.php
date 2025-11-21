@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Invoice extends Model
 {
@@ -53,19 +54,20 @@ class Invoice extends Model
     }
 
     // Extract number part
-    $number = (int) str_replace('INV-', '', $latest);
+function generateInvoiceNumber()
+    {$number = (int) str_replace('INV-', '', $latest);
 
-    $number++;
+        $number++;
+        
+        return "INV-" . str_pad($number, 3, '0', STR_PAD_LEFT);
+    }
     
-    return "INV-" . str_pad($number, 3, '0', STR_PAD_LEFT);
-    
-}
 
 
-
-
-public function payment()
+    public function payment()
 {
     return $this->belongsTo(Payment::class);
 }
+
+
 }
