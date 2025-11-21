@@ -14,6 +14,7 @@ use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\SignatureController;
 use Illuminate\Http\Request;
 use App\Http\Controllers\csvController;
+use App\Http\Controllers\PaymentController;
 
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
@@ -52,14 +53,23 @@ Route::middleware(['auth:sanctum',   'role:admin,client'])->group(function () {
     Route::apiResource('quotes', QuotesController::class);
     Route::apiResource('invoices', InvoicesController::class);
     Route::apiResource('services', ServicesController::class);
+
+
+
+    
+
+    Route::post('/invoices/{id}/send-email', [EmailController::class, 'sendInvoice']);
+    Route::post('/quotes/{id}/send-email', [EmailController::class, 'sendQuote']);
+    
+    Route::post('/uploadClients',[csvController::class,'uploadClients']);
+    Route::post('/uploadInvoices',[csvController::class,'uploadInvoices']);
+    Route::post('/uploadServices',[csvController::class,'uploadServices']);
+
 });
 
-Route::post('/email/send', [EmailController::class, 'sendEmail']);
 
 
-Route::post('/invoices/{id}/send-email', [EmailController::class, 'sendInvoice']);
-Route::post('/quotes/{id}/send-email', [EmailController::class, 'sendQuote']);
+// unauthorized routes 
+Route::post('/quotes/{quote}/pay', [PaymentController::class, 'createPaymentLink']);
+Route::post('/stripe/webhook', [PaymentController::class, 'handleWebhook']);
 
-Route::post('/uploadClients', [csvController::class, 'uploadClients']);
-Route::post('/uploadInvoices', [csvController::class, 'uploadInvoices']);
-Route::post('/uploadServices', [csvController::class, 'uploadServices']);
