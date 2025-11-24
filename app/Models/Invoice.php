@@ -53,21 +53,12 @@ class Invoice extends Model
         return $this->files()->where('type', 'admin_signature')->first();
     }
 
-    // Extract number part
-function generateInvoiceNumber()
-    {$number = (int) str_replace('INV-', '', $latest);
-
-        $number++;
-        
-        return "INV-" . str_pad($number, 3, '0', STR_PAD_LEFT);
+    public function clientSignature()
+    {
+        return $this->files()->where('type', 'client_signature')->first();
     }
-    
-
-
     public function payment()
-{
-    return $this->belongsTo(Payment::class);
-}
-
-
+    {
+        return $this->belongsTo(Payment::class);
+    }
 }

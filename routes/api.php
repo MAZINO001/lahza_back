@@ -53,24 +53,19 @@ Route::middleware(['auth:sanctum',   'role:admin,client'])->group(function () {
     Route::apiResource('quotes', QuotesController::class);
     Route::post('quotes/{quote}/create-invoice', [QuotesController::class, 'createInvoiceFromQuote']);
     Route::apiResource('invoices', InvoicesController::class);
-    Route::apiResource('services', ServicesController::class);
 
 
 
-    
 
-    Route::post('/invoices/{id}/send-email', [EmailController::class, 'sendInvoice']);
-    Route::post('/quotes/{id}/send-email', [EmailController::class, 'sendQuote']);
-    
-    Route::post('/uploadClients',[csvController::class,'uploadClients']);
-    Route::post('/uploadInvoices',[csvController::class,'uploadInvoices']);
-    Route::post('/uploadServices',[csvController::class,'uploadServices']);
-
+    Route::post('/uploadClients', [csvController::class, 'uploadClients']);
+    Route::post('/uploadInvoices', [csvController::class, 'uploadInvoices']);
+    Route::post('/uploadServices', [csvController::class, 'uploadServices']);
 });
 
+Route::apiResource('services', ServicesController::class);
+Route::post('/email/send', [EmailController::class, 'sendEmail']);
 
 
-// unauthorized routes 
+// unauthorized routes
 Route::post('/quotes/{quote}/pay', [PaymentController::class, 'createPaymentLink']);
 Route::post('/stripe/webhook', [PaymentController::class, 'handleWebhook']);
-
