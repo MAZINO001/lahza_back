@@ -11,7 +11,7 @@ class File extends Model
     protected $fillable = ['path', 'type', 'user_id', 'fileable_id', 'fileable_type'];
     protected $appends = ['url'];
 
-    public function user()
+    public function user() 
     {
         return $this->belongsTo(User::class);
     }
