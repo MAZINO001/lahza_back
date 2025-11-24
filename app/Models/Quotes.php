@@ -47,7 +47,6 @@ class Quotes extends Model
     {
         return $this->hasMany(Quotes_service::class, 'quote_id');
     }
-    // ro check if the quote is singed from both parties
     protected $appends = ['is_fully_signed'];
 
     public function getIsFullySignedAttribute()
