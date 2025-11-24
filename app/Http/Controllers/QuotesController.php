@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Quotes_service;
 use App\Models\Service;
-
+use App\Models\Invoice;
 class QuotesController extends Controller
 {
     // GET /api/Quotes
@@ -79,6 +79,92 @@ class QuotesController extends Controller
     {
         $quote = Quotes::with('quoteServices')->findOrFail($id);
         return response()->json($quote);
+    }
+
+    // GET /api/quotes/{id}/services
+    public function quoteServices(Quotes $quote)
+    {
+        $quote->load('quoteServices.service');
+        return response()->json($quote);
+    }
+
+    /**
+     * Create an invoice from a signed quote
+     * 
+     * @param int $id Quote ID
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function createInvoiceFromQuote($id)
+    {
+        $quote = Quotes::with(['quoteServices', 'client'])->findOrFail($id);
+        
+        // Check if quote has both signatures
+        if (!$quote->adminSignature() || !$quote->clientSignature()) {
+            return response()->json([
+                'message' => 'Cannot create invoice: Quote is not fully signed by both parties'
+            ], 422);
+        }
+
+        // Check if an invoice already exists for this quote
+        if ($quote->invoice) {
+            return response()->json([
+                'message' => 'An invoice already exists for this quote',
+                'invoice_id' => $quote->invoice->id
+            ], 409);
+        }
+
+        return DB::transaction(function () use ($quote) {
+            // Generate the next invoice number
+            $latestInvoice = \App\Models\Invoice::latest('id')->first();
+            $nextNumber = $latestInvoice ? $latestInvoice->id + 1 : 1;
+            $invoiceNumber = 'INVOICE-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+
+            // Calculate due date (30 days from now)
+            $invoiceDate = now();
+            $dueDate = now()->addDays(30);
+
+            // Generate a checksum for the invoice
+            $checksumData = [
+                'client_id' => $quote->client_id,
+                'quote_id' => $quote->id,
+                'invoice_number' => $invoiceNumber,
+                'total_amount' => $quote->total_amount,
+            ];
+            
+            $checksum = hash('sha256', json_encode($checksumData) . config('app.key'));
+
+            // Create the invoice
+            $invoice = Invoice::create([
+                'client_id' => $quote->client_id,
+                'quote_id' => $quote->id,
+                'invoice_number' => $invoiceNumber,
+                'invoice_date' => $invoiceDate,
+                'due_date' => $dueDate,
+                'status' => 'unpaid',
+                'notes' => 'Created from quote #' . $quote->quote_number,
+                'total_amount' => $quote->total_amount,
+                'balance_due' => $quote->total_amount,
+                'checksum' => $checksum,
+            ]);
+
+            // Add services to the invoice
+            foreach ($quote->quoteServices as $quoteService) {
+                $invoice->services()->attach($quoteService->service_id, [
+                    'invoice_id' => $invoice->id,
+                    'service_id' => $quoteService->service_id,
+                    'quantity' => $quoteService->quantity,
+                    'tax' => $quoteService->tax,
+                    'individual_total' => $quoteService->individual_total,
+                ]);
+            }
+
+           
+
+            return response()->json([
+                'message' => 'Invoice created successfully',
+                'invoice' => $invoice->load('services')
+            ], 201);
+        });
     }
 
     // PUT /api/quotes/{id}

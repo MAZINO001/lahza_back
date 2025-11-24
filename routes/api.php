@@ -51,6 +51,7 @@ Route::middleware(['auth:sanctum',   'role:admin,client'])->group(function () {
     Route::delete('/{model}/{id}/signature', [SignatureController::class, 'destroy'])
         ->where('model', 'invoices|quotes');
     Route::apiResource('quotes', QuotesController::class);
+    Route::post('quotes/{quote}/create-invoice', [QuotesController::class, 'createInvoiceFromQuote']);
     Route::apiResource('invoices', InvoicesController::class);
     Route::apiResource('services', ServicesController::class);
 
