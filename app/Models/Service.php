@@ -9,8 +9,11 @@ class Service extends Model
     protected $fillable = [
         'name',
         'description',
-        'base_Price',
+        'base_price',
+        'tax_rate',
+        "status"
     ];
+
 
     public function quotes()
     {
