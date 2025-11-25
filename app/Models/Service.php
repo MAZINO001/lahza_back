@@ -21,4 +21,8 @@ class Service extends Model
             ->withPivot(['quantity', 'tax', 'individual_total'])
             ->withTimestamps();
     }
+    public function offers()
+    {
+        return $this->hasMany(Offer::class);
+    }
 }

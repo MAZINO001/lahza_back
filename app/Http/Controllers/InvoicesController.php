@@ -15,6 +15,11 @@ class InvoicesController extends Controller
     {
         $invoices = Invoice::with(['invoiceServices', 'client.user:id,name'])->get();
         $allServices = Service::all();
+        
+        // Add admin signature URL to each invoice
+        $invoices->each(function($invoice) {
+            $invoice->admin_signature_url = asset('images/admin_signature.png');
+        });
 
         return response()->json([
             "invoices"  => $invoices,
@@ -67,6 +72,8 @@ class InvoicesController extends Controller
                     ]);
                 }
             }
+            // Add admin signature URL to the response
+            $invoice->admin_signature_url = asset('images/admin_signature.png');
             return response()->json([$invoice->load("invoiceServices"), 'invoice_id' => $invoice->id], 201);
         });
     }
@@ -74,6 +81,9 @@ class InvoicesController extends Controller
     public function show($id)
     {
         $invoice = Invoice::with(['invoiceServices', 'client.user:id,name'])->findOrFail($id);
+        // Add admin signature URL to the response
+        $invoice->admin_signature_url = asset('images/admin_signature.png');
+        
         return response()->json($invoice);
     }
 
