@@ -45,7 +45,7 @@ class PaymentController extends Controller
         $payment = Payment::create([
             'quote_id' => $quote->id,
             'amount' => $quote->total_amount,
-            'currency' => 'usd',
+            'currency' => 'test',
             'stripe_session_id' => $session->id,
             'status' => 'pending'
         ]);
