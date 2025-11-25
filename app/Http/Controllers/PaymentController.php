@@ -15,44 +15,94 @@ class PaymentController extends Controller
 {
     public function createPaymentLink(Request $request, $quoteId)
     {
-        $quote = Quotes::findOrFail($quoteId);
-
-        // Initialize Stripe
-        Stripe::setApiKey(env('STRIPE_SECRET'));
-
-        // Create Stripe Checkout Session
-        $session = Session::create([
-            'payment_method_types' => ['card'],
-            'line_items' => [[
-                'price_data' => [
-                    'currency' => 'usd',
-                    'unit_amount' => $quote->total_amount * 100,
-                    'product_data' => [
-                        'name' => "Quote #{$quote->id}"
-                    ]
-                ],
-                'quantity' => 1
-            ]],
-            'mode' => 'payment',
-            'metadata' => [
-                'quote_id' => $quote->id
-            ],
-            'success_url' => url('/payment-success'),
-            'cancel_url' => url('/payment-cancel')
-        ]);
-
-        // Save payment in DB
-        $payment = Payment::create([
+        $quote = Quotes::with('client')->findOrFail($quoteId);
+        $client = $quote->client;
+        
+        // Check if client is from Morocco
+        $isMoroccanClient = strtolower($client->country) === 'morocco' || 
+            strtolower($client->country) === 'maroc' || 
+            strtolower($client->country) === 'ma' ||
+            strtolower($client->country) === 'mar';
+        
+        // Calculate half of the total amount for advance payment
+        $halfAmount = $quote->total_amount / 2;
+        
+        // Default payment method based on client's country
+        $paymentMethod = $isMoroccanClient ? 'banc' : 'stripe';
+        
+        $paymentData = [
             'quote_id' => $quote->id,
-            'amount' => $quote->total_amount,
-            'currency' => 'test',
-            'stripe_session_id' => $session->id,
-            'status' => 'pending'
-        ]);
-
-        return response()->json([
-            'payment_url' => $session->url
-        ]);
+            'client_id' => $client->id,
+            'total' => $quote->total_amount, 
+            'amount' => $halfAmount,
+            'total_amount' => $quote->total_amount,
+            'currency' => 'usd',
+            'payment_method' => $paymentMethod,
+            'status' => $isMoroccanClient ? 'pending' : 'pending_stripe'
+        ];
+        
+        if (!$isMoroccanClient) {
+            // Initialize Stripe for non-Moroccan clients
+            Stripe::setApiKey(env('STRIPE_SECRET'));
+            
+            // Create Stripe Checkout Session
+            $session = Session::create([
+                'payment_method_types' => ['card'],
+                'line_items' => [[
+                    'price_data' => [
+                        'currency' => 'usd',
+                    'unit_amount' => $quote->total_amount * 100,
+                        'product_data' => [
+                            'name' => "Advance Payment for Quote #{$quote->id}",
+                            'description' => '50% advance payment (remaining 50% due upon completion)'
+                        ]
+                    ],
+                    'quantity' => 1
+                ]],
+                'mode' => 'payment',
+                'metadata' => [
+                    'quote_id' => $quote->id,
+                    'client_id' => $client->id,
+                    'total_amount' => $quote->total_amount,
+                    'is_advance_payment' => true
+                ],
+                'success_url' => url('/payment-success?session_id={CHECKOUT_SESSION_ID}'),
+                'cancel_url' => url('/payment-cancel')
+            ]);
+            
+            // Add Stripe specific data
+            $paymentData['stripe_session_id'] = $session->id;
+            $paymentData['stripe_payment_intent_id'] = $session->payment_intent;
+        }
+        
+        // Save payment in DB
+        $payment = Payment::create($paymentData);
+        
+        $response = [
+            'payment_method' => $paymentMethod,
+            'amount' => $halfAmount,
+            'total_amount' => $quote->total_amount,
+            'is_advance_payment' => true
+        ];
+        
+        if (!$isMoroccanClient) {
+            $response['payment_url'] = $session->url;
+            // Here you would typically send an email with Stripe payment details
+            // Mail::to($client->email)->send(new StripePaymentLinkCreated($payment, $session->url));
+        } else {
+            // Here you would typically send an email with bank transfer instructions
+            // Mail::to($client->email)->send(new BankTransferInstructions($payment));
+              $response['bank_info'] = [
+        'bank_name' => 'YOUR_BANK_NAME',
+        'account_holder' => 'YOUR_COMPANY_NAME',
+        'rib' => 'YOUR_RIB_NUMBER',
+        'swift_code' => 'YOUR_SWIFT_CODE',
+        'iban' => 'YOUR_IBAN',
+        'reference' => 'PAY-' . $payment->id . '-' . $payment->quote_id
+    ];
+        }
+        
+        return response()->json($response);
     }
 
      public function handleWebhook(Request $request)
