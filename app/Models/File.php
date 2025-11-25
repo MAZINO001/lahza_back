@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use App\Traits\LogsActivity;
 
 class File extends Model
 {
-    protected $fillable = ['path', 'type', 'user_id', 'fileable_id', 'fileable_type'];
+        use LogsActivity;
+protected $fillable = ['path', 'type', 'user_id', 'fileable_id', 'fileable_type'];
     protected $appends = ['url'];
 
     public function user()

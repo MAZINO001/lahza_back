@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Quotes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use App\Models\Quotes_service;
 use App\Models\Service;
 use App\Models\Invoice;
@@ -97,7 +98,11 @@ class QuotesController extends Controller
     public function createInvoiceFromQuote($id)
     {
         $quote = Quotes::with(['quoteServices', 'client'])->findOrFail($id);
-        
+          
+        $quote->update([
+                'status' => 'signed',
+            ]);
+
         // Check if quote has both signatures
         if (!$quote->adminSignature() || !$quote->clientSignature()) {
             return response()->json([
@@ -115,7 +120,7 @@ class QuotesController extends Controller
 
         return DB::transaction(function () use ($quote) {
             // Generate the next invoice number
-            $latestInvoice = \App\Models\Invoice::latest('id')->first();
+            $latestInvoice = Invoice::latest('id')->first();
             $nextNumber = $latestInvoice ? $latestInvoice->id + 1 : 1;
             $invoiceNumber = 'INVOICE-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
 
@@ -157,12 +162,39 @@ class QuotesController extends Controller
                     'individual_total' => $quoteService->individual_total,
                 ]);
             }
+            
+            // Save the invoice
+            $invoice->save();
 
-           
+            // Generate payment link
+            $paymentController = app(\App\Http\Controllers\PaymentController::class);
+            $paymentResponse = $paymentController->createPaymentLink(new \Illuminate\Http\Request(), $quote->id);
+            $paymentData = json_decode($paymentResponse->getContent(), true);
+            $paymentUrl = $paymentData['payment_url'] ?? null;
+            $bankInfo = $paymentData['bank_info'] ?? null;
+            
+            // Get the payment record that was just created
+            $payment = \App\Models\Payment::where('quote_id', $quote->id)->latest()->first();
+
+            // Send email notification
+            $email = 'mangaka.wir@gmail.com';
+            $data = [
+                'quote' => $quote,
+                'invoice' => $invoice,
+                'client' => $quote->client,
+                'paymentUrl' => $paymentUrl,
+                'bankInfo' => $bankInfo,
+                'payment' => $payment
+            ];
+            
+            Mail::send('emails.invoice_created', $data, function($message) use ($email, $invoice) {
+                $message->to($email)
+                        ->subject('New Invoice Created - ' . $invoice->invoice_number);
+            });
 
             return response()->json([
-                'message' => 'Invoice created successfully',
-                'invoice' => $invoice->load('services')
+                'message' => 'Invoice created successfully and notification email sent',
+                'invoice' => $invoice
             ], 201);
         });
     }
