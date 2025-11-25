@@ -13,7 +13,14 @@ return new class extends Migration
     {
         Schema::create('offers', function (Blueprint $table) {
             $table->id();
-            
+            $table->foreignId('service_id')->constrained()->onDelete('cascade');
+            $table->string('title');
+            $table->text('description')->nullable();
+            $table->enum('discount_type', ['percent', 'fixed']);
+            $table->decimal('discount_value', 10, 2);
+            $table->dateTime('start_date');
+            $table->dateTime('end_date');
+            $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
         });
     }

@@ -15,6 +15,11 @@ class QuotesController extends Controller
     {
         $quotes = Quotes::with(['quoteServices', 'client.user:id,name'])->get();
         $allServices = Service::all();
+        
+        // Add admin signature URL to each quote
+        $quotes->each(function($quote) {
+            $quote->admin_signature_url = asset('images/admin_signature.png');
+        });
 
         return response()->json([
             'quotes' => $quotes,
@@ -70,7 +75,11 @@ class QuotesController extends Controller
                 }
             }
 
-            return response()->json([$quote->load('quoteServices'), 'quote_id' => $quote->id], 201);
+            $quote->load('quoteServices');
+            // Add admin signature URL to the response
+            $quote->admin_signature_url = asset('images/admin_signature.png');
+            
+            return response()->json([$quote, 'quote_id' => $quote->id], 201);
         });
     }
 
@@ -78,6 +87,10 @@ class QuotesController extends Controller
     public function show($id)
     {
         $quote = Quotes::with('quoteServices')->findOrFail($id);
+        
+        // Add admin signature URL to the response
+        $quote->admin_signature_url = asset('images/admin_signature.png');
+        
         return response()->json($quote);
     }
 
@@ -85,6 +98,9 @@ class QuotesController extends Controller
     public function quoteServices(Quotes $quote)
     {
         $quote->load('quoteServices.service');
+        // Add admin signature URL to the response
+        $quote->admin_signature_url = asset('images/admin_signature.png');
+        
         return response()->json($quote);
     }
 

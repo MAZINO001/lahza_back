@@ -14,6 +14,7 @@ use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\SignatureController;
 use Illuminate\Http\Request;
 use App\Http\Controllers\csvController;
+use App\Http\Controllers\OfferController;
 use App\Http\Controllers\PaymentController;
 
 Route::post('/register', [RegisteredUserController::class, 'store']);
@@ -50,9 +51,7 @@ Route::middleware(['auth:sanctum',   'role:admin,client'])->group(function () {
         ->where('model', 'invoices|quotes');
     Route::delete('/{model}/{id}/signature', [SignatureController::class, 'destroy'])
         ->where('model', 'invoices|quotes');
-    Route::apiResource('quotes', QuotesController::class);
     Route::post('quotes/{quote}/create-invoice', [QuotesController::class, 'createInvoiceFromQuote']);
-    Route::apiResource('invoices', InvoicesController::class);
 
 
 
@@ -61,8 +60,10 @@ Route::middleware(['auth:sanctum',   'role:admin,client'])->group(function () {
     Route::post('/uploadInvoices', [csvController::class, 'uploadInvoices']);
     Route::post('/uploadServices', [csvController::class, 'uploadServices']);
 });
-
+Route::apiResource('invoices', InvoicesController::class);
+Route::apiResource('quotes', QuotesController::class);
 Route::apiResource('services', ServicesController::class);
+Route::apiResource('offers', OfferController::class);
 Route::post('/email/send', [EmailController::class, 'sendEmail']);
 
 
