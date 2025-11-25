@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\LogsActivity;
 
 class Quotes_service extends Model
 {
+    use LogsActivity;
     protected $table = 'quotes_services';
 
     protected $fillable = [

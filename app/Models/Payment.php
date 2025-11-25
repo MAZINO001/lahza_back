@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\Quotes;
 use App\Models\User;
 use App\Models\Invoice; 
+use App\Traits\LogsActivity;
 class Payment extends Model
 {
     use HasFactory;
-
+    use LogsActivity;
     protected $fillable = [
         'quote_id',
         'user_id',
