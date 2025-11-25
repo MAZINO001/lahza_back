@@ -4,9 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
-
+use App\Traits\LogsActivity;
 class Invoice extends Model
 {
+    use LogsActivity;
     protected $fillable = [
         'client_id',
         'quote_id',

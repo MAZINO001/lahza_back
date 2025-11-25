@@ -5,11 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable; // important for auth
 use Illuminate\Notifications\Notifiable;
+use App\Traits\LogsActivity;
 
 class User extends Authenticatable
 {
     use HasFactory, Notifiable;
-
+    use LogsActivity;
     public function clients()
     {
         return $this->hasMany(Client::class);
@@ -65,10 +66,6 @@ class User extends Authenticatable
         return $this->teamUser ? $this->teamUser->poste : null;
     }
 
-    public function histories()
-    {
-        return $this->hasMany(History::class);
-    }
 
     public function files()
     {

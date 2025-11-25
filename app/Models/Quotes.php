@@ -3,9 +3,10 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-
+use App\Traits\LogsActivity;
 class Quotes extends Model
 {
+    use LogsActivity;
     protected $fillable = [
         'client_id',
         'quotation_date',

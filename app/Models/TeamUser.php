@@ -3,9 +3,10 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-
+use App\Traits\LogsActivity;
 class TeamUser extends Model
 {
+    use LogsActivity;
     /**
      * The table associated with the model.
      *
