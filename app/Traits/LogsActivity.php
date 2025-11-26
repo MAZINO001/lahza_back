@@ -40,8 +40,8 @@ trait LogsActivity
             'model_id'    => $this->id,
             'action'      => $action,
             'old_values'  => $action === 'updated' || $action === 'deleted'
-                                ? $this->getOriginal()
-                                : null,
+                ? $this->getOriginal()
+                : null,
             'new_values'  => $this->getAttributes(),
             'ip_address'  => request()->ip(),
             'user_agent'  => request()->userAgent(),
