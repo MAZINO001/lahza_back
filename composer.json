@@ -14,6 +14,7 @@
         "barryvdh/laravel-snappy": "^1.0",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.2",
+        "laravel/telescope": "^5.15",
         "laravel/tinker": "^2.10.1",
         "maatwebsite/excel": "^1.1",
         "stripe/stripe-php": "^19.0"

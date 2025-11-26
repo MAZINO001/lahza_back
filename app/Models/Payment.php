@@ -13,13 +13,15 @@ class Payment extends Model
     use HasFactory;
     use LogsActivity;
     protected $fillable = [
-        'quote_id',
-        'user_id',
+         'quote_id',
+        'client_id',
         'stripe_session_id',
         'stripe_payment_intent_id',
+        'total',
         'amount',
         'currency',
-        'status'
+        'status',
+        'payment_method'
     ];
 
     // Relationships

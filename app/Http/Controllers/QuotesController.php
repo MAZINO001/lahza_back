@@ -5,16 +5,24 @@ namespace App\Http\Controllers;
 use App\Models\Quotes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use App\Models\Quotes_service;
 use App\Models\Service;
 use App\Models\Invoice;
+use App\Services\PaymentServiceInterface;
+use Illuminate\Support\Facades\Mail;
+
 class QuotesController extends Controller
 {
+    protected $paymentService;
+
+    public function __construct(PaymentServiceInterface $paymentService)
+    {
+        $this->paymentService = $paymentService;
+    }
     // GET /api/Quotes
     public function index()
     {
-        $quotes = Quotes::with(['quoteServices', 'client.user:id,name'])->get();
+        $quotes = Quotes::with(['quoteServices', 'client.user:id,name,email'])->get();
         $allServices = Service::all();
         
         // Add admin signature URL to each quote
@@ -76,6 +84,7 @@ class QuotesController extends Controller
                 }
             }
 
+            return response()->json([$quote->load('quoteServices'), 'quote_id' => $quote->id], 201);
             $quote->load('quoteServices');
             // Add admin signature URL to the response
             $quote->admin_signature_url = asset('images/admin_signature.png');
@@ -114,15 +123,11 @@ class QuotesController extends Controller
     public function createInvoiceFromQuote($id)
     {
         $quote = Quotes::with(['quoteServices', 'client'])->findOrFail($id);
-          
-        $quote->update([
-                'status' => 'signed',
-            ]);
 
         // Check if quote has both signatures
-        if (!$quote->adminSignature() || !$quote->clientSignature()) {
+        if (!$quote->clientSignature()) {
             return response()->json([
-                'message' => 'Cannot create invoice: Quote is not fully signed by both parties'
+                'message' => 'Cannot create invoice: Quote is not fully signed by client partie'
             ], 422);
         }
 
@@ -150,9 +155,12 @@ class QuotesController extends Controller
                 'quote_id' => $quote->id,
                 'invoice_number' => $invoiceNumber,
                 'total_amount' => $quote->total_amount,
+                'due_date' => $dueDate,
+                'invoice_date' => $invoiceDate,
+                'balance_due' => $quote->total_amount,
+                
             ];
-            
-            $checksum = hash('sha256', json_encode($checksumData) . config('app.key'));
+            $checksum = md5(json_encode($checksumData) );
 
             // Create the invoice
             $invoice = Invoice::create([
@@ -179,40 +187,32 @@ class QuotesController extends Controller
                 ]);
             }
             
-            // Save the invoice
-            $invoice->save();
-
-            // Generate payment link
-            $paymentController = app(\App\Http\Controllers\PaymentController::class);
-            $paymentResponse = $paymentController->createPaymentLink(new \Illuminate\Http\Request(), $quote->id);
-            $paymentData = json_decode($paymentResponse->getContent(), true);
-            $paymentUrl = $paymentData['payment_url'] ?? null;
-            $bankInfo = $paymentData['bank_info'] ?? null;
             
-            // Get the payment record that was just created
-            $payment = \App\Models\Payment::where('quote_id', $quote->id)->latest()->first();
-
-            // Send email notification
-            $email = 'mangaka.wir@gmail.com';
+            $response = $this->paymentService->createPaymentLink($quote);
+        
+ $email = 'mangaka.wir@gmail.com';
             $data = [
                 'quote' => $quote,
                 'invoice' => $invoice,
                 'client' => $quote->client,
-                'paymentUrl' => $paymentUrl,
-                'bankInfo' => $bankInfo,
-                'payment' => $payment
+                'payment_url' => $response['payment_url'],
+                'bank_info' => $response['bank_info'],
+                'payment_method' => $response['payment_method'],       // string: 'stripe' or 'banc'
             ];
-            
-            Mail::send('emails.invoice_created', $data, function($message) use ($email, $invoice) {
+
+
+
+ Mail::send('emails.invoice_created', $data, function($message) use ($email, $invoice) {
                 $message->to($email)
                         ->subject('New Invoice Created - ' . $invoice->invoice_number);
             });
 
             return response()->json([
-                'message' => 'Invoice created successfully and notification email sent',
-                'invoice' => $invoice
+                'message' => 'Invoice created successfully',
+                'invoice' => $invoice->load('services'),
+                'payment' => $response['payment_method']
             ], 201);
-        });
+                });
     }
 
     // PUT /api/quotes/{id}
@@ -235,7 +235,6 @@ class QuotesController extends Controller
 
 
         $quote->update($validated);
-
         // Update pivot table if services provided
         if (!empty($validated['services'])) {
             // Delete old pivot entries

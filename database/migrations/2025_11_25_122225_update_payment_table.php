@@ -9,25 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('payments', function (Blueprint $table) {
-            // Drop foreign key first if it exists
-            $sm = Schema::getConnection()->getDoctrineSchemaManager();
-            $doctrineTable = $sm->listTableDetails('payments');
+            // Drop foreign key if it exists
+            $table->dropForeign(['user_id']); // Laravel will find it by column name
 
-            if ($doctrineTable->hasForeignKey('payments_user_id_foreign')) {
-                $table->dropForeign('payments_user_id_foreign');
-            }
-
-            // Drop old user_id column
-            if (Schema::hasColumn('payments', 'user_id')) {
-                $table->dropColumn('user_id');
-            }
-
-            // Add client_id if not exists
-            if (!Schema::hasColumn('payments', 'client_id')) {
-                $table->unsignedBigInteger('client_id')->after('quote_id');
-                // Optional foreign key
-                $table->foreign('client_id')->references('id')->on('users')->onDelete('cascade');
-            }
+            // Rename user_id to client_id
+            $table->renameColumn('user_id', 'client_id');
 
             // Add total column if missing
             if (!Schema::hasColumn('payments', 'total')) {
@@ -39,28 +25,16 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('payments', function (Blueprint $table) {
-            // Drop client_id foreign key first
-            $sm = Schema::getConnection()->getDoctrineSchemaManager();
-            $doctrineTable = $sm->listTableDetails('payments');
-
-            if ($doctrineTable->hasForeignKey('payments_client_id_foreign')) {
-                $table->dropForeign('payments_client_id_foreign');
-            }
-
-            // Restore user_id
-            if (!Schema::hasColumn('payments', 'user_id')) {
-                $table->unsignedBigInteger('user_id')->nullable()->after('quote_id');
-            }
-
-            // Drop client_id
-            if (Schema::hasColumn('payments', 'client_id')) {
-                $table->dropColumn('client_id');
-            }
-
-            // Drop total
+            // Drop total column
             if (Schema::hasColumn('payments', 'total')) {
                 $table->dropColumn('total');
             }
+
+            // Rename client_id back to user_id
+            $table->renameColumn('client_id', 'user_id');
+
+            // Optional: re-add foreign key if needed
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 };
