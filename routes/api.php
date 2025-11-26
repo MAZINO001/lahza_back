@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\ClientImportExportController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\LogsActivityController;
 use App\Http\Controllers\InvoicesController;
 use Illuminate\Support\Facades\Route; // <-- FIXED
 use App\Models\User;
@@ -16,12 +17,14 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\csvController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\PaymentController;
+use App\Traits\LogsActivity;
 
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->middleware('auth:sanctum');
 Route::get('/export', [ClientImportExportController::class, 'export']);
 Route::post('/import', [ClientImportExportController::class, 'import']);
+
 
 // routes for admin only
 Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
@@ -70,3 +73,6 @@ Route::post('/email/send', [EmailController::class, 'sendEmail']);
 // unauthorized routes
 Route::post('/quotes/{quote}/pay', [PaymentController::class, 'createPaymentLink']);
 Route::post('/stripe/webhook', [PaymentController::class, 'handleWebhook']);
+
+
+Route::get('logs', [LogsActivityController::class, 'index']);

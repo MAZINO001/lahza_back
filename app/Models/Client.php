@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
+
 class Client extends Model
 {
     use LogsActivity;
@@ -30,7 +31,7 @@ class Client extends Model
     {
         return $this->hasMany(Quotes::class);
     }
-public function invoices()
+    public function invoices()
     {
         return $this->hasMany(Invoice::class, 'customer_id');
     }

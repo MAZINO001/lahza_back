@@ -11,18 +11,19 @@ use App\Models\Service;
 
 class csvController extends Controller
 {
-    public function uploadClients (Request $request ){
-     // Validate file 
+    public function uploadClients(Request $request)
+    {
+
         $request->validate([
             'file' => 'required|mimes:csv,txt',
         ]);
 
         $file = $request->file('file');
 
-        // Read CSV
+
         $rows = array_map('str_getcsv', file($file->getRealPath()));
         $header = array_map('trim', $rows[0]);
-        unset($rows[0]); // remove header
+        unset($rows[0]);
 
         $created = 0;
         $skipped = 0;
@@ -30,27 +31,26 @@ class csvController extends Controller
         foreach ($rows as $row) {
 
             if (count($row) !== count($header)) {
-                continue; // skip malformed rows
+                continue;
             }
 
             $data = array_combine($header, $row);
 
-            // ---- 1️⃣ CREATE USER ----
-            // If email exists, skip to avoid duplicates
+
             if (User::where('email', $data['email'])->exists()) {
                 $skipped++;
                 continue;
             }
 
             $user = User::create([
-                'name'      => $data['name'] ?? $data['company'], // fallback
+                'name'      => $data['name'] ?? $data['company'],
                 'email'     => $data['email'],
                 'password'  => Hash::make("lahzaapp2025"),
                 'role'      => 'client',
                 'user_type' => 'client',
             ]);
 
-            // ---- 2️⃣ CREATE CLIENT ----
+
             Client::create([
                 'user_id'        => $user->id,
                 'client_number'  => $data['client_number'] ?? null,
@@ -76,122 +76,123 @@ class csvController extends Controller
         ]);
     }
 
-   public function uploadInvoices(Request $request)
-{
-    $request->validate([
-        'file' => 'required|mimes:csv,txt',
-    ]);
-
-    $file = $request->file('file');
-
-    // Read CSV
-    $rows = array_map('str_getcsv', file($file->getRealPath()));
-    $header = array_map('trim', array_shift($rows));
-
-    $inserted = 0;
-    $skipped = 0;
-
-    foreach ($rows as $row) {
-        $rowData = array_combine($header, $row);
-
-        // Create checksum for this row
-        $checksum = md5(json_encode([
-            $rowData['invoice_number'] ?? '',
-            $rowData['invoice_date'] ?? '',
-            $rowData['due_date'] ?? '',
-            $rowData['total_amount'] ?? 0,
-            $rowData['balance_due'] ?? 0,
-            $rowData['notes'] ?? '',
-        ]));
-
-        // Check if this row already exists
-        if (Invoice::where('checksum', $checksum)->exists()) {
-            $skipped++;
-            continue; // skip only this row
-        }
-
-        $newInvoiceNumber = Invoice::generateInvoiceNumber();
- 
-
-        Invoice::create([
-            'client_id'      => null,
-            'quote_id'       => null,
-            'invoice_number' => $newInvoiceNumber,
-            'invoice_date'   => $rowData['invoice_date'] ?? now(),
-            'due_date'       => $rowData['due_date'] ?? now()->addDays(30),
-            'status'         => $rowData['status'] ?? 'unpaid',
-            'notes'          => $rowData['notes'] ?? null,
-            'total_amount'   => $rowData['total_amount'] ?? 0,
-            'balance_due'    => $rowData['balance_due'] ?? 0,
-            'checksum'       => $checksum,
-            'created_at'     => now(),
-            'updated_at'     => now(),
+    public function uploadInvoices(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:csv,txt',
         ]);
 
-        $inserted++;
+        $file = $request->file('file');
+
+
+        $rows = array_map('str_getcsv', file($file->getRealPath()));
+        $header = array_map('trim', array_shift($rows));
+
+        $inserted = 0;
+        $skipped = 0;
+
+        foreach ($rows as $row) {
+            $rowData = array_combine($header, $row);
+
+
+            $checksum = md5(json_encode([
+                $rowData['invoice_number'] ?? '',
+                $rowData['invoice_date'] ?? '',
+                $rowData['due_date'] ?? '',
+                $rowData['total_amount'] ?? 0,
+                $rowData['balance_due'] ?? 0,
+                $rowData['notes'] ?? '',
+            ]));
+
+
+            if (Invoice::where('checksum', $checksum)->exists()) {
+                $skipped++;
+                continue;
+            }
+
+            $newInvoiceNumber = Invoice::generateInvoiceNumber();
+
+
+            Invoice::create([
+                'client_id'      => null,
+                'quote_id'       => null,
+                'invoice_number' => $newInvoiceNumber,
+                'invoice_date'   => $rowData['invoice_date'] ?? now(),
+                'due_date'       => $rowData['due_date'] ?? now()->addDays(30),
+                'status'         => $rowData['status'] ?? 'unpaid',
+                'notes'          => $rowData['notes'] ?? null,
+                'total_amount'   => $rowData['total_amount'] ?? 0,
+                'balance_due'    => $rowData['balance_due'] ?? 0,
+                'checksum'       => $checksum,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ]);
+
+            $inserted++;
+        }
+
+        return response()->json([
+            'message' => 'Invoices processed',
+            'inserted' => $inserted,
+            'skipped_duplicates' => $skipped,
+            'total_rows' => count($rows),
+        ]);
     }
 
-    return response()->json([
-        'message' => 'Invoices processed',
-        'inserted' => $inserted,
-        'skipped_duplicates' => $skipped,
-        'total_rows' => count($rows),
-    ]);
-}
 
-
-    public function uploadServices (Request $request ){
-         $request->validate([
-        'file' => 'required|mimes:csv,txt',
-    ]);
-
-    $file = $request->file('file');
-
-    // Read CSV
-    $rows = array_map('str_getcsv', file($file->getRealPath()));
-    $header = array_map('trim', array_shift($rows));
-
-    $inserted = 0;
-    $skipped = 0;
-
-    foreach ($rows as $index => $row) {
-        $rowData = array_combine($header, $row);
-
-        // Check for duplicate by name
-        if (Service::where('name', $rowData['name'])->exists()) {
-            $skipped++;
-            continue;
-        }
-
-        // Optional checksum for exact row duplicate check
-        $checksum = md5(json_encode([
-            $rowData['name'] ?? '',
-            $rowData['description'] ?? '',
-            $rowData['base_price'] ?? 0
-        ]));
-
-        if (Service::where('checksum', $checksum)->exists()) {
-            $skipped++;
-            continue;
-        }
-
-        Service::create([
-            'name'        => $rowData['name'] ?? 'Unnamed Service',
-            'description' => $rowData['description'] ?? null,
-            'base_price'  => $rowData['base_price'] ?? 0,
-            'checksum'    => $checksum,
-            'created_at'  => now(),
-            'updated_at'  => now(),
+    public function uploadServices(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:csv,txt',
         ]);
 
-        $inserted++;
-    }
+        $file = $request->file('file');
 
-    return response()->json([
-        'message' => 'Services processed',
-        'inserted' => $inserted,
-        'skipped_duplicates' => $skipped,
-        'total_rows' => count($rows),
-    ]);
+
+        $rows = array_map('str_getcsv', file($file->getRealPath()));
+        $header = array_map('trim', array_shift($rows));
+
+        $inserted = 0;
+        $skipped = 0;
+
+        foreach ($rows as $index => $row) {
+            $rowData = array_combine($header, $row);
+
+
+            if (Service::where('name', $rowData['name'])->exists()) {
+                $skipped++;
+                continue;
+            }
+
+
+            $checksum = md5(json_encode([
+                $rowData['name'] ?? '',
+                $rowData['description'] ?? '',
+                $rowData['base_price'] ?? 0
+            ]));
+
+            if (Service::where('checksum', $checksum)->exists()) {
+                $skipped++;
+                continue;
+            }
+
+            Service::create([
+                'name'        => $rowData['name'] ?? 'Unnamed Service',
+                'description' => $rowData['description'] ?? null,
+                'base_price'  => $rowData['base_price'] ?? 0,
+                'checksum'    => $checksum,
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
+
+            $inserted++;
+        }
+
+        return response()->json([
+            'message' => 'Services processed',
+            'inserted' => $inserted,
+            'skipped_duplicates' => $skipped,
+            'total_rows' => count($rows),
+        ]);
     }
 }

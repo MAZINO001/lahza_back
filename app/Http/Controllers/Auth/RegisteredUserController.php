@@ -194,7 +194,7 @@ class RegisteredUserController extends Controller
                 break;
         }
 
-        Auth::login($user);
+        // Auth::login($user);
 
         return response()->noContent();
     }
