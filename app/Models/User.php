@@ -13,7 +13,7 @@ class User extends Authenticatable
     use LogsActivity;
     public function clients()
     {
-        return $this->hasMany(Client::class);
+        return $this->hasOne(Client::class);
     }
 
     // Fields you allow to be mass-assigned

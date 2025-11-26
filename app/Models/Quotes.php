@@ -61,7 +61,9 @@ class Quotes extends Model
 
     public function getIsFullySignedAttribute()
     {
-        return $this->adminSignature() && $this->clientSignature();
+        return 
+        // $this->adminSignature() &&
+         $this->clientSignature();
     }
     public function payments()
     {

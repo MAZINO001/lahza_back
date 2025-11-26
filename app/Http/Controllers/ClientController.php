@@ -11,7 +11,7 @@ class ClientController extends Controller
 {
     public function index()
     {
-        return Client::with('user')->get();
+        return Client::with('user:id,name,email')->get();
     }
 
     public function show($id)
