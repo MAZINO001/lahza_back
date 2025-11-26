@@ -156,16 +156,16 @@
                     </table>
                 </div>
                 <div style="margin: 30px 0; text-align: center;">
-            @if($payment->payment_method === 'stripe')
+            @if($payment_method === 'stripe')
                     <h3 style="color: #4a5568; margin-bottom: 15px;">Payment Options</h3>
-                    <a href="{{ $paymentUrl }}" class="btn" style="margin: 10px auto;">
+                    <a href="{{ $payment_url }}" class="btn" style="margin: 10px auto;">
                         Pay Now with Credit Card
                     </a>
                     <p style="margin-top: 10px; color: #718096; font-size: 14px;">
                         Secure payment processed by Stripe
                     </p>
                     <p style="margin-top: 10px; color: #718096; font-size: 12px;">
-                        Or copy this link: <span style="word-break: break-all; color: #4a5568;">{{ $paymentUrl }}</span>
+                        Or copy this link: <span style="word-break: break-all; color: #4a5568;">{{ $payment_url }}</span>
                     </p>
             @else
                     <h3 style="color: #4a5568; margin-bottom: 15px;">Our Bank Info</h3>
