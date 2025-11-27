@@ -15,7 +15,9 @@ class PaymentController extends Controller
     {
         $this->paymentService = $paymentService;
     }
-
+public function getPayment(){
+    return $this->paymentService->getPayment();
+}
     public function createPaymentLink(Request $request, $quoteId)
     {
         $quote = Quotes::with('client')->findOrFail($quoteId);
@@ -31,22 +33,12 @@ class PaymentController extends Controller
      */
     public function updatePayment(Request $request, Payment $payment)
     {
-        Log::info('PaymentController@updatePayment called', [
-            'payment_id' => $payment->id ?? null,
-            'request_data' => $request->all(),
-        ]);
-
         $request->validate([
             'percentage' => 'required|numeric|min:0.01|max:100',
         ]);
 
         try {
             $result = $this->paymentService->updatePendingPayment($payment, $request->percentage);
-            Log::info('PaymentController@updatePayment result', [
-                'payment_id' => $payment->id ?? null,
-                'result' => $result,
-            ]);
-            
             return response()->json([
                 'success' => true,
                 'data' => $result

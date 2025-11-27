@@ -18,6 +18,10 @@ class PaymentService implements PaymentServiceInterface
     {
         $this->paymentRepository = $paymentRepository;
     }
+    public function getPayment()
+    {
+         return $this->paymentRepository->getPayment();
+    }
 
     public function createPaymentLink(Quotes $quote): array
     {
