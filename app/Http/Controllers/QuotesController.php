@@ -170,10 +170,10 @@ class QuotesController extends Controller
                     'individual_total' => $quoteService->individual_total,
                 ]);
             }
-
-
-            $response = $this->paymentService->createPaymentLink($quote);
-
+            
+            
+            $response = $this->paymentService->createPaymentLink($invoice);
+        
             $email = 'mangaka.wir@gmail.com';
             $data = [
                 'quote' => $quote,
