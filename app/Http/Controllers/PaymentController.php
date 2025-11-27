@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Quotes;
+use App\Models\Invoice;
 use App\Services\PaymentServiceInterface;
 use App\Models\Payment;
 use Illuminate\Support\Facades\Log;
@@ -18,10 +18,10 @@ class PaymentController extends Controller
 public function getPayment(){
     return $this->paymentService->getPayment();
 }
-    public function createPaymentLink(Request $request, $quoteId)
+    public function createPaymentLink(Request $request, $invoiceId)
     {
-        $quote = Quotes::with('client')->findOrFail($quoteId);
-        $response = $this->paymentService->createPaymentLink($quote);
+        $invoice = Invoice::with('client')->findOrFail($invoiceId);
+        $response = $this->paymentService->createPaymentLink($invoice);
         return response()->json($response);
     }
     /**
@@ -53,11 +53,25 @@ public function getPayment(){
     }
     public function handleWebhook(Request $request)
     {
-        $payload = json_decode($request->getContent(), true);
+        $payload = $request->getContent(); // RAW JSON STRING
         $sigHeader = $request->header('Stripe-Signature');
 
         $result = $this->paymentService->handleStripeWebhook($payload, $sigHeader);
 
         return response()->json($result);
+    }
+
+
+public function getRemaining(Request $request, Invoice $invoice){
+   $balance = $this->paymentService->getRemaining($invoice);
+
+    return response()->json([
+        'invoice_id' => $invoice->id,
+        'balance_due' => $balance
+    ]);
+    }
+    public function getAllPayments(Request $request, Invoice $invoice){
+        $payments = $this->paymentService->getAllPayments($invoice);
+        return response()->json($payments);
     }
 }

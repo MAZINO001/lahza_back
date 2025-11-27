@@ -188,9 +188,9 @@ class QuotesController extends Controller
             }
             
             
-            $response = $this->paymentService->createPaymentLink($quote);
+            $response = $this->paymentService->createPaymentLink($invoice);
         
- $email = 'mangaka.wir@gmail.com';
+            $email = 'mangaka.wir@gmail.com';
             $data = [
                 'quote' => $quote,
                 'invoice' => $invoice,

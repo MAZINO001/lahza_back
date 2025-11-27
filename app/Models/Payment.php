@@ -13,7 +13,7 @@ class Payment extends Model
     use HasFactory;
     use LogsActivity;
     protected $fillable = [
-         'quote_id',
+        'invoice_id',
         'client_id',
         'stripe_session_id',
         'stripe_payment_intent_id',
@@ -21,7 +21,8 @@ class Payment extends Model
         'amount',
         'currency',
         'status',
-        'payment_method'
+        'payment_method',
+        'payment_url'
     ];
 
     // Relationships
@@ -35,8 +36,9 @@ class Payment extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function invoice()
-    {
-        return $this->hasOne(Invoice::class);
-    }
+   public function invoice()
+{
+    return $this->belongsTo(Invoice::class, 'invoice_id');
+}
+
 }
