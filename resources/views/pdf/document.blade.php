@@ -6,9 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>
         @if ($type === 'invoice')
-            Facture {{ $invoice->invoice_number ?? 'INV-' . ($invoice->id ?? '') }}
+            Facture {{ 'INVOICE-' . str_pad($invoice->id ?? 0, 5, '0', STR_PAD_LEFT) }}
         @else
-            Devis {{ $quote->quote_number ?? 'Q-' . ($quote->id ?? '') }}
+            Facture {{ 'QUOTES-' . str_pad($quotes->id ?? 0, 5, '0', STR_PAD_LEFT) }}
         @endif
     </title>
     <link rel="stylesheet" href="{{ public_path('fonts/roboto.css') }}">
@@ -479,13 +479,12 @@
                 <div>
                     @if ($type === 'invoice')
                         <p>N° de facture</p>
-                        <h3>{{ $invoice->invoice_number ?? 'INV-00' . ($invoice->id ?? '') }}</h3>
+                        <h3>{{ sprintf('INV-%05d', $invoice->id ?? 0) }}</h3>
                         <h3>{{ $invoice->status }}</h3>
                     @else
                         <p>N° de devis</p>
-                        <h3>{{ $quote->quote_number ?? 'Q-' . ($quote->id ?? '') }}</h3>
+                        <h3>{{ sprintf('Q-%05d', $quote->id ?? 0) }}</h3>
                         <h3 class="status">{{ $quote->status }}</h3>
-                        {{-- <h3 class="status">kqsdfkqsdkf qskf oq</h3> --}}
                     @endif
                 </div>
             </div>

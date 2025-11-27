@@ -12,7 +12,6 @@ class Quotes extends Model
         'quotation_date',
         'status',
         'notes',
-        'quote_number',
         'total_amount',
     ];
 
@@ -61,7 +60,7 @@ class Quotes extends Model
 
     public function getIsFullySignedAttribute()
     {
-        return 
+        return
         // $this->adminSignature() &&
          $this->clientSignature();
     }
