@@ -15,9 +15,9 @@ class InvoicesController extends Controller
     {
         $invoices = Invoice::with(['invoiceServices', 'client.user:id,name'])->get();
         $allServices = Service::all();
-        
+
         // Add admin signature URL to each invoice
-        $invoices->each(function($invoice) {
+        $invoices->each(function ($invoice) {
             $invoice->admin_signature_url = asset('images/admin_signature.png');
         });
 
@@ -45,15 +45,10 @@ class InvoicesController extends Controller
         ]);
 
         return  DB::transaction(function () use ($validate) {
-            // Generate the next invoice number
-            $latestInvoice = Invoice::latest('id')->first();
-            $nextNumber = $latestInvoice ? $latestInvoice->id + 1 : 1;
-            $invoiceNumber = 'INVOICE-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
 
             $invoice = Invoice::create([
                 'client_id' => $validate["client_id"],
                 'quote_id' => $validate["quote_id"] ?? null,
-                'invoice_number' => $invoiceNumber,
                 'invoice_date' => $validate["invoice_date"],
                 'due_date' => $validate["due_date"],
                 'status' => $validate["status"],
@@ -83,7 +78,7 @@ class InvoicesController extends Controller
         $invoice = Invoice::with(['invoiceServices', 'client.user:id,name'])->findOrFail($id);
         // Add admin signature URL to the response
         $invoice->admin_signature_url = asset('images/admin_signature.png');
-        
+
         return response()->json($invoice);
     }
 

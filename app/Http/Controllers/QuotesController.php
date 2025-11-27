@@ -24,9 +24,9 @@ class QuotesController extends Controller
     {
         $quotes = Quotes::with(['quoteServices', 'client.user:id,name,email'])->get();
         $allServices = Service::all();
-        
+
         // Add admin signature URL to each quote
-        $quotes->each(function($quote) {
+        $quotes->each(function ($quote) {
             $quote->admin_signature_url = asset('images/admin_signature.png');
         });
 
@@ -54,20 +54,11 @@ class QuotesController extends Controller
 
 
         return DB::transaction(function () use ($validated) {
-
-
-
-            // Generate the next quote number
-            $latestQuote = Quotes::latest('id')->first();
-            $nextNumber = $latestQuote ? $latestQuote->id + 1 : 1;
-            $quoteNumber = 'QUOTE-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
-            // Create the quote
             $quote = Quotes::create([
                 'client_id' => $validated['client_id'],
                 'quotation_date' => $validated['quotation_date'],
                 'status' => $validated['status'],
                 'notes' => $validated['notes'],
-                'quote_number' => $quoteNumber,
                 'total_amount' => $validated['total_amount'],
             ]);
 
@@ -88,7 +79,7 @@ class QuotesController extends Controller
             $quote->load('quoteServices');
             // Add admin signature URL to the response
             $quote->admin_signature_url = asset('images/admin_signature.png');
-            
+
             return response()->json([$quote, 'quote_id' => $quote->id], 201);
         });
     }
@@ -97,10 +88,10 @@ class QuotesController extends Controller
     public function show($id)
     {
         $quote = Quotes::with('quoteServices')->findOrFail($id);
-        
+
         // Add admin signature URL to the response
         $quote->admin_signature_url = asset('images/admin_signature.png');
-        
+
         return response()->json($quote);
     }
 
@@ -110,13 +101,13 @@ class QuotesController extends Controller
         $quote->load('quoteServices.service');
         // Add admin signature URL to the response
         $quote->admin_signature_url = asset('images/admin_signature.png');
-        
+
         return response()->json($quote);
     }
 
     /**
      * Create an invoice from a signed quote
-     * 
+     *
      * @param int $id Quote ID
      * @return \Illuminate\Http\JsonResponse
      */
@@ -140,11 +131,6 @@ class QuotesController extends Controller
         }
 
         return DB::transaction(function () use ($quote) {
-            // Generate the next invoice number
-            $latestInvoice = Invoice::latest('id')->first();
-            $nextNumber = $latestInvoice ? $latestInvoice->id + 1 : 1;
-            $invoiceNumber = 'INVOICE-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
-
             // Calculate due date (30 days from now)
             $invoiceDate = now();
             $dueDate = now()->addDays(30);
@@ -153,24 +139,22 @@ class QuotesController extends Controller
             $checksumData = [
                 'client_id' => $quote->client_id,
                 'quote_id' => $quote->id,
-                'invoice_number' => $invoiceNumber,
                 'total_amount' => $quote->total_amount,
                 'due_date' => $dueDate,
                 'invoice_date' => $invoiceDate,
                 'balance_due' => $quote->total_amount,
-                
+
             ];
-            $checksum = md5(json_encode($checksumData) );
+            $checksum = md5(json_encode($checksumData));
 
             // Create the invoice
             $invoice = Invoice::create([
                 'client_id' => $quote->client_id,
                 'quote_id' => $quote->id,
-                'invoice_number' => $invoiceNumber,
                 'invoice_date' => $invoiceDate,
                 'due_date' => $dueDate,
                 'status' => 'unpaid',
-                'notes' => 'Created from quote #' . $quote->quote_number,
+                'notes' => 'Created from quote #' . $quote->id,
                 'total_amount' => $quote->total_amount,
                 'balance_due' => $quote->total_amount,
                 'checksum' => $checksum,
@@ -186,11 +170,11 @@ class QuotesController extends Controller
                     'individual_total' => $quoteService->individual_total,
                 ]);
             }
-            
-            
+
+
             $response = $this->paymentService->createPaymentLink($quote);
-        
- $email = 'mangaka.wir@gmail.com';
+
+            $email = 'mangaka.wir@gmail.com';
             $data = [
                 'quote' => $quote,
                 'invoice' => $invoice,
@@ -202,9 +186,13 @@ class QuotesController extends Controller
 
 
 
- Mail::send('emails.invoice_created', $data, function($message) use ($email, $invoice) {
+
+            Mail::send('emails.invoice_created', $data, function ($message) use ($email, $invoice) {
+                $latestInvoice = Invoice::latest('id')->first();
+                $nextNumber = $latestInvoice ? $latestInvoice->id + 1 : 1;
+                $invoiceNumber = 'INVOICE-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
                 $message->to($email)
-                        ->subject('New Invoice Created - ' . $invoice->invoice_number);
+                    ->subject('New Invoice Created - ' . $invoiceNumber);
             });
 
             return response()->json([
@@ -212,7 +200,7 @@ class QuotesController extends Controller
                 'invoice' => $invoice->load('services'),
                 'payment' => $response['payment_method']
             ], 201);
-                });
+        });
     }
 
     // PUT /api/quotes/{id}

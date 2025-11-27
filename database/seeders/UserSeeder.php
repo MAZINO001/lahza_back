@@ -52,7 +52,6 @@ class UserSeeder extends Seeder
             'city' => 'Casablanca',
             'country' => 'maroc',
             'client_type' => 'company',
-            'client_number' => $clientNumber,
         ]);
 
         DB::table('user_permissions')->insert([
@@ -81,7 +80,6 @@ class UserSeeder extends Seeder
             'city' => 'Paris',
             'country' => 'France',
             'client_type' => 'company',
-            'client_number' => $clientNumber,
         ]);
 
         DB::table('user_permissions')->insert([

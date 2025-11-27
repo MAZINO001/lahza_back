@@ -53,7 +53,6 @@ class csvController extends Controller
 
             Client::create([
                 'user_id'        => $user->id,
-                'client_number'  => $data['client_number'] ?? null,
                 'client_type'    => $data['client_type'] ?? null,
                 'company'        => $data['company'] ?? null,
                 'phone'          => $data['phone'] ?? null,
@@ -96,7 +95,6 @@ class csvController extends Controller
 
 
             $checksum = md5(json_encode([
-                $rowData['invoice_number'] ?? '',
                 $rowData['invoice_date'] ?? '',
                 $rowData['due_date'] ?? '',
                 $rowData['total_amount'] ?? 0,
@@ -110,13 +108,9 @@ class csvController extends Controller
                 continue;
             }
 
-            $newInvoiceNumber = Invoice::generateInvoiceNumber();
-
-
             Invoice::create([
                 'client_id'      => null,
                 'quote_id'       => null,
-                'invoice_number' => $newInvoiceNumber,
                 'invoice_date'   => $rowData['invoice_date'] ?? now(),
                 'due_date'       => $rowData['due_date'] ?? now()->addDays(30),
                 'status'         => $rowData['status'] ?? 'unpaid',
