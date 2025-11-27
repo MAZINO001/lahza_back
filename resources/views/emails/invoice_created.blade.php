@@ -133,7 +133,7 @@
             <div class="content">
                 <p class="greeting">Hello {{ $client->name }},</p>
 
-                <p>We've generated your invoice <strong>#{{ $invoice->invoice_number }}</strong> from your approved quote <strong>#{{ $quote->id }}</strong>.</p>
+                <p>We've generated your invoice <strong>#{{ $invoice->invoice_number }}</strong>@if($quote) from your approved quote <strong>#{{ $quote->id }}</strong>@endif.</p>
 
                 <div class="highlight-box">
                     <table class="invoice-details">
@@ -149,10 +149,12 @@
                             <td class="label">Total Amount</td>
                             <td class="value amount">${{ number_format($invoice->total_amount, 2) }}</td>
                         </tr>
+                        @if($quote)
                         <tr>
                             <td class="label">From Quote</td>
                             <td class="value">#{{ $quote->id }}</td>
                         </tr>
+                        @endif
                     </table>
                 </div>
                 <div style="margin: 30px 0; text-align: center;">

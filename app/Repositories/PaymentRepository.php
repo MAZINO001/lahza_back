@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Models\Invoice;
 use App\Models\Payment;
 
 class PaymentRepository
@@ -9,7 +10,7 @@ class PaymentRepository
     public function getPayment()
     {
         // return Payment::latestOfMany('quote_id')->get();
-        return Payment::with(['quotes', 'user'])->latest()->get();
+        return Payment::with(['invoice', 'user'])->latest()->get();
     }
     public function create(array $data)
     {
@@ -25,4 +26,15 @@ class PaymentRepository
     {
         return $payment->update($data);
     }
+   public function getPaidAmount(Invoice $invoice)
+{
+    return $invoice->payments()
+                   ->where('status', 'paid')
+                   ->sum('amount');
+}
+
+public function getAllPayments(Invoice $invoice)
+{
+    return $invoice->payments()->get();
+}
 }
