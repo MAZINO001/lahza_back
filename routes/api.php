@@ -79,3 +79,5 @@ Route::get('/payments', [PaymentController::class, 'getPayment']);
 
 
 Route::get('logs', [LogsActivityController::class, 'index']);
+Route::get('getRemaining/{invoice}', [PaymentController::class, 'getRemaining']);
+Route::get('getAllPayments/{invoice}', [PaymentController::class, 'getAllPayments']);

@@ -8,9 +8,18 @@ use App\Models\Service;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Services\PaymentServiceInterface;
+use Illuminate\Support\Facades\Mail;
 
 class InvoicesController extends Controller
 {
+    protected $paymentService;
+    public function __construct(PaymentServiceInterface $paymentService)
+    {
+        $this->paymentService = $paymentService;
+    }
+
+
     public function index()
     {
         $invoices = Invoice::with(['invoiceServices', 'client.user:id,name'])->get();
@@ -73,7 +82,31 @@ class InvoicesController extends Controller
                 }
             }
             // Add admin signature URL to the response
+
+
             $invoice->admin_signature_url = asset('images/admin_signature.png');
+            
+            // Load the client relationship
+            $invoice->load('client');
+
+            $response = $this->paymentService->createPaymentLink($invoice);
+        
+            $email = 'mangaka.wir@gmail.com';
+            $data = [
+                'quote' => $invoice->quote ?? null, // pass quote if exists
+                'invoice' => $invoice,
+                'client' => $invoice->client,
+                'payment_url' => $response['payment_url'],
+                'bank_info' => $response['bank_info'],
+                'payment_method' => $response['payment_method'],       // string: 'stripe' or 'banc'
+            ];
+
+
+
+            Mail::send('emails.invoice_created', $data, function($message) use ($email, $invoice) {
+                $message->to($email)
+                        ->subject('New Invoice Created - ' . $invoice->invoice_number);
+            });
             return response()->json([$invoice->load("invoiceServices"), 'invoice_id' => $invoice->id], 201);
         });
     }
