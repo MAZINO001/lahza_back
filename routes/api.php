@@ -75,6 +75,4 @@ Route::post('/quotes/{quote}/pay', [PaymentController::class, 'createPaymentLink
 Route::post('/stripe/webhook', [PaymentController::class, 'handleWebhook']);
 // Route parameter must be {payment} to match the controller's $payment argument
 Route::put('/payments/{payment}', [PaymentController::class, 'updatePayment']);
-
-
 Route::get('logs', [LogsActivityController::class, 'index']);
