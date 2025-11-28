@@ -70,8 +70,8 @@ public function getRemaining(Request $request, Invoice $invoice){
         'balance_due' => $balance
     ]);
     }
-    public function getAllPayments(Request $request, Invoice $invoice){
-        $payments = $this->paymentService->getAllPayments($invoice);
+    public function getInvoicePayments(Request $request, Invoice $invoice){
+        $payments = $this->paymentService->getInvoicePayments($invoice);
         return response()->json($payments);
     }
 }

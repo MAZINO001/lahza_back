@@ -63,7 +63,7 @@ class InvoicesController extends Controller
                 'status' => $validate["status"],
                 'notes' => $validate["notes"],
                 'total_amount' => $validate["total_amount"],
-                'balance_due' => $validate["balance_due"],
+                'balance_due' => $validate["total_amount"],
             ]);
             if (!empty($validate["services"])) {
                 foreach ($validate["services"] as $service) {
@@ -100,7 +100,7 @@ class InvoicesController extends Controller
 
             Mail::send('emails.invoice_created', $data, function($message) use ($email, $invoice) {
                 $message->to($email)
-                        ->subject('New Invoice Created - ' . $invoice->invoice_number);
+                        ->subject('New Invoice Created - ' );
             });
             return response()->json([$invoice->load("invoiceServices"), 'invoice_id' => $invoice->id], 201);
         });
