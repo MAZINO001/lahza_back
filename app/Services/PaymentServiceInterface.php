@@ -12,4 +12,6 @@ interface PaymentServiceInterface
     public function updatePendingPayment(Payment $payment, float $percentage);
     public function getRemaining(Invoice $invoice);
     public function getInvoicePayments(Invoice $invoice);
+    public function createAdditionalPayment(Invoice $invoice, float $percentage);
+
 }

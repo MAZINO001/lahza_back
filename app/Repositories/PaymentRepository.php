@@ -37,4 +37,9 @@ public function getInvoicePayments(Invoice $invoice)
 {
     return $invoice->payments()->get();
 }
+public function createAdditionalPayment(Invoice $invoice, $data)
+{
+    return $invoice->payments()->create($data);
+}
+
 }

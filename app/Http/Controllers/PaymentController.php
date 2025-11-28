@@ -74,4 +74,19 @@ public function getRemaining(Request $request, Invoice $invoice){
         $payments = $this->paymentService->getInvoicePayments($invoice);
         return response()->json($payments);
     }
+ public function createAdditionalPayment(Request $request, Invoice $invoice, $percentage)
+{
+    // Validate the percentage from the URL parameter
+    $validated = validator([
+        'percentage' => $percentage
+    ], [
+        'percentage' => 'required|numeric|min:0.01|max:100'
+    ])->validate();
+
+    return $this->paymentService->createAdditionalPayment(
+        $invoice,
+        floatval($validated['percentage'])
+    );
+}
+
 }

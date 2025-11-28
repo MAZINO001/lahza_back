@@ -102,7 +102,7 @@ class InvoicesController extends Controller
                 $message->to($email)
                         ->subject('New Invoice Created - ' );
             });
-            return response()->json([$invoice->load("invoiceServices"), 'invoice_id' => $invoice->id], 201);
+    return response()->json([$invoice->load("invoiceServices"), 'invoice_id' => $invoice->id], 201);
         });
     }
 
