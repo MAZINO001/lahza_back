@@ -33,7 +33,7 @@ class PaymentRepository
                    ->sum('amount');
 }
 
-public function getAllPayments(Invoice $invoice)
+public function getInvoicePayments(Invoice $invoice)
 {
     return $invoice->payments()->get();
 }

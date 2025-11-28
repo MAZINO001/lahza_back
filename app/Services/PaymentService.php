@@ -226,8 +226,8 @@ public function getRemaining(Invoice $invoice)
 
     return $totalAmount - $totalPaid;
 }
-public function getAllPayments(Invoice $invoice)
+public function getInvoicePayments(Invoice $invoice)
 {
-    return $this->paymentRepository->getAllPayments($invoice);
+    return $this->paymentRepository->getInvoicePayments($invoice);
 }
 }

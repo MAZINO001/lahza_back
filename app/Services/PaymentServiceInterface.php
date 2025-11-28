@@ -11,5 +11,5 @@ interface PaymentServiceInterface
     public function handleStripeWebhook(string  $payload, string $sigHeader);
     public function updatePendingPayment(Payment $payment, float $percentage);
     public function getRemaining(Invoice $invoice);
-    public function getAllPayments(Invoice $invoice);
+    public function getInvoicePayments(Invoice $invoice);
 }
