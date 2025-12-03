@@ -8,14 +8,18 @@ use Stripe\Checkout\Session;
 use Stripe\Webhook;
 use App\Repositories\PaymentRepository;
 use Illuminate\Support\Facades\Log;
-use App\Models\Payment;
+use App\Models\Payment; 
+use App\Services\ProjectCreationService;
+
 class PaymentService implements PaymentServiceInterface
 {
     protected $paymentRepository;
+    protected $projectCreationService;
 
-    public function __construct(PaymentRepository $paymentRepository)
+    public function __construct(PaymentRepository $paymentRepository, ProjectCreationService $projectCreationService)
     {
         $this->paymentRepository = $paymentRepository;
+        $this->projectCreationService = $projectCreationService;
     }
     public function getPayment()
     {
@@ -29,7 +33,12 @@ class PaymentService implements PaymentServiceInterface
     {
         // Check if invoice is already fully paid
         if ($invoice->status === 'paid' || $invoice->balance_due <= 0) {
-            throw new \Exception("Cannot create payment: Invoice #{$invoice->id} is already fully paid. Balance due: $" . number_format($invoice->balance_due, 2));
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'status' => 'error',
+                    'message' => "Cannot create payment: Invoice #{$invoice->id} is already fully paid. Balance due: $" . number_format($invoice->balance_due, 2)
+                ], 400)
+            );
         }
 
         // Check if invoice status allows payments
@@ -37,7 +46,12 @@ class PaymentService implements PaymentServiceInterface
         // 'draft' invoices should not receive payments (not finalized)
         // 'paid' invoices are already handled above
         if (!in_array($invoice->status, ['sent', 'unpaid', 'partially_paid', 'overdue'])) {
-            throw new \Exception("Cannot create payment: Invoice #{$invoice->id} has status '{$invoice->status}' which does not allow payments. Only 'sent', 'unpaid', 'partially_paid', or 'overdue' invoices can receive payments.");
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'status' => 'error',
+                    'message' => "Cannot create payment: Invoice #{$invoice->id} has status '{$invoice->status}' which does not allow payments. Only 'sent', 'unpaid', 'partially_paid', or 'overdue' invoices can receive payments."
+                ], 400)
+            );
         }
     }
 
@@ -84,7 +98,12 @@ class PaymentService implements PaymentServiceInterface
         // Check for existing pending payment
         $existingPendingPayment = $this->checkPendingPayment($invoice);
         if ($existingPendingPayment) {
-            throw new \Exception("Cannot create payment: There is already a pending payment (ID: {$existingPendingPayment->id}) for invoice #{$invoice->id}. Please complete or cancel the existing payment before creating a new one.");
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'status' => 'error',
+                    'message' => "Cannot create payment: There is already a pending payment (ID: {$existingPendingPayment->id}) for invoice #{$invoice->id}. Please complete or cancel the existing payment before creating a new one."
+                ], 400)
+            );
         }
 
         // Get current balance due
@@ -97,7 +116,12 @@ class PaymentService implements PaymentServiceInterface
         
         // Validate that half amount doesn't exceed balance due
         if ($halfAmount > $currentBalanceDue) {
-            throw new \Exception("Cannot create payment: The requested payment amount ($" . number_format($halfAmount, 2) . ") exceeds the remaining balance due ($" . number_format($currentBalanceDue, 2) . ") for invoice #{$invoice->id}.");
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'status' => 'error',
+                    'message' => "Cannot create payment: The requested payment amount ($" . number_format($halfAmount, 2) . ") exceeds the remaining balance due ($" . number_format($currentBalanceDue, 2) . ") for invoice #{$invoice->id}."
+                ], 400)
+            );
         }
 
         $paymentMethod = $isMoroccanClient ? 'banc' : 'stripe';
@@ -176,13 +200,23 @@ class PaymentService implements PaymentServiceInterface
     {
         // 1. Ensure payment is editable
         if ($payment->status !== 'pending') {
-            throw new \Exception("Cannot update payment: Only pending payments can be updated. Payment ID {$payment->id} has status '{$payment->status}'.");
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'status' => 'error',
+                    'message' => "Cannot update payment: Only pending payments can be updated. Payment ID {$payment->id} has status '{$payment->status}'."
+                ], 400)
+            );
         }
 
         // Load invoice relationship
         $invoice = $payment->invoice;
         if (!$invoice) {
-            throw new \Exception("Cannot update payment: Invoice not found for payment ID {$payment->id}.");
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'status' => 'error',
+                    'message' => "Cannot update payment: Invoice not found for payment ID {$payment->id}."
+                ], 400)
+            );
         }
 
         // Validate invoice status
@@ -193,7 +227,12 @@ class PaymentService implements PaymentServiceInterface
         
         // Validate new amount is positive
         if ($newAmount <= 0) {
-            throw new \Exception("Cannot update payment: The calculated payment amount ($" . number_format($newAmount, 2) . ") must be greater than zero.");
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'status' => 'error',
+                    'message' => "Cannot update payment: The calculated payment amount ($" . number_format($newAmount, 2) . ") must be greater than zero."
+                ], 400)
+            );
         }
 
         // Get current balance due (excluding this pending payment)
@@ -201,7 +240,12 @@ class PaymentService implements PaymentServiceInterface
         
         // Validate that new amount doesn't exceed balance due
         if ($newAmount > $currentBalanceDue) {
-            throw new \Exception("Cannot update payment: The requested payment amount ($" . number_format($newAmount, 2) . ") exceeds the remaining balance due ($" . number_format($currentBalanceDue, 2) . ") for invoice #{$invoice->id}.");
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'status' => 'error',
+                    'message' => "Cannot update payment: The requested payment amount ($" . number_format($newAmount, 2) . ") exceeds the remaining balance due ($" . number_format($currentBalanceDue, 2) . ") for invoice #{$invoice->id}."
+                ], 400)
+            );
         }
         
 
@@ -263,7 +307,6 @@ class PaymentService implements PaymentServiceInterface
 
     public function handleStripeWebhook(string $payload, string $sigHeader)
 {
-    logger('Stripe webhook received');
     $secret = config('services.stripe.webhook_secret');
 
     try {
@@ -308,6 +351,17 @@ class PaymentService implements PaymentServiceInterface
         // Refresh invoice to get updated values
         $invoice->refresh();
 
+
+// this will create a project for the invoice
+try {
+        $this->projectCreationService->createProjectForInvoice($invoice);
+} catch (\Exception $e) {
+    Log::error('Failed to create project for invoice #'.$invoice->id.': '.$e->getMessage());
+}
+
+
+
+
         // Calculate total paid for logging and checking 50% threshold
         $totalPaid = $invoice->payments()->where('status', 'paid')->sum('amount');
         $balanceDue = $invoice->balance_due;
@@ -347,7 +401,10 @@ public function createAdditionalPayment(Invoice $invoice, float $percentage)
     // Check for existing pending payment
     $existingPendingPayment = $this->checkPendingPayment($invoice);
     if ($existingPendingPayment) {
-        throw new \Exception("Cannot create additional payment: There is already a pending payment (ID: {$existingPendingPayment->id}) for invoice #{$invoice->id}. Please complete or cancel the existing payment before creating a new one.");
+        return response()->json([
+            'status' => 'error',
+            'message' => "Cannot create additional payment: There is already a pending payment (ID: {$existingPendingPayment->id}) for invoice #{$invoice->id}. Please complete or cancel the existing payment before creating a new one.",
+        ]);
     }
 
     // 1) Convert percentage -> amount
@@ -355,7 +412,10 @@ public function createAdditionalPayment(Invoice $invoice, float $percentage)
 
     // Validate amount is positive
     if ($amountToPay <= 0) {
-        throw new \Exception("Cannot create payment: The payment amount must be greater than zero.");
+        return response()->json([
+            'status' => 'error',
+            'message' => "Cannot create payment: The payment amount must be greater than zero.",
+        ]);
     }
 
     // 2) Get current balance due
