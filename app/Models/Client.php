@@ -39,4 +39,8 @@ class Client extends Model
     {
         return $this->hasManyThrough(Payment::class, Quotes::class);
     }
+      public function files()
+    {
+        return $this->morphMany(File::class, 'fileable');
+    }
 }

@@ -6,3 +6,9 @@ use Illuminate\Support\Facades\Artisan;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+// Artisan::command('lahzafresh', function () {
+//     $this->call('migrate:fresh');
+//     $this->call('db:seed');
+//     $this->info('Database refreshed and seeded successfully!');
+// })->purpose('Refresh and seed the database');
