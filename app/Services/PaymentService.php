@@ -111,6 +111,7 @@ class PaymentService implements PaymentServiceInterface
             'payment_method' => $paymentMethod,
             'status' => 'pending',
             'payment_url' => null,
+            'percentage' => 50,
         ];
 
         $response = [
@@ -154,11 +155,11 @@ class PaymentService implements PaymentServiceInterface
             $paymentData['payment_url'] =$response['payment_url'];
         } else {
             $response['bank_info'] = [
-                'bank_name' => 'YOUR_BANK_NAME',
-                'account_holder' => 'YOUR_COMPANY_NAME',
-                'rib' => 'YOUR_RIB_NUMBER',
-                'swift_code' => 'YOUR_SWIFT_CODE',
-                'iban' => 'YOUR_IBAN',
+                'account_holder' => 'LAHZA HM',
+                'bank_name' => 'ATTIJARI WAFABANK',
+                'rib' => '007640001433200000026029',
+                'swift_code' => 'BCMAMAMC',
+                'ICE' => '002 056 959 000 039',
                 'reference' => 'PAY-' . $invoice->id
             ];
         }
@@ -246,6 +247,7 @@ class PaymentService implements PaymentServiceInterface
         }
 
         $payment->amount = $newAmount;
+        $payment->percentage= $percentage;
         $payment->save();
 
         // 5. Return response
@@ -424,12 +426,12 @@ public function createAdditionalPayment(Invoice $invoice, float $percentage)
     } else {
         // Bank transfer for Moroccan clients
         $response['bank_info'] = [
-            'bank_name' => 'YOUR_BANK_NAME',
-            'account_holder' => 'YOUR_COMPANY_NAME',
-            'rib' => 'YOUR_RIB_NUMBER',
-            'swift_code' => 'YOUR_SWIFT_CODE',
-            'iban' => 'YOUR_IBAN',
-            'reference' => 'PAY-' . $invoice->id . '-' . $percentage . '%'
+        'account_holder' => 'LAHZA HM',
+                'bank_name' => 'ATTIJARI WAFABANK',
+                'rib' => '007640001433200000026029',
+                'swift_code' => 'BCMAMAMC',
+                'ICE' => '002 056 959 000 039',
+                'reference' => 'PAY-' . $invoice->id . '-' . $percentage . '%'
         ];
     }
 
