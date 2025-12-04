@@ -6,7 +6,8 @@ use App\Models\Project;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Task;
-
+use App\Models\TeamUser;
+use App\Models\ProjectAssignment;
 class ProjectCreationService
 {
     /**
@@ -163,6 +164,24 @@ class ProjectCreationService
                         'total_tasks' => $totalTasks
                     ]);
                     
+                    Log::info('Attempting to assign team user to project', [
+                        'project_id' => $project->id,
+                    ]);
+
+                    // Pick teamuser with oldest last assignment
+                    $teamUser = TeamUser::withMax('assignments', 'created_at')
+                        ->orderBy('assignments_max_created_at') // old first, null first
+                        ->first();
+
+                    if ($teamUser) {
+                        ProjectAssignment::create([
+                            'project_id' => $project->id,
+                            'team_id' => $teamUser->id,
+                            'assigned_by' => 1, // Using a default user ID for now
+                            'assigned_at' => now(),
+                        ]);
+                    }
+                    
                     return $project;
                     
                 } catch (\Exception $e) {
@@ -173,15 +192,15 @@ class ProjectCreationService
                     ]);
                     throw $e;
                 }
-            } elseif ($paidCount >= 2) {
-                Log::info('Project already created for this invoice', [
-                    'invoice_id' => $invoice->id,
-                ]);
-                // Return the existing project if needed
-                return Project::where('invoice_id', $invoice->id)->first();
-            }
-            
-            return null;
-        });
+                } elseif ($paidCount >= 2) {
+                    Log::info('Project already created for this invoice', [
+                        'invoice_id' => $invoice->id,
+                    ]);
+                    // Return the existing project if needed
+                    return Project::where('invoice_id', $invoice->id)->first();
+                }
+                
+                return null;
+            });
+        }
     }
-}
