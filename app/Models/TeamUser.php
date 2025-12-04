@@ -32,4 +32,8 @@ class TeamUser extends Model
     {
         return $this->belongsTo(User::class);
     }
+    public function assignments()
+{
+    return $this->hasMany(ProjectAssignment::class, 'team_id');
+}
 }

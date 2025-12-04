@@ -102,6 +102,21 @@ class UserSeeder extends Seeder
             'department' => 'Development',
             'poste' => 'Senior Developer',
         ]);
+        $teamMember = User::create([
+            'name' => 'Team Member2',
+            'email' => 'team.member2@lahza.com',
+            'password' => Hash::make('team.member2@lahza.com'),
+            'role' => 'member', // Using 'member' role for team members
+            'user_type' => 'team',
+            'remember_token' => Str::random(10),
+        ]);
+
+        // Create team user record
+        TeamUser::create([
+            'user_id' => $teamMember->id,
+            'department' => 'Development2',
+            'poste' => 'Senior Developer 2',
+        ]);
 
         DB::table('user_permissions')->insert([
             ['user_id' => $teamMember->id, 'permission_id' => 5],
