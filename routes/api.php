@@ -18,6 +18,7 @@ use App\Http\Controllers\csvController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\PaymentController;
 use App\Traits\LogsActivity;
+use App\Http\Controllers\ProjectController;
 
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
@@ -74,6 +75,7 @@ Route::post('/email/send', [EmailController::class, 'sendEmail']);
 Route::post('/quotes/{quote}/pay', [PaymentController::class, 'createPaymentLink']);
 Route::post('/stripe/webhook', [PaymentController::class, 'handleWebhook']);
 
+
 Route::put('/payments/{payment}', [PaymentController::class, 'updatePayment']);
 Route::get('/payments', [PaymentController::class, 'getPayment']);
 
@@ -82,4 +84,7 @@ Route::get('logs', [LogsActivityController::class, 'index']);
 Route::get('getRemaining/{invoice}', [PaymentController::class, 'getRemaining']);
 Route::get('getInvoicePayments/{invoice}', [PaymentController::class, 'getInvoicePayments']);
 
+
 Route::post('/invoices/pay/{invoice}/{percentage}', [PaymentController::class, 'createAdditionalPayment']);
+
+Route::get('/getProjects', [ProjectController::class, 'index']);
