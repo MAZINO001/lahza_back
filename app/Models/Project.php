@@ -39,4 +39,8 @@ class Project extends Model
     {
         return $this->morphMany(File::class, 'fileable');
     }
+    public function invoice()
+    {
+        return $this->belongsTo(Invoice::class);
+    }
 } 
