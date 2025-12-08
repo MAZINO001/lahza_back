@@ -71,6 +71,9 @@ class PdfController extends Controller
 
         if ($invoice->adminSignature()) {
             $adminSignatureBase64 = $this->getImageBase64($invoice->adminSignature()->path);
+        } else {
+            // Use default admin signature if no admin signature exists
+            $adminSignatureBase64 = $this->getDefaultAdminSignatureBase64();
         }
 
         if ($invoice->clientSignature()) {
@@ -86,7 +89,7 @@ class PdfController extends Controller
 
     public function quote($id)
     {
-        $quote = Quotes::with(['client', 'files', 'quoteServices.service'])->findOrFail($id);
+        $quote = Quotes::with(['client', 'files', 'services'])->findOrFail($id);
         $type = 'quote';
 
         // Convert signatures to base64
@@ -95,6 +98,9 @@ class PdfController extends Controller
 
         if ($quote->adminSignature()) {
             $adminSignatureBase64 = $this->getImageBase64($quote->adminSignature()->path);
+        } else {
+            // Use default admin signature if no admin signature exists
+            $adminSignatureBase64 = $this->getDefaultAdminSignatureBase64();
         }
 
         if ($quote->clientSignature()) {
@@ -114,13 +120,33 @@ class PdfController extends Controller
     private function getImageBase64($path)
     {
         try {
-            if (Storage::disk('public')->exists($path)) {
+            $fullPath = Storage::disk('public')->path($path);
+            if (file_exists($fullPath)) {
                 $imageData = Storage::disk('public')->get($path);
-                $mimeType = Storage::disk('public')->mimeType($path);
+                $mimeType = mime_content_type($fullPath) ?: 'image/png';
                 return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
             }
         } catch (\Exception $e) {
             Log::error('Error converting image to base64: ' . $e->getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * Get default admin signature as base64
+     */
+    private function getDefaultAdminSignatureBase64()
+    {
+        try {
+            $defaultPath = public_path('images/admin_signature.png');
+            if (file_exists($defaultPath)) {
+                $imageData = file_get_contents($defaultPath);
+                $mimeType = mime_content_type($defaultPath);
+                return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error getting default admin signature base64: ' . $e->getMessage());
         }
 
         return null;

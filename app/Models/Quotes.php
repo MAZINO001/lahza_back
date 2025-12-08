@@ -55,14 +55,14 @@ class Quotes extends Model
     {
         return $this->hasOne(Invoice::class, 'quote_id');
     }
-    // ro check if the quote is singed from both parties
+    // To check if the quote is signed from both parties
+    // Note: Admin signature is always considered present (auto-signed), so we only check client signature
     protected $appends = ['is_fully_signed'];
 
     public function getIsFullySignedAttribute()
     {
-        return
-        // $this->adminSignature() &&
-         $this->clientSignature();
+        // Admin is always auto-signing, so we only need to check client signature
+        return $this->clientSignature() !== null;
     }
     public function payments()
     {

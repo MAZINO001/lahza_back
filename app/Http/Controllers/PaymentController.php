@@ -7,21 +7,37 @@ use App\Models\Invoice;
 use App\Services\PaymentServiceInterface;
 use App\Models\Payment;
 use Illuminate\Support\Facades\Log;
+use App\Services\ProjectCreationService; 
+use Illuminate\Support\Facades\DB;
+ 
 class PaymentController extends Controller
 {
     protected $paymentService;
+    protected $projectCreationService;
 
-    public function __construct(PaymentServiceInterface $paymentService)
+    public function __construct(PaymentServiceInterface $paymentService ,ProjectCreationService $projectCreationService)
     {
         $this->paymentService = $paymentService;
+        $this->projectCreationService = $projectCreationService;
     }
 public function getPayment(){
     return $this->paymentService->getPayment();
 }
     public function createPaymentLink(Request $request, $invoiceId)
     {
+        $validated = $request->validate([
+            'payment_percentage' => 'required|numeric|min:0.01|max:100',
+            'payment_status' => 'required|string|in:pending,paid',
+            'payment_type' => 'required|string|in:stripe,banc,cash,cheque',
+        ]);
+
         $invoice = Invoice::with('client')->findOrFail($invoiceId);
-        $response = $this->paymentService->createPaymentLink($invoice);
+        $response = $this->paymentService->createPaymentLink(
+            $invoice,
+            floatval($validated['payment_percentage']),
+            $validated['payment_status'],
+            $validated['payment_type']
+        );
         return response()->json($response);
     }
     /**
@@ -78,15 +94,58 @@ public function getRemaining(Request $request, Invoice $invoice){
 {
     // Validate the percentage from the URL parameter
     $validated = validator([
-        'percentage' => $percentage
+        'percentage' => $percentage,
+        'payment_type' => $request->input('payment_type', 'stripe'),
+        'payment_status' => $request->input('payment_status', 'pending')
     ], [
-        'percentage' => 'required|numeric|min:0.01|max:100'
+        'percentage' => 'required|numeric|min:0.01|max:100',
+        'payment_type' => 'required|string|in:stripe,banc,cash,cheque',
+        'payment_status' => 'required|string|in:pending,paid'
     ])->validate();
 
     return $this->paymentService->createAdditionalPayment(
         $invoice,
-        floatval($validated['percentage'])
+        floatval($validated['percentage']),
+        $validated['payment_type'],
+        $validated['payment_status']
     );
+}
+public function handlManuelPayment ( Payment $payment){
+    $invoice = $payment->invoice;
+    if($payment->payment_method == 'stripe'){
+        return response()->json([
+            'error' => true,
+            'message' => "stripe method is not allowed "
+        ]);
+    }
+    if($payment->status !=='pending'){
+        return response()->json([
+            'error' => true,
+            'message' => "payment is already paid"
+        ]);
+    }
+    if($payment->invoice->status == 'paid'){
+        return response()->json([
+            'error' => true,
+            'message' => "invoice is already paid"
+        ]);
+    }
+    DB::transaction(function () use ($payment, $invoice) {
+        $payment->update([
+            'status' => 'paid',
+        ]);
+        $this->paymentService->updateInvoiceStatus($invoice);
+        return response()->json([
+            'success' => true,
+            'message' => "payment is paid"
+        ]);
+    });
+    try {
+                $this->projectCreationService->createProjectForInvoice($invoice);
+                logger('wal7waaaa');
+            } catch (\Exception $e) {
+                Log::error('Failed to create project for invoice #'.$invoice->id.': '.$e->getMessage());
+            }
 }
 
 }

@@ -36,9 +36,42 @@ class SignatureController extends Controller
             ]
         );
 
+        // Update status to 'signed' if client signature is uploaded
+        if ($type === 'client_signature') {
+            if ($instance instanceof Quotes) {
+                $instance->update(['status' => 'signed']);
+            } elseif ($instance instanceof Invoice) {
+                // Invoice status doesn't have 'signed', so we don't update it
+                // But we can add a note or handle it differently if needed
+            }
+        }
+
+        // Get the updated instance with relationships
+        $instance->refresh();
+        $instance->load('files');
+
+        // Build response message based on signature status
+        $message = 'Signature uploaded successfully';
+        if ($instance instanceof Quotes) {
+            $isFullySigned = $instance->is_fully_signed;
+            if ($isFullySigned) {
+                $message = 'Signature uploaded successfully. Document is now fully signed by both parties.';
+            } else {
+                $message = 'Signature uploaded successfully. ' . 
+                    ($type === 'admin_signature' 
+                        ? 'Waiting for client signature.' 
+                        : 'Waiting for admin signature.');
+            }
+        }
+
         return response()->json([
-            'message' => 'Signature uploaded successfully',
+            'message' => $message,
             'url' => $file->url,
+            'type' => $type,
+            'has_client_signature' => $instance->clientSignature() !== null,
+            'has_admin_signature' => $instance->adminSignature() !== null,
+            'status' => $instance instanceof Quotes ? $instance->status : null,
+            'is_fully_signed' => $instance instanceof Quotes ? $instance->is_fully_signed : null,
         ]);
     }
 

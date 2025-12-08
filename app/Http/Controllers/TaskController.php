@@ -11,9 +11,9 @@ class TaskController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Project $project)
     {
-        //
+        return Task::all()->where('project_id',$project->id);
     }
 
     /**
@@ -34,9 +34,9 @@ class TaskController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function AllTasks()
     {
-        //
+        return Task::all();
     }
 
     /**

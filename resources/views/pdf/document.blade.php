@@ -8,7 +8,7 @@
         @if ($type === 'invoice')
             Facture {{ 'INVOICE-' . str_pad($invoice->id ?? 0, 5, '0', STR_PAD_LEFT) }}
         @else
-            Facture {{ 'QUOTES-' . str_pad($quotes->id ?? 0, 5, '0', STR_PAD_LEFT) }}
+            Facture {{ 'QUOTES-' . str_pad($quote->id ?? 0, 5, '0', STR_PAD_LEFT) }}
         @endif
     </title>
     <link rel="stylesheet" href="{{ public_path('fonts/roboto.css') }}">
@@ -624,9 +624,12 @@
             </div>
             <div class="signatures">
                 <div class="admin_sign">
-                    <img src="{{ public_path('images/admin_signature.png') }}" alt="Admin Signature"
-                        style="width:200px;">
-
+                    @if ($adminSignatureBase64)
+                        <img src="{{ $adminSignatureBase64 }}" alt="Admin Signature" style="width:200px;">
+                    @else
+                        <img src="{{ public_path('images/admin_signature.png') }}" alt="Admin Signature"
+                            style="width:200px;">
+                    @endif
                 </div>
                 <div class="client_sign">
                     @if ($clientSignatureBase64)
