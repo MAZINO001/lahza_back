@@ -19,6 +19,8 @@ use App\Http\Controllers\OfferController;
 use App\Http\Controllers\PaymentController;
 use App\Traits\LogsActivity;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\TaskController;
+
 
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
@@ -81,10 +83,17 @@ Route::get('/payments', [PaymentController::class, 'getPayment']);
 
 
 Route::get('logs', [LogsActivityController::class, 'index']);
+Route::get('logs/{activityLog}', [LogsActivityController::class, 'show']);
 Route::get('getRemaining/{invoice}', [PaymentController::class, 'getRemaining']);
 Route::get('getInvoicePayments/{invoice}', [PaymentController::class, 'getInvoicePayments']);
 
 
 Route::post('/invoices/pay/{invoice}/{percentage}', [PaymentController::class, 'createAdditionalPayment']);
 
-Route::get('/getProjects', [ProjectController::class, 'index']);
+Route::get('/projects', [ProjectController::class, 'index']);
+Route::get('/project/{project}', [ProjectController::class, 'show']);
+
+Route::get('/tasks/{project}', [TaskController::class, 'index']);
+Route::get('/allTasks', [TaskController::class, 'AllTasks']);
+
+Route::put('/validatePayments/{payment}/', [PaymentController::class, 'handlManuelPayment']);

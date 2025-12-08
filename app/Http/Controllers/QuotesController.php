@@ -10,7 +10,9 @@ use App\Models\Service;
 use App\Models\Invoice;
 use App\Services\PaymentServiceInterface;
 use Illuminate\Support\Facades\Mail;
-
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 class QuotesController extends Controller
 {
     protected $paymentService;
@@ -22,12 +24,16 @@ class QuotesController extends Controller
     // GET /api/Quotes
     public function index()
     {
-        $quotes = Quotes::with(['quoteServices', 'client.user:id,name,email'])->get();
+        $quotes = Quotes::with(['quoteServices', 'client.user:id,name,email', 'files'])->get();
         $allServices = Service::all();
 
-        // Add admin signature URL to each quote
+        // Add signature URLs to each quote
         $quotes->each(function ($quote) {
             $quote->admin_signature_url = asset('images/admin_signature.png');
+            $clientSignature = $quote->clientSignature();
+            $quote->client_signature_url = $clientSignature ? $clientSignature->url : null;
+            $quote->has_client_signature = $clientSignature !== null;
+            $quote->has_admin_signature = $quote->adminSignature() !== null;
         });
 
         return response()->json([
@@ -75,10 +81,16 @@ class QuotesController extends Controller
                 }
             }
 
-            return response()->json([$quote->load('quoteServices'), 'quote_id' => $quote->id], 201);
-            $quote->load('quoteServices');
-            // Add admin signature URL to the response
+            // Auto-sign with admin signature
+            $this->autoSignAdminSignature($quote);
+
+            $quote->load('quoteServices', 'files');
+            // Add signature URLs to the response
             $quote->admin_signature_url = asset('images/admin_signature.png');
+            $clientSignature = $quote->clientSignature();
+            $quote->client_signature_url = $clientSignature ? $clientSignature->url : null;
+            $quote->has_client_signature = $clientSignature !== null;
+            $quote->has_admin_signature = $quote->adminSignature() !== null;
 
             return response()->json([$quote, 'quote_id' => $quote->id], 201);
         });
@@ -87,10 +99,14 @@ class QuotesController extends Controller
     // GET /api/quotes/{id}
     public function show($id)
     {
-        $quote = Quotes::with('quoteServices')->findOrFail($id);
+        $quote = Quotes::with(['quoteServices', 'files'])->findOrFail($id);
 
-        // Add admin signature URL to the response
+        // Add signature URLs to the response
         $quote->admin_signature_url = asset('images/admin_signature.png');
+        $clientSignature = $quote->clientSignature();
+        $quote->client_signature_url = $clientSignature ? $clientSignature->url : null;
+        $quote->has_client_signature = $clientSignature !== null;
+        $quote->has_admin_signature = $quote->adminSignature() !== null;
 
         return response()->json($quote);
     }
@@ -98,9 +114,13 @@ class QuotesController extends Controller
     // GET /api/quotes/{id}/services
     public function quoteServices(Quotes $quote)
     {
-        $quote->load('quoteServices.service');
-        // Add admin signature URL to the response
+        $quote->load('quoteServices.service', 'files');
+        // Add signature URLs to the response
         $quote->admin_signature_url = asset('images/admin_signature.png');
+        $clientSignature = $quote->clientSignature();
+        $quote->client_signature_url = $clientSignature ? $clientSignature->url : null;
+        $quote->has_client_signature = $clientSignature !== null;
+        $quote->has_admin_signature = $quote->adminSignature() !== null;
 
         return response()->json($quote);
     }
@@ -170,9 +190,56 @@ class QuotesController extends Controller
                     'individual_total' => $quoteService->individual_total,
                 ]);
             }
-            
-            
-            $response = $this->paymentService->createPaymentLink($invoice);
+
+            // Copy client signature from quote to invoice if it exists
+            $clientSignature = $quote->clientSignature();
+            if ($clientSignature) {
+                // Create a new file record for the invoice
+                $invoice->files()->create([
+                    'path' => $clientSignature->path,
+                    'type' => 'client_signature',
+                    'user_id' => $clientSignature->user_id, // Copy the user_id from the original signature
+                    // fileable_type and fileable_id will be set automatically by the relationship
+                ]);
+                
+                // Log the signature copy for debugging
+                Log::info('Copied client signature to invoice', [
+                    'quote_id' => $quote->id,
+                    'invoice_id' => $invoice->id,
+                    'signature_path' => $clientSignature->path
+                ]);
+            } else {
+                Log::warning('No client signature found when creating invoice from quote', [
+                    'quote_id' => $quote->id
+                ]);
+            }
+
+            // Copy admin signature from quote to invoice if it exists, otherwise auto-sign
+            $adminSignature = $quote->adminSignature();
+            if ($adminSignature) {
+                $invoice->files()->create([
+                    'path' => $adminSignature->path,
+                    'type' => 'admin_signature',
+                    'user_id' => $adminSignature->user_id,
+                ]);
+            } else {
+                // Auto-sign with admin signature
+                $this->autoSignAdminSignature($invoice);
+            }
+
+
+            $paymentMethod = strtolower($quote->client->country) === 'maroc'
+    ? 'banc'
+    : 'stripe';
+
+            // Create payment link with default values when creating invoice from quote
+            // Default: 50% advance payment, pending status, banc payment method
+            $response = $this->paymentService->createPaymentLink(
+                $invoice,
+                50.0,           // payment_percentage: 50% advance payment
+                'pending',      // payment_status: pending until paid
+                $paymentMethod          // payment_type: bank transfer (default)
+            );
         
             $email = 'mangaka.wir@gmail.com';
             $data = [
@@ -240,7 +307,15 @@ class QuotesController extends Controller
             }
         }
 
-        return response()->json($quote->load('quoteServices'));
+        $quote->load('quoteServices', 'files');
+        // Add signature URLs to the response
+        $quote->admin_signature_url = asset('images/admin_signature.png');
+        $clientSignature = $quote->clientSignature();
+        $quote->client_signature_url = $clientSignature ? $clientSignature->url : null;
+        $quote->has_client_signature = $clientSignature !== null;
+        $quote->has_admin_signature = $quote->adminSignature() !== null;
+
+        return response()->json($quote);
     }
 
     // DELETE /api/quotes/{id}
@@ -249,5 +324,50 @@ class QuotesController extends Controller
         $quote = Quotes::findOrFail($id);
         $quote->delete(); // Pivot entries cascade if foreign key is set
         return response()->json(null, 204);
+    }
+
+    /**
+     * Automatically sign with admin signature by copying default admin signature image
+     */
+    private function autoSignAdminSignature($instance)
+    {
+        // Check if admin signature already exists
+        if ($instance->adminSignature()) {
+            return;
+        }
+
+        try {
+            $defaultPath = public_path('images/admin_signature.png');
+            if (!file_exists($defaultPath)) {
+                Log::warning('Default admin signature image not found at: ' . $defaultPath);
+                return;
+            }
+
+            // Generate unique filename
+            $filename = 'admin_signature_' . uniqid() . '.png';
+            $storagePath = 'signatures/' . $filename;
+
+            // Copy the default admin signature to storage
+            $imageData = file_get_contents($defaultPath);
+            Storage::disk('public')->put($storagePath, $imageData);
+
+            // Create file record
+            $instance->files()->create([
+                'path' => $storagePath,
+                'type' => 'admin_signature',
+                'user_id' => Auth::id() ?? 1, // Use authenticated user or default admin user
+            ]);
+
+            Log::info('Auto-signed with admin signature', [
+                'model' => get_class($instance),
+                'id' => $instance->id,
+                'signature_path' => $storagePath
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error auto-signing with admin signature: ' . $e->getMessage(), [
+                'model' => get_class($instance),
+                'id' => $instance->id
+            ]);
+        }
     }
 }

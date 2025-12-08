@@ -25,14 +25,14 @@ class File extends Model
 
     public function getUrlAttribute()
     {
-        return Storage::url($this->path);
+        return Storage::disk('public')->url($this->path);
     }
     public function getBase64Attribute()
     {
         try {
-            if (Storage::exists($this->path)) {
-                $imageData = Storage::get($this->path);
-                $mimeType = Storage::mimeType($this->path);
+            if (Storage::disk('public')->exists($this->path)) {
+                $imageData = Storage::disk('public')->get($this->path);
+                $mimeType = Storage::disk('public')->mimeType($this->path);
                 return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
             }
         } catch (\Exception $e) {

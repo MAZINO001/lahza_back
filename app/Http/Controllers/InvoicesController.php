@@ -10,6 +10,9 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use App\Services\PaymentServiceInterface;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class InvoicesController extends Controller
 {
@@ -22,12 +25,16 @@ class InvoicesController extends Controller
 
     public function index()
     {
-        $invoices = Invoice::with(['invoiceServices', 'client.user:id,name'])->get();
+        $invoices = Invoice::with(['invoiceServices', 'client.user:id,name', 'files'])->get();
         $allServices = Service::all();
 
-        // Add admin signature URL to each invoice
+        // Add signature URLs to each invoice
         $invoices->each(function ($invoice) {
             $invoice->admin_signature_url = asset('images/admin_signature.png');
+            $clientSignature = $invoice->clientSignature();
+            $invoice->client_signature_url = $clientSignature ? $clientSignature->url : null;
+            $invoice->has_client_signature = $clientSignature !== null;
+            $invoice->has_admin_signature = $invoice->adminSignature() !== null;
         });
 
         return response()->json([
@@ -46,6 +53,9 @@ class InvoicesController extends Controller
             'notes' => 'nullable|string',
             'total_amount' => 'required|numeric',
             'balance_due' => 'required|numeric',
+            'payment_percentage'=>'numeric',
+            'payment_status'=>'string',
+            'payment_type'=> 'string',
             'services' => 'array',
             'services.*.service_id' => 'required|exists:services,id',
             'services.*.quantity' => 'required|integer|min:1',
@@ -76,15 +86,24 @@ class InvoicesController extends Controller
                     ]);
                 }
             }
-            // Add admin signature URL to the response
 
+            // Auto-sign with admin signature
+            $this->autoSignAdminSignature($invoice);
 
+            // Add signature URLs to the response
+            $invoice->load('client', 'files');
             $invoice->admin_signature_url = asset('images/admin_signature.png');
+            $clientSignature = $invoice->clientSignature();
+            $invoice->client_signature_url = $clientSignature ? $clientSignature->url : null;
+            $invoice->has_client_signature = $clientSignature !== null;
+            $invoice->has_admin_signature = $invoice->adminSignature() !== null;
+            logger("teeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeessssssssssssssssssssstttttt" );
+     
+            $paymentPercentage = $validate['payment_percentage'] ?? 0;
+            $paymentStatus = $validate['payment_status'] ?? 'unpaid';
+            $paymentType = $validate['payment_type'] ?? 'banc';
             
-            // Load the client relationship
-            $invoice->load('client');
-
-            $response = $this->paymentService->createPaymentLink($invoice);
+            $response = $this->paymentService->createPaymentLink($invoice, $paymentPercentage, $paymentStatus, $paymentType);
         
             $email = 'mangaka.wir@gmail.com';
             $data = [
@@ -108,9 +127,13 @@ class InvoicesController extends Controller
 
     public function show($id)
     {
-        $invoice = Invoice::with(['invoiceServices', 'client.user:id,name'])->findOrFail($id);
-        // Add admin signature URL to the response
+        $invoice = Invoice::with(['invoiceServices', 'client.user:id,name', 'files'])->findOrFail($id);
+        // Add signature URLs to the response
         $invoice->admin_signature_url = asset('images/admin_signature.png');
+        $clientSignature = $invoice->clientSignature();
+        $invoice->client_signature_url = $clientSignature ? $clientSignature->url : null;
+        $invoice->has_client_signature = $clientSignature !== null;
+        $invoice->has_admin_signature = $invoice->adminSignature() !== null;
 
         return response()->json($invoice);
     }
@@ -169,5 +192,50 @@ class InvoicesController extends Controller
         $invoice = Invoice::findOrFail($id);
         $invoice->delete();
         return response()->json(null, 204);
+    }
+
+    /**
+     * Automatically sign with admin signature by copying default admin signature image
+     */
+    private function autoSignAdminSignature($instance)
+    {
+        // Check if admin signature already exists
+        if ($instance->adminSignature()) {
+            return;
+        }
+
+        try {
+            $defaultPath = public_path('images/admin_signature.png');
+            if (!file_exists($defaultPath)) {
+                Log::warning('Default admin signature image not found at: ' . $defaultPath);
+                return;
+            }
+
+            // Generate unique filename
+            $filename = 'admin_signature_' . uniqid() . '.png';
+            $storagePath = 'signatures/' . $filename;
+
+            // Copy the default admin signature to storage
+            $imageData = file_get_contents($defaultPath);
+            Storage::disk('public')->put($storagePath, $imageData);
+
+            // Create file record
+            $instance->files()->create([
+                'path' => $storagePath,
+                'type' => 'admin_signature',
+                'user_id' => Auth::id() ?? 1, // Use authenticated user or default admin user
+            ]);
+
+            Log::info('Auto-signed with admin signature', [
+                'model' => get_class($instance),
+                'id' => $instance->id,
+                'signature_path' => $storagePath
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error auto-signing with admin signature: ' . $e->getMessage(), [
+                'model' => get_class($instance),
+                'id' => $instance->id
+            ]);
+        }
     }
 }
