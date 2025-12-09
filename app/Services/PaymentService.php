@@ -96,7 +96,7 @@ class PaymentService implements PaymentServiceInterface
     public function createPaymentLink(Invoice $invoice, float $payment_percentage, string $payment_status, string $payment_type): array
     {
         // Validate payment_method matches ENUM values
-        $allowedPaymentMethods = ['stripe', 'banc', 'cash', 'cheque'];
+        $allowedPaymentMethods = ['stripe', 'bank', 'cash', 'cheque'];
         if (!in_array($payment_type, $allowedPaymentMethods)) {
             throw new \Illuminate\Http\Exceptions\HttpResponseException(
                 response()->json([
@@ -431,7 +431,7 @@ class PaymentService implements PaymentServiceInterface
     {
            
         // Validate payment_method matches ENUM values
-        $allowedPaymentMethods = ['stripe', 'banc', 'cash', 'cheque'];
+        $allowedPaymentMethods = ['stripe', 'bank', 'cash', 'cheque'];
         if (!in_array($payment_type, $allowedPaymentMethods)) {
             throw new \Illuminate\Http\Exceptions\HttpResponseException(
                 response()->json([

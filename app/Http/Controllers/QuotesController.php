@@ -229,11 +229,11 @@ class QuotesController extends Controller
 
 
             $paymentMethod = strtolower($quote->client->country) === 'maroc'
-    ? 'banc'
+    ? 'bank'
     : 'stripe';
 
             // Create payment link with default values when creating invoice from quote
-            // Default: 50% advance payment, pending status, banc payment method
+            // Default: 50% advance payment, pending status, bank payment method
             $response = $this->paymentService->createPaymentLink(
                 $invoice,
                 50.0,           // payment_percentage: 50% advance payment
@@ -248,7 +248,7 @@ class QuotesController extends Controller
                 'client' => $quote->client,
                 'payment_url' => $response['payment_url'],
                 'bank_info' => $response['bank_info'],
-                'payment_method' => $response['payment_method'],       // string: 'stripe' or 'banc'
+                'payment_method' => $response['payment_method'],       // string: 'stripe' or 'bank'
             ];
 
 
