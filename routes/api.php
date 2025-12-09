@@ -20,7 +20,7 @@ use App\Http\Controllers\PaymentController;
 use App\Traits\LogsActivity;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
-
+use App\Http\Controllers\ProjectAdditionalDataController;
 
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
@@ -93,7 +93,26 @@ Route::post('/invoices/pay/{invoice}/{percentage}', [PaymentController::class, '
 Route::get('/projects', [ProjectController::class, 'index']);
 Route::get('/project/{project}', [ProjectController::class, 'show']);
 
-Route::get('/tasks/{project}', [TaskController::class, 'index']);
-Route::get('/allTasks', [TaskController::class, 'AllTasks']);
+
 
 Route::put('/validatePayments/{payment}/', [PaymentController::class, 'handlManuelPayment']);
+
+Route::prefix('additional-data')->controller(ProjectAdditionalDataController::class)->group(function () {
+    Route::post('/', 'store');
+    Route::put('/{id}', 'update');
+    Route::delete('/{id}', 'destroy');
+
+    // Avoid route conflict:
+    Route::get('/{project_id}', 'showByProject');
+});
+Route::prefix('projects/tasks/{project}')->controller(TaskController::class)->group(function () {
+    Route::get('/', 'index');       // get tasks for one project
+    Route::post('/', 'store');      // create task in a project
+    Route::put('/{task}', 'update'); // update task
+    Route::delete('/{task}', 'destroy'); // delete task
+});
+
+// Fetch all tasks (not tied to project)
+Route::get('/tasks', [TaskController::class, 'allTasks']);
+
+

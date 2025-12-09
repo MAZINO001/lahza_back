@@ -3,46 +3,84 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-
+use App\Models\ProjectAdditionalData;
 class ProjectAdditionalDataController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+     public function showByProject($project_id)
     {
-        //
+        $data = ProjectAdditionalData::where('project_id', $project_id)->first();
+
+        if (!$data) {
+            return response()->json(['message' => 'Additional data not found'], 404);
+        }
+
+        return response()->json($data);
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Store new Project Additional Data
+     * POST /additional-data
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'project_id' => 'required|exists:projects,id',
+            'client_id'  => 'required|exists:clients,id',
+            'host_acc' => 'nullable|string',
+            'website_acc' => 'nullable|string',
+            'social_media' => 'nullable|string',
+            'media_files' => 'nullable|string',
+            'specification_file' => 'nullable|string',
+            'logo' => 'nullable|string',
+            'other' => 'nullable|string',
+        ]);
+
+        $data = ProjectAdditionalData::create($validated);
+
+        return response()->json($data, 201);
     }
 
     /**
-     * Display the specified resource.
+     * Update existing Additional Data
+     * PUT /additional-data/{id}
      */
-    public function show(string $id)
+    public function update(Request $request, $id)
     {
-        //
+        $data = ProjectAdditionalData::find($id);
+
+        if (!$data) {
+            return response()->json(['message' => 'Additional data not found'], 404);
+        }
+
+        $validated = $request->validate([
+            'host_acc' => 'nullable|string',
+            'website_acc' => 'nullable|string',
+            'social_media' => 'nullable|string',
+            'media_files' => 'nullable|string',
+            'specification_file' => 'nullable|string',
+            'logo' => 'nullable|string',
+            'other' => 'nullable|string',
+        ]);
+
+        $data->update($validated);
+
+        return response()->json($data);
     }
 
     /**
-     * Update the specified resource in storage.
+     * Delete Additional Data
+     * DELETE /additional-data/{id}
      */
-    public function update(Request $request, string $id)
+    public function destroy($id)
     {
-        //
-    }
+        $data = ProjectAdditionalData::find($id);
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        if (!$data) {
+            return response()->json(['message' => 'Additional data not found'], 404);
+        }
+
+        $data->delete();
+
+        return response()->json(['message' => 'Deleted successfully']);
     }
 }

@@ -142,7 +142,7 @@ public function handlManuelPayment ( Payment $payment){
     });
     try {
                 $this->projectCreationService->createProjectForInvoice($invoice);
-                logger('wal7waaaa');
+                logger('test payment controller line 145');
             } catch (\Exception $e) {
                 Log::error('Failed to create project for invoice #'.$invoice->id.': '.$e->getMessage());
             }

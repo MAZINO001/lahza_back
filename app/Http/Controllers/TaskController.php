@@ -9,49 +9,71 @@ use App\Models\Task;
 class TaskController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Get all tasks for a project.
      */
     public function index(Project $project)
     {
-        return Task::all()->where('project_id',$project->id);
+        return $project->tasks()->get();
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Create a task inside a project.
      */
-    public function store(Request $request , Project $project)
+    public function store(Request $request, Project $project)
     {
-        $task = Task::create([
-            'project_id' => $project->id,
-            'name' => $request->name,
-            'description' => $request->description,
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
-            'status' => $request->status,
+        $validated = $request->validate([
+            'title' => 'required|string',
+            'description' => 'nullable|string',
+            'percentage' => 'nullable|numeric|min:0|max:100',
+            'estimated_time' => 'nullable|numeric|min:0',
         ]);
+
+        $task = $project->tasks()->create($validated);
+
+        return response()->json($task, 201);
     }
 
     /**
-     * Display the specified resource.
+     * Get all tasks (global).
      */
-    public function AllTasks()
+    public function allTasks()
     {
         return Task::all();
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update a task.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, Project $project, Task $task)
     {
-        //
+        // ensure task belongs to the project
+        if ($task->project_id !== $project->id) {
+            return response()->json(['message' => 'Task does not belong to this project'], 403);
+        }
+
+        $validated = $request->validate([
+            'title' => 'nullable|string',
+            'description' => 'nullable|string',
+            'percentage' => 'nullable|numeric|min:0|max:100',
+            'estimated_time' => 'nullable|numeric|min:0',
+        ]);
+
+        $task->update($validated);
+
+        return response()->json($task);
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Delete a task.
      */
-    public function destroy(string $id)
+    public function destroy(Project $project, Task $task)
     {
-        //
+        if ($task->project_id !== $project->id) {
+            return response()->json(['message' => 'Task does not belong to this project'], 403);
+        }
+
+        $task->delete();
+
+        return response()->json(['message' => 'Task deleted']);
     }
 }
