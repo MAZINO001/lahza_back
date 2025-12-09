@@ -101,7 +101,7 @@ class InvoicesController extends Controller
      
             $paymentPercentage = $validate['payment_percentage'] ?? 0;
             $paymentStatus = $validate['payment_status'] ?? 'unpaid';
-            $paymentType = $validate['payment_type'] ?? 'banc';
+            $paymentType = $validate['payment_type'] ?? 'bank';
             
             $response = $this->paymentService->createPaymentLink($invoice, $paymentPercentage, $paymentStatus, $paymentType);
         
@@ -112,7 +112,7 @@ class InvoicesController extends Controller
                 'client' => $invoice->client,
                 'payment_url' => $response['payment_url'],
                 'bank_info' => $response['bank_info'],
-                'payment_method' => $response['payment_method'],       // string: 'stripe' or 'banc'
+                'payment_method' => $response['payment_method'],       // string: 'stripe' or 'bank'
             ];
 
 

@@ -28,7 +28,7 @@ public function getPayment(){
         $validated = $request->validate([
             'payment_percentage' => 'required|numeric|min:0.01|max:100',
             'payment_status' => 'required|string|in:pending,paid',
-            'payment_type' => 'required|string|in:stripe,banc,cash,cheque',
+            'payment_type' => 'required|string|in:stripe,bank,cash,cheque',
         ]);
 
         $invoice = Invoice::with('client')->findOrFail($invoiceId);
@@ -99,7 +99,7 @@ public function getRemaining(Request $request, Invoice $invoice){
         'payment_status' => $request->input('payment_status', 'pending')
     ], [
         'percentage' => 'required|numeric|min:0.01|max:100',
-        'payment_type' => 'required|string|in:stripe,banc,cash,cheque',
+        'payment_type' => 'required|string|in:stripe,bank,cash,cheque',
         'payment_status' => 'required|string|in:pending,paid'
     ])->validate();
 

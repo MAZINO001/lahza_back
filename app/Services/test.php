@@ -124,7 +124,7 @@ class test
             );
         }
 
-        $paymentMethod = $isMoroccanClient ? 'banc' : 'stripe';
+        $paymentMethod = $isMoroccanClient ? 'bank' : 'stripe';
 
         $paymentData = [
             'invoice_id' => $invoice->id,
@@ -430,7 +430,7 @@ public function createAdditionalPayment(Invoice $invoice, float $percentage)
     $client = $invoice->client;
     $country = trim(strtolower(preg_replace('/[^a-z]/i', '', $client->country)));
     $isMoroccanClient = in_array($country, ['morocco', 'maroc', 'ma', 'mar']);
-    $paymentMethod = $isMoroccanClient ? 'banc' : 'stripe';
+    $paymentMethod = $isMoroccanClient ? 'bank' : 'stripe';
 
     // 4) Create the new payment row (pending)
     $paymentData = [
