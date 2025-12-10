@@ -15,7 +15,7 @@ class ProjectAssignment extends Model
 
     public function teamUser()
     {
-        return $this->belongsTo(TeamUser::class);
+        return $this->belongsTo(TeamUser::class,'team_id');
     }
 
     public function assignedBy()
