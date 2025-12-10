@@ -142,7 +142,7 @@ class TaskController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Task status updated',
-            'data' => $task->fresh()
+            'data' => $task->project->progress->fresh()
         ]);
     }
     
@@ -172,14 +172,16 @@ class TaskController extends Controller
         }
         // $tasks->refresh();
         $donePercentage = $tasks->where('status', 'done')->sum('percentage');
-        ProjectProgress::updateOrCreate(
+    ProjectProgress::updateOrCreate(
     [
         'project_id' => $project->id,
     ],
     [
         'accumlated_percentage' => $donePercentage,
-        'team_id'=>Auth::user()->id,
+        // 'team_id'=>Auth::user()->id,
+        'team_id'=>'1',
     ]
     );
+    
     }
 }

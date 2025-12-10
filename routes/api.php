@@ -21,6 +21,8 @@ use App\Traits\LogsActivity;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\ProjectAdditionalDataController;
+use App\Http\Controllers\ProjectAssignmentController;
+use App\Http\Controllers\ProjectProgressController;
 
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
@@ -119,3 +121,6 @@ Route::prefix('projects/tasks/{project}')->controller(TaskController::class)->gr
 Route::get('/tasks', [TaskController::class, 'allTasks']);
 Route::put('/task/{task}', [TaskController::class, 'updateStatus']);
 
+Route::get('getProgress/{project}', [ProjectProgressController::class, 'index']);
+Route::post('/addAssignment/{project}', [ProjectAssignmentController::class, 'store']);
+Route::delete('/deleteAssignment/{project}', [ProjectAssignmentController::class, 'destroy']);
