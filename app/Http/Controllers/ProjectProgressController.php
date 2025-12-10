@@ -11,6 +11,14 @@ class ProjectProgressController extends Controller
      */
     public function index(Project $project)
     {
+        if (!$project->progress){
+            return response()->json([
+                'message' => 'Project progress not avaible',
+                'accumlated_percentage' => 0,
+                'tasks_count' => 0,
+                'done_tasks_count' => 0,
+            ], 404);
+        }
         return $project->progress;
     }
 
