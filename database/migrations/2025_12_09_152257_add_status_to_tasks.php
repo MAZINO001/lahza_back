@@ -11,12 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table(
-            'payments',
-            function (Blueprint $table) {
-                $table->enum('payment_method', ['stripe', 'bank', 'cash', 'cheque'])->default('bank');
-            }
-        );
+        Schema::table('tasks', function (Blueprint $table) {
+            $table->enum('status',['pending','done'])->default('pending');
+        });
     }
 
     /**
@@ -24,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        //
+        Schema::table('tasks', function (Blueprint $table) {
+            //
+        });
     }
 };

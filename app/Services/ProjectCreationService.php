@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Task;
 use App\Models\TeamUser;
 use App\Models\ProjectAssignment;
+use Illuminate\Support\Facades\Mail;
+
 class ProjectCreationService
 {
     /**
@@ -55,7 +57,7 @@ class ProjectCreationService
                         'name' => 'Project for Invoice #' . $invoice->id,
                         'statu' => 'pending',
                         'start_date' => now()->toDateTimeString(),
-                        'estimated_end_date' => now()->addDays(30)->toDateTimeString()
+                        'estimated_end_date' => now()->addDays(7)->toDateTimeString()
                     ]);
 
                     $project = Project::create([
@@ -65,7 +67,7 @@ class ProjectCreationService
                         'description'=> 'Auto-created project after first payment.',
                         'statu'      => 'pending',
                         'start_date' => now(),
-                        'estimated_end_date' => now()->addDays(30),
+                        'estimated_end_date' => now()->addDays(7),
                     ]);
                     
                     Log::info('Successfully created project', [
@@ -181,7 +183,32 @@ class ProjectCreationService
                             'assigned_at' => now(),
                         ]);
                     }
-                    
+                    // After creating tasks and assignment:
+Log::info('Sending project creation email...', [
+    'project_id' => $project->id,
+]);
+
+// Prepare email data
+$email = 'mangaka.wir@gmail.com'; // for now use your email
+$assigned_team = ProjectAssignment::with('teamUser')
+    ->where('project_id', $project->id)
+    ->latest()
+    ->first();
+$data = [
+    'project' => $project,
+    'client'  => $invoice->client,
+    'invoice' => $invoice,
+    'tasks'   => $project->tasks,
+    'assigned_team' => $assigned_team,
+];
+
+// Send email using your method
+Mail::send('emails.project_created', $data, function ($message) use ($email, $project) {
+    $message->to($email)
+            ->subject('New Project Created - #' . $project->id);
+});
+
+Log::info('Project creation email sent successfully.');
                     return $project;
                     
                 } catch (\Exception $e) {

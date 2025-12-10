@@ -22,7 +22,8 @@ class TeamUser extends Model
     protected $fillable = [
         'user_id',   // needed for your registration logic
         'department',// department information
-        'poste',     // position/role
+        'poste',
+        'skills'
     ];
 
     /**
@@ -36,4 +37,9 @@ class TeamUser extends Model
 {
     return $this->hasMany(ProjectAssignment::class, 'team_id');
 }
+public function progress()
+{
+    return $this->hasMany(ProjectProgress::class, 'team_id');
+}
+
 }

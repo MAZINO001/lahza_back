@@ -35,6 +35,9 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::get('clients/{id}', [ClientController::class, 'show']);
     Route::put('clients/{id}', [ClientController::class, 'update']);
     Route::delete('clients/{id}', [ClientController::class, 'destroy']);
+
+
+
 });
 
 // routes for client only
@@ -111,8 +114,8 @@ Route::prefix('projects/tasks/{project}')->controller(TaskController::class)->gr
     Route::put('/{task}', 'update'); // update task
     Route::delete('/{task}', 'destroy'); // delete task
 });
-
+  
 // Fetch all tasks (not tied to project)
 Route::get('/tasks', [TaskController::class, 'allTasks']);
-
+Route::put('/task/{task}', [TaskController::class, 'updateStatus']);
 
