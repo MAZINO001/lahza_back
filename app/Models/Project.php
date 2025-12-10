@@ -28,7 +28,7 @@ class Project extends Model
 
     public function progress()
     {
-        return $this->hasMany(ProjectProgress::class);
+        return $this->hasOne(ProjectProgress::class);
     }
 
     public function additionalData()

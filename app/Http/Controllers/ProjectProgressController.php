@@ -3,15 +3,15 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-
+use App\Models\Project;
 class ProjectProgressController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Project $project)
     {
-        //
+        return $project->progress;
     }
 
     /**
