@@ -124,4 +124,4 @@ Route::put('/task/{task}', [TaskController::class, 'updateStatus']);
 Route::get('getProgress/{project}', [ProjectProgressController::class, 'index']);
 
 Route::post('addAssignment', [ProjectAssignmentController::class, 'store']);
-Route::delete('deleteAssignment', [ProjectAssignmentController::class, 'destroy']);
+Route::delete('deleteAsfsignment', [ProjectAssignmentController::class, 'destroy']);
