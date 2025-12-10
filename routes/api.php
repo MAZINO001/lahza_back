@@ -106,17 +106,17 @@ Route::prefix('additional-data')->controller(ProjectAdditionalDataController::cl
     Route::post('/', 'store');
     Route::put('/{id}', 'update');
     Route::delete('/{id}', 'destroy');
-
     // Avoid route conflict:
 Route::get('/project/{project_id}', 'showByProject');
 });
+
 Route::prefix('projects/tasks/{project}')->controller(TaskController::class)->group(function () {
     Route::get('/', 'index');       // get tasks for one project
     Route::post('/', 'store');      // create task in a project
     Route::put('/{task}', 'update'); // update task
     Route::delete('/{task}', 'destroy'); // delete task
 });
-  
+
 // Fetch all tasks (not tied to project)
 Route::get('/tasks', [TaskController::class, 'allTasks']);
 Route::put('/task/{task}', [TaskController::class, 'updateStatus']);
