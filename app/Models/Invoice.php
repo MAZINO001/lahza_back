@@ -58,8 +58,8 @@ class Invoice extends Model
         return $this->files()->where('type', 'client_signature')->first();
     }
   public function payments()
-{
-    return $this->hasMany(Payment::class, 'invoice_id');
-}
+    {
+        return $this->hasMany(Payment::class, 'invoice_id');
+    }
 
 }

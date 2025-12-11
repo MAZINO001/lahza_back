@@ -169,8 +169,8 @@ class test
                     'advance_amount' => $halfAmount, 
                     'is_advance_payment' => true
                 ],
-                'success_url' => env('FRONTEND_URL') . '/client/projects?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => env('FRONTEND_URL') . '/payment-cancel',
+                'success_url' => env('FRONTEND_URL') . '/client/projects',
+                'cancel_url' => env('FRONTEND_URL') .'/client/invoices',
             ]);
 
             $paymentData['stripe_session_id'] = $session->id;
@@ -277,8 +277,8 @@ class test
                     'client_id' => $payment->client_id,
                     'updated_payment' => true
                 ],
-                'success_url' => env('FRONTEND_URL') . '/client/projects?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => env('FRONTEND_URL') . '/payment-cancel',
+                'success_url' => env('FRONTEND_URL') . '/client/projects',
+                'cancel_url' => env('FRONTEND_URL') .'/client/invoices',
             ]);
 
             $payment->stripe_session_id = $session->id;
@@ -470,8 +470,8 @@ public function createAdditionalPayment(Invoice $invoice, float $percentage)
                 ],
                 'quantity' => 1,
             ]],
-            'success_url' => env('FRONTEND_URL') . '/client/projects?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => env('FRONTEND_URL') . '/payment-cancel',
+            'success_url' => env('FRONTEND_URL') . '/client/projects',
+            'cancel_url' => env('FRONTEND_URL') .'/client/invoices',
             'metadata' => [
                 'invoice_id' => $invoice->id,
                 'type' => 'additional_payment',
