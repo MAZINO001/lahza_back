@@ -51,14 +51,11 @@ class ProjectCreationService
 
             if ($paidCount === 1) {
                 try {
-                    Log::debug('Creating project with data:', [
-                        'invoice_id' => $invoice->id,
-                        'client_id' => $invoice->client_id,
-                        'name' => 'Project for Invoice #' . $invoice->id,
-                        'statu' => 'pending',
-                        'start_date' => now()->toDateTimeString(),
-                        'estimated_end_date' => now()->addDays(7)->toDateTimeString()
-                    ]);
+                    $today = now();
+                    $nextMonday = $today->isMonday()
+                        ? $today->copy()
+                        : $today->copy()->next('Monday');
+
 
                     $project = Project::create([
                         'invoice_id' => $invoice->id,
@@ -66,8 +63,8 @@ class ProjectCreationService
                         'name'       => 'Project for Invoice #' . $invoice->id,
                         'description'=> 'Auto-created project after first payment.',
                         'statu'      => 'pending',
-                        'start_date' => now(),
-                        'estimated_end_date' => now()->addDays(7),
+                        'start_date'  => $nextMonday,
+                        'estimated_end_date' => $nextMonday->copy()->addDays(7),
                     ]);
                     
                     Log::info('Successfully created project', [
@@ -129,15 +126,20 @@ class ProjectCreationService
                         
                         if (!empty($this->defaultTasklist) && isset($this->defaultTasklist[$serviceId]) && is_array($this->defaultTasklist[$serviceId])) {
                             // Create tasks from default task list for this service
+                        $currentStart = $project->start_date->copy();
                             foreach ($this->defaultTasklist[$serviceId] as $taskData) {
+                                $taskEnd = $currentStart->copy()->addDay();
                                 Task::create([
                                     'title' => $taskData['title'],
                                     'project_id' => $project->id,
                                     'description' => $taskData['description'],
                                     'status' => 'pending',
-                                    'estimated_time' => $taskData['estimated_time'],
+                                    'start_date' => $currentStart,
+                                    'end_date' => $taskEnd,
                                     'percentage' => $taskPercentage,
                                 ]);   
+                        $currentStart = $taskEnd;
+
                             }
                             
                             Log::info('Created tasks from default list', [
@@ -146,18 +148,19 @@ class ProjectCreationService
                             ]);
                         } else {
                             // Create a single generic task if service not in default list
+                                $taskEnd = $currentStart->copy()->addDay();
+
                             Task::create([
                                 'title' => $invoiceService->service->name ?? 'Service Task',
                                 'project_id' => $project->id,
                                 'description' => $invoiceService->service->description ?? 'Task for service',
                                 'status' => 'pending',
-                                'estimated_time' => 1,
+                                'start_date'  => $currentStart,
+                                'end_date'    => $taskEnd,      
                                 'percentage' => $taskPercentage,
                             ]);
+                                $currentStart = $taskEnd;
                             
-                            Log::warning('Service not found in default task list, created generic task', [
-                                'service_id' => $serviceId
-                            ]);
                         }
                     }
 
