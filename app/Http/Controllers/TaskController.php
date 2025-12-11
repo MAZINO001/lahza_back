@@ -36,7 +36,8 @@ class TaskController extends Controller
                 $validated = validator($taskData, [
                     'title' => 'required|string',
                     'description' => 'nullable|string',
-                    'estimated_time' => 'nullable|numeric|min:0',
+                    'start_date' => 'nullable|date|min:0',
+                    'end_date' => 'nullable|date|min:0',
                 ])->validate();
                 
                 // Don't allow setting percentage directly
@@ -58,7 +59,8 @@ class TaskController extends Controller
             $validated = $request->validate([
                 'title' => 'required|string',
                 'description' => 'nullable|string',
-                'estimated_time' => 'nullable|numeric|min:0',
+                'start_date' => 'nullable|date|min:0',
+                'end_date' => 'nullable|date|min:0',
             ]);
 
             // Don't allow setting percentage directly
@@ -94,7 +96,8 @@ class TaskController extends Controller
         $validated = $request->validate([
             'title' => 'nullable|string',
             'description' => 'nullable|string',
-            'estimated_time' => 'nullable|numeric|min:0',
+            'start_date' => 'nullable|date|min:0',
+            'end_date' => 'nullable|date|min:0',
             // Removed percentage from update as it should only be updated via updateStatus
         ]);
 
