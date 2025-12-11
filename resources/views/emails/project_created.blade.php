@@ -76,8 +76,6 @@
                                             <strong style="color:#111827;">{{ $task->title }}</strong><br>
                                             <span style="color:#6b7280; font-size:13px;">
                                                 {{ $task->description }}  
-                                                — {{ $task->percentage }}%  
-                                                — {{ $task->estimated_time }}h
                                             </span>
                                         </td>
                                     </tr>
@@ -101,7 +99,13 @@
                             @endif
                         </td>
                     </tr>
-
+                    <tr>
+                        <td style="text-align:center; padding-top:30px;">
+                            <p style="color:#9ca3af; font-size:12px; margin:0;">
+                                Please fill Additional data <a href="{{ url(`env('FRONTEND_URL') . '/client/project/`.$project->id.`/additional-data/new'`) }}"class="btn" style="margin: 10px auto;">here</a>
+                            </p>
+                        </td>
+                    </tr>
                     <!-- Footer -->
                     <tr>
                         <td style="text-align:center; padding-top:30px;">
