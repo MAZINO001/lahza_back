@@ -27,4 +27,8 @@ class Intern extends Model
     {
         return $this->morphMany(File::class, 'fileable');
     }
+       public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
 }

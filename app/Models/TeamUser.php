@@ -41,5 +41,8 @@ public function progress()
 {
     return $this->hasMany(ProjectProgress::class, 'team_id');
 }
-
+   public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
 }

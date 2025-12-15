@@ -43,4 +43,8 @@ class Project extends Model
     {
         return $this->belongsTo(Invoice::class);
     }
+       public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
 } 

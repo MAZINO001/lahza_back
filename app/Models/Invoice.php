@@ -62,5 +62,9 @@ class Invoice extends Model
     {
         return $this->hasMany(Payment::class, 'invoice_id');
     }
+       public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
 
 }
