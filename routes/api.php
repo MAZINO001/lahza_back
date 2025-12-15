@@ -284,7 +284,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
 
-            // Get additional data by project
+        // Get additional data by project
         Route::get('additional-data/project/{project_id}', [ProjectAdditionalDataController::class, 'showByProject']);
 
         // Create additional data
@@ -292,7 +292,5 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Update additional data
         Route::put('additional-data/{id}', [ProjectAdditionalDataController::class, 'update']);
-
-
     });
 });
