@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class Project extends Model
 {
     protected $fillable = [
-        'client_id', 'invoice_id', 'name', 'description', 'statu',
-        'start_date', 'estimated_end_date'
+        'client_id', 'invoice_id', 'name', 'description', 'status',
+        'start_date','estimated_end_date','quote_id'
     ];
 
     public function client()
@@ -42,5 +42,9 @@ class Project extends Model
     public function invoice()
     {
         return $this->belongsTo(Invoice::class);
+    }
+       public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
     }
 } 

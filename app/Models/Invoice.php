@@ -17,6 +17,7 @@ class Invoice extends Model
         'notes',
         'total_amount',
         'balance_due',
+        'has_projects',
         'checksum'
     ];
 
@@ -60,6 +61,10 @@ class Invoice extends Model
   public function payments()
     {
         return $this->hasMany(Payment::class, 'invoice_id');
+    }
+       public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
     }
 
 }
