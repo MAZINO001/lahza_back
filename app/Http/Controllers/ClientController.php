@@ -24,8 +24,9 @@ class ClientController extends Controller
     $totalPaymentTotal = $payments->sum('total');
 
     $balanceDue = $totalPaymentTotal - $totalPaid;
+    $user = User::where('id', $client->user_id)->first();
 
-    return [$client, $totalPaid, $balanceDue];
+        return response()->json(['client'=>$client,'totalPaid'=>$totalPaid,'balanceDue'=>$balanceDue,'user'=>$user]);
 }
 
 

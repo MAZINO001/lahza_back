@@ -161,24 +161,59 @@ Route::middleware('auth:sanctum')->group(function () {
         ];
     });
 
+    // -------------------------------------------------
+    // SHARED READ ROUTES (admin + client) ✅ FIX
+    // -------------------------------------------------
+    Route::middleware('role:admin,client')->group(function () {
+
+        // Clients
+        Route::get('clients/{id}', [ClientController::class, 'show']);
+
+        // Resources (READ)
+        Route::get('invoices', [InvoicesController::class, 'index']);
+        Route::get('invoices/{invoice}', [InvoicesController::class, 'show']);
+        Route::get('quotes', [QuotesController::class, 'index']);
+        Route::get('quotes/{quote}', [QuotesController::class, 'show']);
+        Route::get('services', [ServicesController::class, 'index']);
+        Route::get('services/{service}', [ServicesController::class, 'show']);
+        Route::get('offers', [OfferController::class, 'index']);
+        Route::get('offers/{offer}', [OfferController::class, 'show']);
+
+        // Projects & tasks (READ)
+        Route::get('/projects', [ProjectController::class, 'index']);
+        Route::get('/project/{project}', [ProjectController::class, 'show']);
+        Route::get('/tasks', [TaskController::class, 'allTasks']);
+        Route::get('getProgress/{project}', [ProjectProgressController::class, 'index']);
+
+        // CSV export (read)
+        Route::get('/export', [ClientImportExportController::class, 'export']);
+
+        // Comments (READ)
+        Route::get('comments/{type}/{id}', [CommentController::class, 'index']);
+        Route::get('comments/user/{userId}', [CommentController::class, 'getUserComments']);
+        Route::get('comments', [CommentController::class, 'getAllComments']);
+
+        // Project additional data (READ)
+        Route::get('additional-data/project/{project_id}', [ProjectAdditionalDataController::class, 'showByProject']);
+    });
+
     // -----------------------------
     // Admin-only routes
     // -----------------------------
     Route::middleware('role:admin')->group(function () {
-        // Clients
+
+        // Clients (FULL)
         Route::get('clients', [ClientController::class, 'index']);
-        Route::get('clients/{id}', [ClientController::class, 'show']);
         Route::put('clients/{id}', [ClientController::class, 'update']);
         Route::delete('clients/{id}', [ClientController::class, 'destroy']);
 
-        // Resources
-        Route::apiResource('invoices', InvoicesController::class);
-        Route::apiResource('quotes', QuotesController::class);
-        Route::apiResource('services', ServicesController::class);
-        Route::apiResource('offers', OfferController::class);
+        // Resources (FULL)
+        Route::apiResource('invoices', InvoicesController::class)->except(['index', 'show']);
+        Route::apiResource('quotes', QuotesController::class)->except(['index', 'show']);
+        Route::apiResource('services', ServicesController::class)->except(['index', 'show']);
+        Route::apiResource('offers', OfferController::class)->except(['index', 'show']);
 
-        // CSV import/export
-        Route::get('/export', [ClientImportExportController::class, 'export']);
+        // CSV import
         Route::post('/import', [ClientImportExportController::class, 'import']);
         Route::post('/uploadClients', [csvController::class, 'uploadClients']);
         Route::post('/uploadInvoices', [csvController::class, 'uploadInvoices']);
@@ -196,98 +231,57 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('getRemaining/{invoice}', [PaymentController::class, 'getRemaining']);
         Route::get('getInvoicePayments/{invoice}', [PaymentController::class, 'getInvoicePayments']);
         Route::post('/invoices/pay/{invoice}/{percentage}', [PaymentController::class, 'createAdditionalPayment']);
-        Route::post('/stripe/webhook', [PaymentController::class, 'handleWebhook']);
 
-        // Projects & tasks
-        Route::get('/projects', [ProjectController::class, 'index']);
-        Route::get('/project/{project}', [ProjectController::class, 'show']);
-
+        // Projects & tasks (WRITE)
         Route::prefix('projects/tasks/{project}')->controller(TaskController::class)->group(function () {
-            Route::get('/', 'index');
             Route::post('/', 'store');
             Route::put('/{task}', 'update');
             Route::delete('/{task}', 'destroy');
         });
-        Route::get('/tasks', [TaskController::class, 'allTasks']);
         Route::put('/task/{task}', [TaskController::class, 'updateStatus']);
 
-        // Project Additional Data
+        // Project Additional Data (WRITE)
         Route::prefix('additional-data')->controller(ProjectAdditionalDataController::class)->group(function () {
             Route::post('/', 'store');
             Route::put('/{id}', 'update');
             Route::delete('/{id}', 'destroy');
-            Route::get('/project/{project_id}', 'showByProject');
         });
 
         // Project assignments
         Route::post('addAssignment', [ProjectAssignmentController::class, 'store']);
         Route::delete('deleteAssignment', [ProjectAssignmentController::class, 'destroy']);
 
-        // Progress & logs
-        Route::get('getProgress/{project}', [ProjectProgressController::class, 'index']);
+        // Logs
         Route::get('logs', [LogsActivityController::class, 'index']);
         Route::get('logs/{activityLog}', [LogsActivityController::class, 'show']);
 
         // Signatures
-        Route::post('/{model}/{id}/signature', [SignatureController::class, 'upload'])->where('model', 'invoices|quotes');
-        Route::delete('/{model}/{id}/signature', [SignatureController::class, 'destroy'])->where('model', 'invoices|quotes');
+        Route::post('/{model}/{id}/signature', [SignatureController::class, 'upload'])
+            ->where('model', 'invoices|quotes');
+        Route::delete('/{model}/{id}/signature', [SignatureController::class, 'destroy'])
+            ->where('model', 'invoices|quotes');
 
-        // Quotes → create invoice
+        // Quotes → invoice
         Route::post('quotes/{quote}/create-invoice', [QuotesController::class, 'createInvoiceFromQuote']);
 
-        // Comments (full access)
-        Route::prefix('comments')->group(function () {
-            Route::get('/{type}/{id}', [CommentController::class, 'index']);
-            Route::get('/user/{userId}', [CommentController::class, 'getUserComments']);
-            Route::get('/', [CommentController::class, 'getAllComments']);
-            Route::post('/{type}/{id}', [CommentController::class, 'store']);
-            Route::delete('/{comment}', [CommentController::class, 'deletecomments']);
-        });
+        // Comments (FULL)
+        Route::post('comments/{type}/{id}', [CommentController::class, 'store']);
+        Route::delete('comments/{comment}', [CommentController::class, 'deletecomments']);
     });
 
     // -----------------------------
     // Client-only routes
     // -----------------------------
     Route::middleware('role:client')->group(function () {
-        // Clients can read everything (GET requests)
-        Route::get('clients/{id}', [ClientController::class, 'show']);
 
-        Route::get('invoices', [InvoicesController::class, 'index']);
-        Route::get('invoices/{invoice}', [InvoicesController::class, 'show']);
-        Route::get('quotes', [QuotesController::class, 'index']);
-        Route::get('quotes/{quote}', [QuotesController::class, 'show']);
-        Route::get('services', [ServicesController::class, 'index']);
-        Route::get('services/{service}', [ServicesController::class, 'show']);
-        Route::get('offers', [OfferController::class, 'index']);
-        Route::get('offers/{offer}', [OfferController::class, 'show']);
-
-        Route::get('/projects', [ProjectController::class, 'index']);
-        Route::get('/project/{project}', [ProjectController::class, 'show']);
-
-        Route::get('/tasks', [TaskController::class, 'allTasks']);
-
-        Route::get('getProgress/{project}', [ProjectProgressController::class, 'index']);
-
-        // CSV export (read)
-        Route::get('/export', [ClientImportExportController::class, 'export']);
-
-        // Comments (read + create)
-        Route::prefix('comments')->group(function () {
-            Route::get('/{type}/{id}', [CommentController::class, 'index']);
-            Route::get('/user/{userId}', [CommentController::class, 'getUserComments']);
-            Route::get('/', [CommentController::class, 'getAllComments']);
-            Route::post('/{type}/{id}', [CommentController::class, 'store']);
-        });
+        // Comments (CREATE)
+        Route::post('comments/{type}/{id}', [CommentController::class, 'store']);
 
         // Sign quotes
-        Route::post('/{model}/{id}/signature', [SignatureController::class, 'upload'])->where('model', 'quotes');
+        Route::post('/{model}/{id}/signature', [SignatureController::class, 'upload'])
+            ->where('model', 'quotes');
 
-
-
-        // Get additional data by project
-        Route::get('additional-data/project/{project_id}', [ProjectAdditionalDataController::class, 'showByProject']);
-
-        // Create additional data
+        // Project additional data (WRITE limited)
         Route::post('additional-data', [ProjectAdditionalDataController::class, 'store']);
 
         // Update additional data
