@@ -37,9 +37,6 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::get('clients/{id}', [ClientController::class, 'show']);
     Route::put('clients/{id}', [ClientController::class, 'update']);
     Route::delete('clients/{id}', [ClientController::class, 'destroy']);
-
-
-
 });
 
 // routes for client only
@@ -107,7 +104,7 @@ Route::prefix('additional-data')->controller(ProjectAdditionalDataController::cl
     Route::put('/{id}', 'update');
     Route::delete('/{id}', 'destroy');
     // Avoid route conflict:
-Route::get('/project/{project_id}', 'showByProject');
+    Route::get('/project/{project_id}', 'showByProject');
 });
 
 Route::prefix('projects/tasks/{project}')->controller(TaskController::class)->group(function () {
