@@ -26,6 +26,7 @@ use App\Http\Controllers\ProjectProgressController;
 
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
+// Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('auth:sanctum');
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->middleware('auth:sanctum');
 Route::get('/export', [ClientImportExportController::class, 'export']);
 Route::post('/import', [ClientImportExportController::class, 'import']);
@@ -100,7 +101,8 @@ Route::get('/project/{project}', [ProjectController::class, 'show']);
 
 
 
-Route::put('/validatePayments/{payment}/', [PaymentController::class, 'handlManuelPayment']);
+Route::put('/validatePayments/{payment}/', [PaymentController::class, 'handleManualPayment']);
+Route::put('/cancelPayment/{payment}/', [PaymentController::class, 'cancelPayment']);
 
 Route::prefix('additional-data')->controller(ProjectAdditionalDataController::class)->group(function () {
     Route::post('/', 'store');
