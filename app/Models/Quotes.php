@@ -12,6 +12,7 @@ class Quotes extends Model
         'quotation_date',
         'status',
         'notes',
+        'has_projects',
         'total_amount',
     ];
 
@@ -71,5 +72,9 @@ class Quotes extends Model
     public function invoices()
     {
         return $this->hasMany(Invoice::class);
+    }
+       public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
     }
 }

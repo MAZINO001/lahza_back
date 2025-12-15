@@ -155,7 +155,7 @@ class PaymentService implements PaymentServiceInterface
             'client_id' => $client->id,
             'total' => $invoice->total_amount,
             'amount' => $amount,
-            'currency' => 'usd',
+            'currency' => 'eur',
             'payment_method' => $payment_type,
             'status' => $payment_status,
             'payment_url' => null,
@@ -409,6 +409,8 @@ class PaymentService implements PaymentServiceInterface
             } else {
                 Log::info("Payment received for invoice #{$invoice->id}. Total paid: {$totalPaid}, balance due: {$balanceDue}, status: {$invoice->status}");
             }
+            $paymentData = $invoice->payments()->latest()->first()?->toArray() ?? [];
+            $this->projectCreationService->updateProjectAfterPayment($invoice ,$paymentData);
         }
 
         return ['status' => 'ok'];
