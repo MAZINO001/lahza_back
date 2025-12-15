@@ -110,42 +110,65 @@ public function getRemaining(Request $request, Invoice $invoice){
         $validated['payment_status']
     );
 }
-public function handlManuelPayment ( Payment $payment){
-    $invoice = $payment->invoice;
-    if($payment->payment_method == 'stripe'){
+public function handleManualPayment(Payment $payment, bool $cancel = false)
+{
+    if ($payment->payment_method === 'stripe') {
         return response()->json([
             'error' => true,
-            'message' => "stripe method is not allowed "
+            'message' => 'Stripe method is not allowed',
         ]);
     }
-    if($payment->status !=='pending'){
+
+    // ---- PAY FLOW ----
+    if ($payment->status !== 'pending') {
         return response()->json([
             'error' => true,
-            'message' => "payment is already paid"
+            'message' => 'Only pending payments can be marked as paid',
         ]);
     }
-    if($payment->invoice->status == 'paid'){
-        return response()->json([
-            'error' => true,
-            'message' => "invoice is already paid"
-        ]);
-    }
-    DB::transaction(function () use ($payment, $invoice) {
-        $payment->update([
-            'status' => 'paid',
-        ]);
-        $this->paymentService->updateInvoiceStatus($invoice);
-        return response()->json([
-            'success' => true,
-            'message' => "payment is paid"
-        ]);
+
+    DB::transaction(function () use ($payment) {
+        $payment->update(['status' => 'paid']);
+        $this->paymentService->updateInvoiceStatus($payment->invoice);
+
+        $paymentData = $payment->invoice
+            ->payments()
+            ->latest()
+            ->first()?->toArray() ?? [];
+
+        $this->projectCreationService->updateProjectAfterPayment($payment->invoice, $paymentData);
     });
-    try {
-                $this->projectCreationService->createProjectForInvoice($invoice);
-                logger('test payment controller line 145');
-            } catch (\Exception $e) {
-                Log::error('Failed to create project for invoice #'.$invoice->id.': '.$e->getMessage());
-            }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Payment processed successfully',
+    ]);
+}
+public function cancelPayment(Payment $payment) {
+if ($payment->payment_method === 'stripe') {
+        return response()->json([
+            'error' => true,
+            'message' => 'Stripe method is not allowed',
+        ]);
+    }
+if ($payment->status !== 'paid') {
+        return response()->json([
+            'error' => true,
+            'message' => "Only paid payments can be cancelled"
+        ]);
+    }
+
+    DB::transaction(function() use ($payment) {
+        $payment->update(['status' => 'pending']);
+        $this->paymentService->updateInvoiceStatus($payment->invoice);
+        $paymentData = $payment->invoice->payments()->latest()->first()?->toArray() ?? [];
+        $this->projectCreationService->cancelProjectUpdate($payment->invoice);
+    });
+
+    return response()->json([
+        'success' => true,
+        'message' => "Payment cancelled successfully"
+    ]);
 }
 
 }

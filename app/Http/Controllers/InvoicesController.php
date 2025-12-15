@@ -13,13 +13,16 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Services\ProjectCreationService;
 
 class InvoicesController extends Controller
 {
     protected $paymentService;
-    public function __construct(PaymentServiceInterface $paymentService)
+    protected $projectCreationService;
+    public function __construct(PaymentServiceInterface $paymentService , ProjectCreationService $projectCreationService)
     {
         $this->paymentService = $paymentService;
+        $this->projectCreationService = $projectCreationService;
     }
 
 
@@ -61,6 +64,7 @@ class InvoicesController extends Controller
             'services.*.quantity' => 'required|integer|min:1',
             'services.*.tax' => 'nullable|numeric',
             'services.*.individual_total' => 'nullable|numeric',
+            'has_projects'=>'nullable',
         ]);
 
         return  DB::transaction(function () use ($validate) {
@@ -74,6 +78,9 @@ class InvoicesController extends Controller
                 'notes' => $validate["notes"],
                 'total_amount' => $validate["total_amount"],
                 'balance_due' => $validate["total_amount"],
+                'has_projects' => is_array($validate["has_projects"])
+                    ? json_encode($validate["has_projects"])
+                    : $validate["has_projects"],
             ]);
             if (!empty($validate["services"])) {
                 foreach ($validate["services"] as $service) {
@@ -121,6 +128,10 @@ class InvoicesController extends Controller
                 $message->to($email)
                         ->subject('New Invoice Created - ' );
             });
+            // app(ProjectCreationService::class)->createProjectForInvoice($invoice);
+                        $this->projectCreationService->createDraftProject($invoice);
+
+
     return response()->json([$invoice->load("invoiceServices"), 'invoice_id' => $invoice->id], 201);
         });
     }
@@ -155,6 +166,7 @@ class InvoicesController extends Controller
             'services.*.quantity' => 'required|integer|min:1',
             'services.*.tax' => 'nullable|numeric',
             'services.*.individual_total' => 'nullable|numeric',
+            'has_projects'=>'nullable',
         ]);
 
         return DB::transaction(function () use ($invoice, $validate) {
@@ -167,6 +179,9 @@ class InvoicesController extends Controller
                 'notes' => $validate['notes'] ?? null,
                 'total_amount' => $validate['total_amount'],
                 'balance_due' => $validate['balance_due'],
+                'has_projects' => is_array($validate["has_projects"])
+                    ? json_encode($validate["has_projects"])
+                    : $validate["has_projects"],
             ]);
 
             if (!empty($validate['services'])) {
@@ -181,7 +196,8 @@ class InvoicesController extends Controller
                     ]);
                 }
             }
-
+            
+            // $this->projectCreationService->createDraftProject($invoice);
             return response()->json($invoice->load('invoiceServices'));
         });
     }
