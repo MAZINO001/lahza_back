@@ -17,6 +17,7 @@ class Invoice extends Model
         'notes',
         'total_amount',
         'balance_due',
+        'has_projects',
         'checksum'
     ];
 

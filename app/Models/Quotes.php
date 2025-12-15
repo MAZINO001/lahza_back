@@ -12,6 +12,7 @@ class Quotes extends Model
         'quotation_date',
         'status',
         'notes',
+        'has_projects',
         'total_amount',
     ];
 
