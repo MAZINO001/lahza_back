@@ -9,6 +9,7 @@ use App\Models\Quotes_service;
 use App\Models\Service;
 use App\Models\Invoice;
 use App\Services\PaymentServiceInterface;
+use App\Services\ProjectCreationService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -16,10 +17,11 @@ use Illuminate\Support\Facades\Auth;
 class QuotesController extends Controller
 {
     protected $paymentService;
-
-    public function __construct(PaymentServiceInterface $paymentService)
+    protected $projectCreationService;
+    public function __construct(PaymentServiceInterface $paymentService , ProjectCreationService $projectCreationService)
     {
         $this->paymentService = $paymentService;
+        $this->projectCreationService = $projectCreationService;
     }
     // GET /api/Quotes
     public function index()
@@ -56,6 +58,7 @@ class QuotesController extends Controller
             'services.*.quantity' => 'required|integer|min:1',
             'services.*.tax' => 'nullable|numeric',
             'services.*.individual_total' => 'nullable|numeric',
+            'has_projects'=>'nullable',
         ]);
 
 
@@ -66,6 +69,9 @@ class QuotesController extends Controller
                 'status' => $validated['status'],
                 'notes' => $validated['notes'],
                 'total_amount' => $validated['total_amount'],
+                'has_projects' => is_array($validated["has_projects"])
+                    ? json_encode($validated["has_projects"])
+                    : $validated["has_projects"],
             ]);
 
             // Insert pivot records
@@ -91,6 +97,9 @@ class QuotesController extends Controller
             $quote->client_signature_url = $clientSignature ? $clientSignature->url : null;
             $quote->has_client_signature = $clientSignature !== null;
             $quote->has_admin_signature = $quote->adminSignature() !== null;
+
+            
+                        $this->projectCreationService->createDraftProject($quote);
 
             return response()->json([$quote, 'quote_id' => $quote->id], 201);
         });
@@ -178,6 +187,7 @@ class QuotesController extends Controller
                 'total_amount' => $quote->total_amount,
                 'balance_due' => $quote->total_amount,
                 'checksum' => $checksum,
+                'has_projects'=> $quote->has_projects,
             ]);
 
             // Add services to the invoice
@@ -286,6 +296,7 @@ class QuotesController extends Controller
             'services.*.quantity' => 'required|integer|min:1',
             'services.*.tax' => 'nullable|numeric',
             'services.*.individual_total' => 'nullable|numeric',
+            'has_projects'=>'nullable',
         ]);
 
 

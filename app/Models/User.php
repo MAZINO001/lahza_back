@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable; // important for auth
 use Illuminate\Notifications\Notifiable;
 use App\Traits\LogsActivity;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasApiTokens ,HasFactory, Notifiable;
     use LogsActivity;
     public function clients()
     {
@@ -70,5 +71,9 @@ class User extends Authenticatable
     public function files()
     {
         return $this->morphMany(File::class, 'fileable');
+    }
+       public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
     }
 }

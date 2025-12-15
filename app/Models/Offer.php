@@ -21,4 +21,8 @@ class Offer extends Model
     {
         return $this->belongsTo(Service::class);
     }
+       public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
 }
