@@ -113,21 +113,41 @@ class InvoicesController extends Controller
             $response = $this->paymentService->createPaymentLink($invoice, $paymentPercentage, $paymentStatus, $paymentType);
         
             $email = 'mangaka.wir@gmail.com';
-            $data = [
-                'quote' => $invoice->quote ?? null, // pass quote if exists
+            
+            // Generate PDF for the invoice
+            $reportsDir = storage_path('app/reports');
+            if (!file_exists($reportsDir)) {
+                mkdir($reportsDir, 0777, true);
+            }
+            
+            $pdf = app('snappy.pdf');
+            $html = view('emails.invoice_created', [
+                'quote' => $invoice->quote ?? null,
                 'invoice' => $invoice,
                 'client' => $invoice->client,
                 'payment_url' => $response['payment_url'],
                 'bank_info' => $response['bank_info'],
-                'payment_method' => $response['payment_method'],       // string: 'stripe' or 'bank'
+                'payment_method' => $response['payment_method']
+            ])->render();
+            
+            $pdfPath = $reportsDir . '/' . uniqid() . '.pdf';
+            $pdf->generateFromHtml($html, $pdfPath);
+            
+            // Prepare mail data with client_id
+            $mailData = [
+                'subject' => 'New Invoice Created - ' . $invoice->id,
+                'message' => 'Please find your invoice attached.',
+                'name' => $invoice->client->name ?? 'Customer',
+                'client_id' => $invoice->client_id,
             ];
-
-
-
-            Mail::send('emails.invoice_created', $data, function($message) use ($email, $invoice) {
-                $message->to($email)
-                        ->subject('New Invoice Created - ' );
-            });
+            
+            // Send email using SendReportMail
+            Mail::to($email)->send(new \App\Mail\SendReportMail($mailData, $pdfPath));
+            
+            // Clean up the temporary PDF
+            if (file_exists($pdfPath)) {
+                unlink($pdfPath);
+            }
             // app(ProjectCreationService::class)->createProjectForInvoice($invoice);
                         $this->projectCreationService->createDraftProject($invoice);
 
