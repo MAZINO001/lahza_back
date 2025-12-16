@@ -14,20 +14,25 @@ class ClientController extends Controller
         return Client::with('user:id,name,email')->get();
     }
 
-   public function show($id)
+public function show($id)
 {
-    $client = Client::findOrFail($id);
-    $payments = \App\Models\Payment::where('client_id', $client->id)->where('status', 'paid')->get();
+    $client = Client::with('user')->findOrFail($id);
+
+    $payments = \App\Models\Payment::where('client_id', $client->id)
+        ->where('status', 'paid')
+        ->get();
 
     $totalPaid = $payments->sum('amount');
-
     $totalPaymentTotal = $payments->sum('total');
-
     $balanceDue = $totalPaymentTotal - $totalPaid;
-    $user = User::where('id', $client->user_id)->first();
 
-        return response()->json(['client'=>$client,'totalPaid'=>$totalPaid,'balanceDue'=>$balanceDue,'user'=>$user]);
+    return response()->json([
+        'client' => $client,
+        'totalPaid' => $totalPaid,
+        'balanceDue' => $balanceDue
+    ]);
 }
+
 
 
     public function update(Request $request, $id)
