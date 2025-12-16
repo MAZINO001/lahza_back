@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use App\Models\ActivityLog;
  
 class ClientController extends Controller
 {
@@ -83,5 +84,10 @@ public function show($id)
         return $request->Client();
     }
 
-
+public function getClientHistory($id)
+{
+    $client = Client::with('user')->findOrFail($id);
+    $client->logs = ActivityLog::where('record_id', $client->id)->get();
+    return response()->json($client->logs);
+}
 }
