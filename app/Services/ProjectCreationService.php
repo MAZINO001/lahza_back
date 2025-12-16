@@ -166,53 +166,65 @@ public function createDraftProject($source)
      * @return Project|array|null
      * @throws \Exception
      */
-    public function updateProjectAfterPayment($invoice, array $paymentData = [])
-    {
-        Log::info('Updating project after payment', [
-            'invoice_id' => $invoice->id,
-            'payment_data' => $paymentData
-        ]);
+ public function updateProjectAfterPayment($invoice, array $paymentData = [])
+{
+    Log::info('Updating project after payment', [
+        'invoice_id' => $invoice->id,
+        'quote_id'   => $invoice->quote_id ?? null,
+        'payment_data' => $paymentData
+    ]);
 
-        return DB::transaction(function () use ($invoice, $paymentData) {
-            // Find draft projects for this invoice
-            $draftProjects = Project::where('invoice_id', $invoice->id)
+    return DB::transaction(function () use ($invoice) {
+
+        /**
+         * 1️⃣ FIRST: try to update quote-based project
+         */
+        if ($invoice->quote_id) {
+            $project = Project::where('quote_id', $invoice->quote_id)
                 ->where('status', 'draft')
-                ->get();
+                ->first();
 
-            if ($draftProjects->isEmpty()) {
-                Log::info('No draft projects found, creating new pending project', [
-                    'invoice_id' => $invoice->id
-                ]);
-                
-                // If no draft exists, create a new pending project
-                return $this->createProjectForInvoice($invoice);
-            }
-
-            // Update all draft projects to pending
-            $updatedProjects = [];
-            foreach ($draftProjects as $project) {
+            if ($project) {
                 $project->update([
+                    'invoice_id' => $invoice->id,
                     'status' => 'pending',
                     'description' => 'Project activated after payment.',
                 ]);
 
-                Log::info('Updated project status from draft to pending', [
-                    'project_id' => $project->id,
-                    'invoice_id' => $invoice->id
-                ]);
-
-                // Update all tasks to pending (or in_progress if that's the active status)
-                // $project->tasks()->update(['status' => 'pending']);
-
-                // Send project creation email
                 $this->sendProjectCreationEmail($project, $invoice);
 
-                $updatedProjects[] = $project;
+                return $project;
             }
+        }
 
-            return count($updatedProjects) === 1 ? $updatedProjects[0] : $updatedProjects;
-        });
-    }
+        /**
+         * 2️⃣ SECOND: invoice-based project (direct invoice flow)
+         */
+        $draftProjects = Project::where('invoice_id', $invoice->id)
+            ->where('status', 'draft')
+            ->get();
+
+        if ($draftProjects->isEmpty()) {
+            // ONLY place where creation is allowed
+            return $this->createProjectForInvoice($invoice);
+        }
+
+        $updatedProjects = [];
+
+        foreach ($draftProjects as $project) {
+            $project->update([
+                'status' => 'pending',
+                'description' => 'Project activated after payment.',
+            ]);
+
+            $this->sendProjectCreationEmail($project, $invoice);
+
+            $updatedProjects[] = $project;
+        }
+
+        return count($updatedProjects) === 1 ? $updatedProjects[0] : $updatedProjects;
+    });
+}
 
     /**
      * Cancel project update - revert from pending back to draft
@@ -221,43 +233,55 @@ public function createDraftProject($source)
      * @param mixed $invoice
      * @return bool
      */
-    public function cancelProjectUpdate($invoice)
-    {
-        Log::info('Cancelling project update', [
-            'invoice_id' => $invoice->id
-        ]);
+  public function cancelProjectUpdate($invoice)
+{
+    Log::info('Cancelling project update', [
+        'invoice_id' => $invoice->id,
+        'quote_id'   => $invoice->quote_id ?? null
+    ]);
 
-        return DB::transaction(function () use ($invoice) {
-            // Find pending projects for this invoice that were recently created
-            $pendingProjects = Project::where('invoice_id', $invoice->id)
+    return DB::transaction(function () use ($invoice) {
+
+        /**
+         * 1️⃣ Cancel quote-based project
+         */
+        if ($invoice->quote_id) {
+            $project = Project::where('quote_id', $invoice->quote_id)
                 ->where('status', 'pending')
-                ->get();
+                ->first();
 
-            if ($pendingProjects->isEmpty()) {
-                Log::warning('No pending projects found to cancel', [
-                    'invoice_id' => $invoice->id
-                ]);
-                return false;
-            }
-
-            foreach ($pendingProjects as $project) {
+            if ($project) {
                 $project->update([
                     'status' => 'draft',
                     'description' => 'Payment cancelled - project reverted to draft.',
                 ]);
 
-                // Revert all tasks back to pending (tasks don't have a draft status)
-                // Keep them as pending but the project status indicates it's on hold
-                Log::info('Reverted project from pending to draft', [
-                    'project_id' => $project->id,
-                    'invoice_id' => $invoice->id,
-                    'note' => 'Tasks remain in pending status'
-                ]);
+                return true;
             }
+        }
 
-            return true;
-        });
-    }
+        /**
+         * 2️⃣ Cancel invoice-based project
+         */
+        $pendingProjects = Project::where('invoice_id', $invoice->id)
+            ->where('status', 'pending')
+            ->get();
+
+        if ($pendingProjects->isEmpty()) {
+            return false;
+        }
+
+        foreach ($pendingProjects as $project) {
+            $project->update([
+                'status' => 'draft',
+                'description' => 'Payment cancelled - project reverted to draft.',
+            ]);
+        }
+
+        return true;
+    });
+}
+
 
     /**
      * Delete project and all related data (tasks, assignments)
