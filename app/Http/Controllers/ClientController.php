@@ -6,7 +6,7 @@ use App\Models\Client;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
- 
+
 class ClientController extends Controller
 {
     public function index()
