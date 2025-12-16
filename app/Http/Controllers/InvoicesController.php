@@ -14,15 +14,21 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Services\ProjectCreationService;
-
+use App\Services\ActivityLoggerService;
 class InvoicesController extends Controller
 {
     protected $paymentService;
     protected $projectCreationService;
-    public function __construct(PaymentServiceInterface $paymentService , ProjectCreationService $projectCreationService)
-    {
+    protected $activityLogger;
+
+    public function __construct(
+        PaymentServiceInterface $paymentService,
+        ProjectCreationService $projectCreationService,
+        ActivityLoggerService $activityLogger
+    ) {
         $this->paymentService = $paymentService;
         $this->projectCreationService = $projectCreationService;
+        $this->activityLogger = $activityLogger;
     }
 
 
@@ -150,7 +156,31 @@ class InvoicesController extends Controller
             }
             // app(ProjectCreationService::class)->createProjectForInvoice($invoice);
                         $this->projectCreationService->createDraftProject($invoice);
+            // Log the activity with all relevant details
+            $this->activityLogger->log(
+                'invoice_created_from_quote',
+                'invoices',
+                $invoice->id, // Using invoice ID as record_id for direct reference
+                request()->ip(),
+                request()->userAgent()
+            );
 
+            // Store additional details in the activity log
+            $this->activityLogger->log(
+                'invoice_details',
+                'invoices',
+                // $invoice->client->id,
+                1111,
+                request()->ip(),
+                request()->userAgent(),
+                [
+                    'invoice_id' => $invoice->id,
+                    'quote_id' => $quote->id ?? null,
+                    'client_id' => $invoice->client_id,
+                    'total_amount' => $invoice->total_amount,
+                    'url' => request()->fullUrl()
+                ]
+            );
 
     return response()->json([$invoice->load("invoiceServices"), 'invoice_id' => $invoice->id], 201);
         });
@@ -233,6 +263,14 @@ class InvoicesController extends Controller
     /**
      * Automatically sign with admin signature by copying default admin signature image
      */
+    /**
+     * Determines the client device from the request user-agent for logging.
+     *
+     * @param string $userAgent The User-Agent string from the request
+     * @return string The detected device type ('Mobile', 'Tablet', or 'Desktop')
+     */
+    // Device detection has been moved to ActivityLoggerService
+
     private function autoSignAdminSignature($instance)
     {
         // Check if admin signature already exists

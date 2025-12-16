@@ -4,15 +4,37 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use App\Models\User;
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
+use App\Models\ActivityLog;
+
 class ClientController extends Controller
 {
-    public function index()
-    {
-        return Client::with('user:id,name,email')->get();
-    }
+   public function index()
+{
+    $clients = Client::with('user:id,name,email')->get();
+
+    $clients = $clients->map(function ($client) {
+
+        $payments = Payment::where('client_id', $client->id)
+            ->where('status', 'paid')
+            ->get();
+
+        $totalPaid = $payments->sum('amount');
+        $totalPaymentTotal = $payments->sum('total');
+        $balanceDue = $totalPaymentTotal - $totalPaid;
+
+        return [
+            'client' => $client,
+            'totalPaid' => $totalPaid,
+            'balanceDue' => $balanceDue,
+        ];
+    });
+
+    return response()->json($clients);
+}
 
 public function show($id)
 {
@@ -63,5 +85,10 @@ public function show($id)
         return $request->Client();
     }
 
-
+public function getClientHistory($id)
+{
+    $client = Client::with('user')->findOrFail($id);
+    $client->logs = ActivityLog::where('record_id', $client->id)->get();
+    return response()->json($client->logs);
+}
 }
