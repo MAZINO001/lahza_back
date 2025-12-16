@@ -96,7 +96,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('clients', [ClientController::class, 'index']);
         Route::put('clients/{id}', [ClientController::class, 'update']);
         Route::delete('clients/{id}', [ClientController::class, 'destroy']);
-Route::get('clients/{id}/emails', [EmailController::class, 'getClientEmails']);
+        Route::get('clients/{id}/emails', [EmailController::class, 'getClientEmails']);
         // Resources (FULL)
         Route::apiResource('invoices', InvoicesController::class)->except(['index', 'show']);
         Route::apiResource('quotes', QuotesController::class)->except(['index', 'show']);
