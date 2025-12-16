@@ -256,6 +256,7 @@ class QuotesController extends Controller
                 'quote' => $quote,
                 'invoice' => $invoice,
                 'client' => $quote->client,
+                'client_id' => $quote->client_id,
                 'payment_url' => $response['payment_url'],
                 'bank_info' => $response['bank_info'],
                 'payment_method' => $response['payment_method'],       // string: 'stripe' or 'bank'
@@ -264,13 +265,25 @@ class QuotesController extends Controller
 
 
 
-            Mail::send('emails.invoice_created', $data, function ($message) use ($email, $invoice) {
-                $latestInvoice = Invoice::latest('id')->first();
-                $nextNumber = $latestInvoice ? $latestInvoice->id + 1 : 1;
-                $invoiceNumber = 'INVOICE-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
-                $message->to($email)
-                    ->subject('New Invoice Created - ' . $invoiceNumber);
-            });
+            // Mail::send('emails.invoice_created', $data, function ($message) use ($email, $invoice) {
+            //     $latestInvoice = Invoice::latest('id')->first();
+            //     $nextNumber = $latestInvoice ? $latestInvoice->id + 1 : 1;
+            //     $invoiceNumber = 'INVOICE-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+            //     $message->to($email)
+            //         ->subject('New Invoice Created - ' . $invoiceNumber);
+                    
+            // });
+      Mail::send('emails.invoice_created', $data, function ($message) use ($email, $invoice, $quote) {
+    $latestInvoice = Invoice::latest('id')->first();
+    $nextNumber = $latestInvoice ? $latestInvoice->id + 1 : 1;
+    $invoiceNumber = 'INVOICE-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+    
+    $message->to($email)
+        ->subject('New Invoice Created - ' . $invoiceNumber);
+    
+    // Add custom header for client_id (Symfony Mailer syntax)
+    $message->getSymfonyMessage()->getHeaders()->addTextHeader('X-Client-Id', (string)$quote->client_id);
+});
 
             return response()->json([
                 'message' => 'Invoice created successfully',

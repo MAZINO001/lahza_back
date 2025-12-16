@@ -607,17 +607,21 @@ public function createProjectForInvoice($invoice)
             ->first();
         $data = [
             'project' => $project,
-            'client'  => $invoice->client,
+            'client' => $invoice->client,
+            'client_id'  => $invoice->client_id,
             'invoice' => $invoice,
             'tasks'   => $project->tasks,
             'assigned_team' => $assigned_team,
         ];
 
         // Send email using your method
-        Mail::send('emails.project_created', $data, function ($message) use ($email, $project) {
-            $message->to($email)
-                    ->subject('New Project Created - #' . $project->id);
-        });
+         Mail::send('emails.project_created', $data, function ($message) use ($email, $project, $invoice) {
+        $message->to($email)
+                ->subject('New Project Created - #' . $project->id);
+        
+        // Add custom header for client_id
+        $message->getSymfonyMessage()->getHeaders()->addTextHeader('X-Client-Id', (string)$invoice->client_id);
+    });
 
         Log::info('Project creation email sent successfully.');
     }
