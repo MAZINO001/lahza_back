@@ -8,6 +8,8 @@ use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use App\Mail\SendReportMail;
 use App\Models\Invoice;
 use App\Models\Quotes;
+use App\Models\ActivityLog;
+use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -90,6 +92,7 @@ class EmailController extends Controller
             'subject' => $validated['subject'] ?? ($type === 'invoice' ? 'Your Invoice' : 'Your Quote'),
             'message' => $validated['message'] ?? 'Please find the attached document.',
             'name' => $recipientName,
+            'client_id' => $type === 'invoice' ? $invoice->client_id : $quote->client_id,
         ];
 
         // Send email with attachment
@@ -144,5 +147,13 @@ class EmailController extends Controller
         }
 
         return null;
+    }
+     public function getClientEmails(Request $request, $clientId)
+    {
+       
+        
+
+        $emails = ActivityLog::where('table_name', 'emails')->where('record_id', $clientId)->get();
+        return response()->json($emails);
     }
 }
