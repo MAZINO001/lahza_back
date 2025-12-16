@@ -624,12 +624,8 @@
             </div>
             <div class="signatures">
                 <div class="admin_sign">
-                    @if ($adminSignatureBase64)
-                        <img src="{{ $adminSignatureBase64 }}" alt="Admin Signature" style="width:200px;">
-                    @else
-                        <img src="{{ public_path('images/admin_signature.png') }}" alt="Admin Signature"
-                            style="width:200px;">
-                    @endif
+                    <img src="{{ public_path('images/admin_signature.png') }}" alt="Admin Signature"
+                        style="width:200px;">
                 </div>
                 <div class="client_sign">
                     @if ($clientSignatureBase64)
