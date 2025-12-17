@@ -2,12 +2,18 @@
 
 namespace App\Listeners;
 
-use App\Models\ActivityLog;
+use App\Services\ActivityLoggerService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Request;
 
 class LogEmailActivity
 {
+    protected $activityLogger;
+
+    public function __construct(ActivityLoggerService $activityLogger)
+    {
+        $this->activityLogger = $activityLogger;
+    }
     /**
      * Handle the event.
      *
@@ -16,12 +22,17 @@ class LogEmailActivity
      */
     public function handle($event)
     {
+        // Only log when the email has been successfully sent
+        if (!$event instanceof \Illuminate\Mail\Events\MessageSent) {
+            return;
+        }
+
         $message = $event->message;
         $subject = $message->getSubject();
         $to = $this->formatAddresses($message->getTo());
         $from = $this->formatAddresses($message->getFrom());
         
-        $action = $event instanceof \Illuminate\Mail\Events\MessageSending ? 'sending_email' : 'sent_email';
+        $action = 'clients_details';
         
         // Get client ID from email headers if available
         $clientId = null;
@@ -32,67 +43,55 @@ class LogEmailActivity
                 ? $clientIdHeader->getBodyAsString()
                 : (string) $clientIdHeader;
         }
-        
-        ActivityLog::create([
-            'user_id'     => Auth::id(),
-            'user_role'   => Auth::check() ? Auth::user()->role ?? null : null,
-            'action'      => $action,
-            'table_name'  => 'emails',
-            'record_id'   => $clientId,
-            'old_values'  => null,
-            'new_values'  => [
+
+        $this->activityLogger->log(
+            $action,
+            'emails',
+            $clientId,
+            Request::ip(),
+            Request::userAgent(),
+            [
                 'subject' => $subject,
                 'to' => $to,
                 'from' => $from,
-            ],
-            'changes'     => null,
-            'ip_address'  => Request::ip(),
-            'ip_country'  => cache()->remember("geoip.".Request::ip(), now()->addDays(7), function () {
-                return rescue(fn() => 
-                    \Illuminate\Support\Facades\Http::timeout(2)
-                        ->get("https://api.ipwho.is/".Request::ip())
-                        ->json('country_code', 'XX')
-                , 'XX', false);
-            }),
-            'user_agent'  => Request::userAgent(),
-            'device'      => $this->detectDevice(Request::userAgent()),
-            'url'         => Request::fullUrl(),
-        ]);
+                'user_id' => Auth::id(),
+                'user_role' => Auth::check() ? Auth::user()->role ?? null : null,
+                'url' => Request::fullUrl()
+            ]
+        );
     }
-    
+
     /**
      * Format email addresses for display
+     * 
+     * @param array|null $addresses
+     * @return array
      */
-  protected function formatAddresses($addresses)
-{
-    if (empty($addresses)) {
-        return [];
-    }
-    
-    $formatted = [];
-    foreach ($addresses as $email => $address) {
-        if ($address instanceof \Symfony\Component\Mime\Address) {
-            $formatted[] = $address->toString();
-        } else {
-            $formatted[] = is_string($address) ? $address : $email;
+    protected function formatAddresses($addresses)
+    {
+        if (empty($addresses)) {
+            return [];
         }
+
+        $formatted = [];
+        
+        if (is_string($addresses)) {
+            return [$addresses];
+        }
+
+        foreach ($addresses as $address => $name) {
+            if (is_numeric($address)) {
+                $formatted[] = $name;
+            } else {
+                $formatted[] = "$name <$address>";
+            }
+        }
+        
+        return $formatted;
     }
-    
-    return $formatted;
-}
     
     /**
      * Simple device detection from user agent.
      */
-    protected function detectDevice($userAgent)
-    {
-        if (empty($userAgent)) {
-            return 'CLI';
-        }
-        
-        $userAgent = strtolower($userAgent);
-        if (strpos($userAgent, 'mobile') !== false) return 'Mobile';
-        if (strpos($userAgent, 'tablet') !== false) return 'Tablet';
-        return 'Desktop';
-    }
+
 }

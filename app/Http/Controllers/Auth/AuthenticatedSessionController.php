@@ -20,6 +20,8 @@ class AuthenticatedSessionController extends Controller
     $request->authenticate();
     $user = $request->user();
     
+    $user->tokens()->delete(); 
+
     $token = $user->createToken('auth-token')->plainTextToken;
     
     return response()->json([
