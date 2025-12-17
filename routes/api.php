@@ -68,6 +68,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/tasks', [TaskController::class, 'allTasks']);
         Route::get('getProgress/{project}', [ProjectProgressController::class, 'index']);
 
+        //create local project 
+        Route::post('/projects', [ProjectController::class, 'store']);
+
         // CSV export (read)
         Route::get('/export', [ClientImportExportController::class, 'export']);
 
