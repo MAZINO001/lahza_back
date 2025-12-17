@@ -12,9 +12,12 @@ use App\Models\ActivityLog;
 
 class ClientController extends Controller
 {
-   public function index()
+public function index()
 {
-    $clients = Client::with('user:id,name,email')->get();
+    // Order by latest created
+    $clients = Client::with('user:id,name,email')
+                     ->orderBy('created_at', 'desc') // latest first
+                     ->get();
 
     $clients = $clients->map(function ($client) {
 
@@ -35,6 +38,7 @@ class ClientController extends Controller
 
     return response()->json($clients);
 }
+
 
 public function show($id)
 {
