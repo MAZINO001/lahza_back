@@ -14,14 +14,17 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use App\Services\ActivityLoggerService;
 class QuotesController extends Controller
 {
     protected $paymentService;
     protected $projectCreationService;
-    public function __construct(PaymentServiceInterface $paymentService , ProjectCreationService $projectCreationService)
+    protected $activityLogger;
+    public function __construct(PaymentServiceInterface $paymentService , ProjectCreationService $projectCreationService, ActivityLoggerService $activityLogger)
     {
         $this->paymentService = $paymentService;
         $this->projectCreationService = $projectCreationService;
+        $this->activityLogger = $activityLogger;
     }
     // GET /api/Quotes
     public function index()
@@ -99,7 +102,23 @@ class QuotesController extends Controller
             $quote->has_admin_signature = $quote->adminSignature() !== null;
 
             
-                        $this->projectCreationService->createDraftProject($quote);
+            $this->projectCreationService->createDraftProject($quote);
+
+            $this->activityLogger->log(
+                'clients_details',
+                'quotes',
+                $quote->client->id,
+                request()->ip(),
+                request()->userAgent(),
+                [
+                    'quote_id' => $quote->id,
+                    'client_id' => $quote->client_id,
+                    'total_amount' => $quote->total_amount,
+                    'status' => $quote->status,
+                    'url' => request()->fullUrl()
+                ],
+                "Quote #{$quote->id} created for client #{$quote->client_id} with status: {$quote->status}"
+            );
 
             return response()->json([$quote, 'quote_id' => $quote->id], 201);
         });

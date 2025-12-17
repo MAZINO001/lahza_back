@@ -11,16 +11,19 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Models\Payment; 
 use App\Services\ProjectCreationService;
-
+use App\Services\ActivityLoggerService;
 class PaymentService implements PaymentServiceInterface
 {
     protected $paymentRepository;
     protected $projectCreationService;
+    protected $activityLogger;
 
-    public function __construct(PaymentRepository $paymentRepository, ProjectCreationService $projectCreationService)
+    public function __construct(PaymentRepository $paymentRepository, ProjectCreationService $projectCreationService, ActivityLoggerService $activityLogger)
     {
         $this->paymentRepository = $paymentRepository;
         $this->projectCreationService = $projectCreationService;
+        $this->activityLogger = $activityLogger;
+
     }
     
     public function getPayment()
@@ -217,7 +220,21 @@ class PaymentService implements PaymentServiceInterface
         }
 
         $payment = $this->paymentRepository->create($paymentData);
-        
+         $this->activityLogger->log(
+                'clients_details',
+                'payments',
+                $invoice->client->id,
+                request()->ip(),
+                request()->userAgent(),
+                [
+                    'invoice_id' => $invoice->id,
+                    'quote_id' => $quote->id ?? null,
+                    'client_id' => $invoice->client_id,
+                    'total_amount' => $invoice->total_amount,
+                    'url' => request()->fullUrl()
+                ],
+                "Payment created for invoice #{$invoice->id} with amount: {$paymentData['amount']}"
+            );
         // If status is 'paid', update the invoice immediately
         if ($payment_status === 'paid') {
             $this->updateInvoiceStatus($invoice);
