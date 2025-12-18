@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class Project extends Model
 {
     protected $fillable = [
-        'client_id', 'invoice_id', 'name', 'description', 'status',
-        'start_date','estimated_end_date','quote_id'
+        'client_id', 'name', 'description', 'status',
+        'start_date', 'estimated_end_date', 'quote_id'
     ];
 
     public function client()
@@ -39,9 +39,9 @@ class Project extends Model
     {
         return $this->morphMany(File::class, 'fileable');
     }
-    public function invoice()
+    public function invoices()
     {
-        return $this->belongsTo(Invoice::class);
+        return $this->belongsToMany(Invoice::class)->withTimestamps();
     }
        public function comments()
     {

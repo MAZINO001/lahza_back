@@ -399,12 +399,12 @@ class PaymentService implements PaymentServiceInterface
             // Refresh invoice to get updated values
             $invoice->refresh();
 
-            // Create a project for the invoice
-            try {
-                $this->projectCreationService->createProjectForInvoice($invoice);
-            } catch (\Exception $e) {
-                Log::error('Failed to create project for invoice #'.$invoice->id.': '.$e->getMessage());
-            }
+            // // Create a project for the invoice
+            // try {
+            //     $this->projectCreationService->createProjectForInvoice($invoice);
+            // } catch (\Exception $e) {
+            //     Log::error('Failed to create project for invoice #'.$invoice->id.': '.$e->getMessage());
+            // }
 
             // Calculate total paid for logging and checking 50% threshold
             $totalPaid = $invoice->payments()->where('status', 'paid')->sum('amount');

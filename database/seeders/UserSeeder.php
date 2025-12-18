@@ -137,9 +137,7 @@ class UserSeeder extends Seeder
         $internRecord = Intern::create([
             'user_id' => $intern->id,
             'department' => 'Development',
-            'linkedin' => 'https://linkedin.com/in/intern',
-            'github' => 'https://github.com/intern',
-            'portfolio' => 'https://intern-portfolio.com',
+            'cv'=> 'test.pdf',
             'start_date' => now(),
             'end_date' => now()->addMonths(6),
         ]);

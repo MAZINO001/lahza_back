@@ -13,12 +13,14 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
 
 class RegisteredUserController extends Controller
 {
-    public function store(Request $request): Response
+    public function store(Request $request): \Illuminate\Http\JsonResponse
     {
         $rules = [
             'name' => 'required|string|max:255',
@@ -26,7 +28,6 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'user_type' => ['required', Rule::in(['client', 'team', 'intern', 'other'])],
         ];
-
         // Role-specific validations
         switch ($request->user_type) {
             case 'client':
@@ -93,7 +94,7 @@ class RegisteredUserController extends Controller
                 $nextNumber = $latestClient ? $latestClient->id + 1 : 1;
                 $clientNumber = 'Client-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
 
-                Client::create([
+                $client = Client::create([
                     'user_id' => $user->id,
                     'company' => $request->company,
                     'address' => $request->address,
@@ -111,6 +112,10 @@ class RegisteredUserController extends Controller
                 DB::table('user_permissions')->insert([
                     ['user_id' => $user->id, 'permission_id' => 2],
                 ]);
+
+                // Send registration email to client
+                $this->sendClientRegistrationEmail($user, $client);
+                $client_id = $client->id;
                 break;
 
             case 'team':
@@ -158,28 +163,6 @@ class RegisteredUserController extends Controller
                 break;
 
 
-            // case 'intern':
-            //     $cvPath = null;
-
-            //     if ($request->hasFile('cv')) {
-            //         $cvPath = $request->file('cv')->store('cvs', 'public'); // saves to storage/app/public/cvs
-            //     }
-            //     Intern::create([
-            //         'user_id' => $user->id,
-            //         'department' => $request->department,
-            //         'linkedin' => $request->linkedin,
-            //         'github' => $request->github,
-            //         // 'cv' => $request->cv,
-            //         // 'cv' => $cvPath,
-            //         'portfolio' => $request->portfolio,
-            //         'start_date' => $request->start_date,
-            //         'end_date' => $request->end_date,
-            //     ]);
-            //     DB::table('user_permissions')->insert([
-            //         ['user_id' => $user->id, 'permission_id' => 2],
-            //         ['user_id' => $user->id, 'permission_id' => 5],
-            //     ]);
-            //     break;
 
             case 'other':
                 Other::create([
@@ -192,10 +175,54 @@ class RegisteredUserController extends Controller
                     ['user_id' => $user->id, 'permission_id' => 5],
                 ]);
                 break;
+    
         }
 
         // Auth::login($user);
+        
+        // Return success response with user data
+    
+        return response()->json([
+            'success' => true,
+            'message' => $request->user_type.' registered successfully',
+            'client_id' => $client_id??null,
+            ]);
+        }
+    
 
-        return response()->noContent();
+    /**
+     * Send client registration email
+     */
+    private function sendClientRegistrationEmail($user, $client)
+    {
+        try {
+            Log::info('Sending client registration email...', [
+                'user_id' => $user->id,
+                'client_id' => $client->id,
+                'email' => $user->email
+            ]);
+
+            $data = [
+                'user' => $user,
+                'client' => $client,
+            ];
+
+            Mail::send('emails.client_registered', $data, function ($message) use ($user) {
+                $message->to($user->email)
+                        ->subject('Welcome! Your Account Has Been Created');
+            });
+
+            Log::info('Client registration email sent successfully.', [
+                'user_id' => $user->id,
+                'email' => $user->email
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send client registration email', [
+                'user_id' => $user->id,
+                'client_id' => $client->id,
+                'error' => $e->getMessage()
+            ]);
+            // Don't throw exception - registration should succeed even if email fails
+        }
     }
 }
