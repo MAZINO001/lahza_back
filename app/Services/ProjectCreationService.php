@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Task;
 use App\Models\TeamUser;
 use App\Models\ProjectAssignment;
+use App\Services\ActivityLoggerService;
 use Illuminate\Support\Facades\Mail;
 
 class ProjectCreationService
@@ -18,11 +19,13 @@ class ProjectCreationService
      * @var array
      */
     protected $defaultTasklist = [];
+    protected $activityLogger;
 
-    public function __construct(){
+    public function __construct(ActivityLoggerService $activityLogger){
         // Ensure we always have an array, even if config is null
         $config = config('tasklist');
         $this->defaultTasklist = is_array($config) ? $config : [];
+        $this->activityLogger = $activityLogger;
     }
 
     /**
@@ -476,6 +479,28 @@ public function createProjectForInvoice($invoice)
             'name' => $projectName,
             'source_type' => $sourceType
         ]);
+
+        // Log client details for the created project
+        if (isset($this->activityLogger) && $source->client) {
+            $sourceType = class_basename($source);
+            $this->activityLogger->log(
+                'clients_details',
+                'projects',
+                $source->client->id,
+                request()->ip(),
+                request()->userAgent(),
+                [
+                    'project_id' => $project->id,
+                    'project_name' => $projectName,
+                    'client_id' => $source->client_id,
+                    'status' => $status,
+                    'source_type' => $isQuote ? 'quote' : 'invoice',
+                    'source_id' => $isQuote ? $source->id : ($isInvoice ? $source->id : null),
+                    'url' => request()->fullUrl()
+                ],
+                "Project created from {$sourceType} #{$source->id} for client #{$source->client->id}"
+            );
+        }
 
         // Create tasks for the project
         $source_services = $source->services;

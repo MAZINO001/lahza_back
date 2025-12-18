@@ -24,7 +24,8 @@ class ActivityLoggerService
         ?int $recordId = null,
         ?string $ipAddress = null,
         ?string $userAgent = null,
-        array $properties = []
+        array $properties = [],
+        $newValue = null
     ): ActivityLog {
         $ipAddress = $ipAddress ?: Request::ip();
         $userAgent = $userAgent ?: Request::userAgent();
@@ -45,6 +46,11 @@ class ActivityLoggerService
         // Add additional properties if provided
         if (!empty($properties)) {
             $logData['properties'] = json_encode($properties);
+        }
+        
+        // Add new values if provided
+        if ($newValue !== null) {
+            $logData['new_values'] = is_string($newValue) ? $newValue : json_encode($newValue);
         }
 
         return ActivityLog::create($logData);
