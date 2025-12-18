@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Services\ProjectCreationService;
 use App\Services\ActivityLoggerService;
+
 class InvoicesController extends Controller
 {
     protected $paymentService;
@@ -31,10 +32,9 @@ class InvoicesController extends Controller
         $this->activityLogger = $activityLogger;
     }
 
-
     public function index()
     {
-        $invoices = Invoice::with(['invoiceServices', 'client.user:id,name', 'files'])->get();
+        $invoices = Invoice::with(['invoiceServices', 'client.user:id,name', 'files', 'projects'])->get();
         $allServices = Service::all();
 
         // Add signature URLs to each invoice
@@ -51,6 +51,7 @@ class InvoicesController extends Controller
             "services"  => $allServices
         ]);
     }
+
     public function store(Request $request)
     {
         $validate = $request->validate([
@@ -62,18 +63,18 @@ class InvoicesController extends Controller
             'notes' => 'nullable|string',
             'total_amount' => 'required|numeric',
             'balance_due' => 'required|numeric',
-            'payment_percentage'=>'numeric',
-            'payment_status'=>'string',
-            'payment_type'=> 'string',
+            'payment_percentage' => 'numeric',
+            'payment_status' => 'string',
+            'payment_type' => 'string',
             'services' => 'array',
             'services.*.service_id' => 'required|exists:services,id',
             'services.*.quantity' => 'required|integer|min:1',
             'services.*.tax' => 'nullable|numeric',
             'services.*.individual_total' => 'nullable|numeric',
-            'has_projects'=>'nullable',
+            'has_projects' => 'nullable',
         ]);
 
-        return  DB::transaction(function () use ($validate) {
+        return DB::transaction(function () use ($validate) {
 
             $invoice = Invoice::create([
                 'client_id' => $validate["client_id"],
@@ -88,6 +89,7 @@ class InvoicesController extends Controller
                     ? json_encode($validate["has_projects"])
                     : $validate["has_projects"],
             ]);
+
             if (!empty($validate["services"])) {
                 foreach ($validate["services"] as $service) {
                     InvoiceService::create([
@@ -103,62 +105,37 @@ class InvoicesController extends Controller
             // Auto-sign with admin signature
             $this->autoSignAdminSignature($invoice);
 
+            // Load relationships
+            $invoice->load('client', 'files', 'invoiceServices');
+
             // Add signature URLs to the response
-            $invoice->load('client', 'files');
             $invoice->admin_signature_url = asset('images/admin_signature.png');
             $clientSignature = $invoice->clientSignature();
             $invoice->client_signature_url = $clientSignature ? $clientSignature->url : null;
             $invoice->has_client_signature = $clientSignature !== null;
             $invoice->has_admin_signature = $invoice->adminSignature() !== null;
-            logger("teeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeessssssssssssssssssssstttttt" );
-     
+
+            // Create payment link
             $paymentPercentage = $validate['payment_percentage'] ?? 0;
             $paymentStatus = $validate['payment_status'] ?? 'unpaid';
             $paymentType = $validate['payment_type'] ?? 'bank';
-            
-            $response = $this->paymentService->createPaymentLink($invoice, $paymentPercentage, $paymentStatus, $paymentType);
-        
-            $email = 'mangaka.wir@gmail.com';
-            
-            // Generate PDF for the invoice
-            $reportsDir = storage_path('app/reports');
-            if (!file_exists($reportsDir)) {
-                mkdir($reportsDir, 0777, true);
-            }
-            
-            $pdf = app('snappy.pdf');
-            $html = view('emails.invoice_created', [
-                'quote' => $invoice->quote ?? null,
-                'invoice' => $invoice,
-                'client' => $invoice->client,
-                'payment_url' => $response['payment_url'],
-                'bank_info' => $response['bank_info'],
-                'payment_method' => $response['payment_method']
-            ])->render();
-            
-            $pdfPath = $reportsDir . '/' . uniqid() . '.pdf';
-            $pdf->generateFromHtml($html, $pdfPath);
-            
-            // Prepare mail data with client_id
-            $mailData = [
-                'subject' => 'New Invoice Created - ' . $invoice->id,
-                'message' => 'Please find your invoice attached.',
-                'name' => $invoice->client->name ?? 'Customer',
-                'client_id' => $invoice->client_id,
-            ];
-            
-            // Send email using SendReportMail
-            Mail::to($email)->send(new \App\Mail\SendReportMail($mailData, $pdfPath));
-            
-            // Clean up the temporary PDF
-            if (file_exists($pdfPath)) {
-                unlink($pdfPath);
-            }
-            // app(ProjectCreationService::class)->createProjectForInvoice($invoice);
-                        $this->projectCreationService->createDraftProject($invoice);
-         
 
-            // Store additional details in the activity log
+            $response = $this->paymentService->createPaymentLink(
+                $invoice,
+                $paymentPercentage,
+                $paymentStatus,
+                $paymentType
+            );
+
+            // Send email with PDF
+            $this->sendInvoiceEmail($invoice, $response);
+
+            // Create draft project(s) for direct invoice path (PATH 2)
+            if (!$invoice->quote_id) {
+                $this->projectCreationService->createDraftProjectFromInvoice($invoice);
+            }
+
+            // Log activity
             $this->activityLogger->log(
                 'clients_details',
                 'invoices',
@@ -175,13 +152,17 @@ class InvoicesController extends Controller
                 "Invoice #{$invoice->id} created for client #{$invoice->client_id} with total: {$invoice->total_amount}"
             );
 
-    return response()->json([$invoice->load("invoiceServices"), 'invoice_id' => $invoice->id], 201);
+            return response()->json([
+                $invoice->load("invoiceServices", "projects"),
+                'invoice_id' => $invoice->id
+            ], 201);
         });
     }
 
     public function show($id)
     {
-        $invoice = Invoice::with(['invoiceServices', 'client.user:id,name', 'files'])->findOrFail($id);
+        $invoice = Invoice::with(['invoiceServices', 'client.user:id,name', 'files', 'projects'])->findOrFail($id);
+
         // Add signature URLs to the response
         $invoice->admin_signature_url = asset('images/admin_signature.png');
         $clientSignature = $invoice->clientSignature();
@@ -195,6 +176,7 @@ class InvoicesController extends Controller
     public function update(Request $request, $id)
     {
         $invoice = Invoice::findOrFail($id);
+
         $validate = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'quote_id' => 'nullable|exists:quotes,id',
@@ -209,7 +191,7 @@ class InvoicesController extends Controller
             'services.*.quantity' => 'required|integer|min:1',
             'services.*.tax' => 'nullable|numeric',
             'services.*.individual_total' => 'nullable|numeric',
-            'has_projects'=>'nullable',
+            'has_projects' => 'nullable',
         ]);
 
         return DB::transaction(function () use ($invoice, $validate) {
@@ -239,31 +221,82 @@ class InvoicesController extends Controller
                     ]);
                 }
             }
-            
-            // $this->projectCreationService->createDraftProject($invoice);
-            return response()->json($invoice->load('invoiceServices'));
+
+            return response()->json($invoice->load('invoiceServices', 'projects'));
         });
     }
-
 
     public function destroy($id)
     {
         $invoice = Invoice::findOrFail($id);
+
+        // Delete associated projects
+        $this->projectCreationService->deleteProjectsByInvoice($id);
+
+        // Delete the invoice
         $invoice->delete();
+
         return response()->json(null, 204);
+    }
+
+    /**
+     * Send invoice email with PDF attachment
+     */
+    private function sendInvoiceEmail($invoice, $paymentResponse)
+    {
+        try {
+            $email = 'mangaka.wir@gmail.com';
+
+            // Generate PDF for the invoice
+            $reportsDir = storage_path('app/reports');
+            if (!file_exists($reportsDir)) {
+                mkdir($reportsDir, 0777, true);
+            }
+
+            $pdf = app('snappy.pdf');
+            $html = view('emails.invoice_created', [
+                'quote' => $invoice->quote ?? null,
+                'invoice' => $invoice,
+                'client' => $invoice->client,
+                'payment_url' => $paymentResponse['payment_url'],
+                'bank_info' => $paymentResponse['bank_info'],
+                'payment_method' => $paymentResponse['payment_method']
+            ])->render();
+
+            $pdfPath = $reportsDir . '/' . uniqid() . '.pdf';
+            $pdf->generateFromHtml($html, $pdfPath);
+
+            // Prepare mail data with client_id
+            $mailData = [
+                'subject' => 'New Invoice Created - ' . $invoice->id,
+                'message' => 'Please find your invoice attached.',
+                'name' => $invoice->client->name ?? 'Customer',
+                'client_id' => $invoice->client_id,
+            ];
+
+            // Send email
+            Mail::to($email)->send(new \App\Mail\SendReportMail($mailData, $pdfPath));
+
+            // Clean up the temporary PDF
+            if (file_exists($pdfPath)) {
+                unlink($pdfPath);
+            }
+
+            Log::info('Invoice email sent successfully', [
+                'invoice_id' => $invoice->id,
+                'client_id' => $invoice->client_id
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send invoice email', [
+                'invoice_id' => $invoice->id,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 
     /**
      * Automatically sign with admin signature by copying default admin signature image
      */
-    /**
-     * Determines the client device from the request user-agent for logging.
-     *
-     * @param string $userAgent The User-Agent string from the request
-     * @return string The detected device type ('Mobile', 'Tablet', or 'Desktop')
-     */
-    // Device detection has been moved to ActivityLoggerService
-
     private function autoSignAdminSignature($instance)
     {
         // Check if admin signature already exists
@@ -290,7 +323,7 @@ class InvoicesController extends Controller
             $instance->files()->create([
                 'path' => $storagePath,
                 'type' => 'admin_signature',
-                'user_id' => Auth::id() ?? 1, // Use authenticated user or default admin user
+                'user_id' => Auth::id() ?? 1,
             ]);
 
             Log::info('Auto-signed with admin signature', [

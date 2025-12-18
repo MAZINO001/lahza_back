@@ -21,8 +21,8 @@ class ProjectCreationService
     protected $defaultTasklist = [];
     protected $activityLogger;
 
-    public function __construct(ActivityLoggerService $activityLogger){
-        // Ensure we always have an array, even if config is null
+    public function __construct(ActivityLoggerService $activityLogger)
+    {
         $config = config('tasklist');
         $this->defaultTasklist = is_array($config) ? $config : [];
         $this->activityLogger = $activityLogger;
@@ -30,21 +30,15 @@ class ProjectCreationService
 
     /**
      * Extract valid project titles from has_projects JSON string
-     * 
-     * @param string|null $has_projects JSON string containing project titles
-     * @return array Array of valid, non-empty project titles
      */
     private function extractValidProjectTitles($has_projects)
     {
-        // Return empty array if input is not a string or is empty/whitespace
         if (!is_string($has_projects) || trim($has_projects) === '') {
             return [];
         }
 
-        // Try to decode the JSON
         $decoded = json_decode($has_projects, true);
 
-        // Return empty array if JSON is invalid
         if (json_last_error() !== JSON_ERROR_NONE) {
             Log::warning('Invalid JSON in has_projects field', [
                 'has_projects' => $has_projects,
@@ -53,13 +47,11 @@ class ProjectCreationService
             return [];
         }
 
-        // Handle different possible JSON structures
         if (isset($decoded['title'])) {
             $titles = $decoded['title'];
         } elseif (isset($decoded['titles'])) {
             $titles = $decoded['titles'];
         } elseif (is_array($decoded) && array_keys($decoded) === range(0, count($decoded) - 1)) {
-            // Direct array of titles
             $titles = $decoded;
         } else {
             Log::warning('Unexpected JSON structure in has_projects', [
@@ -69,16 +61,13 @@ class ProjectCreationService
             return [];
         }
 
-        // Convert to array if not already
         $titles = is_array($titles) ? $titles : [$titles];
 
-        // Filter out empty or non-string titles, including whitespace-only strings
         $validTitles = array_values(array_filter(
             array_map(function ($title) {
                 return is_string($title) ? trim($title) : null;
             }, $titles),
             function ($title) {
-                // Must be a non-null string and non-empty after trimming
                 return $title !== null && $title !== '';
             }
         ));
@@ -93,205 +82,265 @@ class ProjectCreationService
     }
 
     /**
-     * Create draft project(s) from a quote or invoice
-     * 
-     * @param mixed $source Quote or Invoice model
-     * @return Project|array|null Returns Project, array of Projects, or null if no projects created
-     * @throws \Exception
+     * Create draft project(s) from a quote
+     * PATH 1: Quote → Draft Projects
      */
-   /**
- * Create draft project(s) from a quote or invoice
- */
-public function createDraftProject($source)
-{
-    Log::info('Creating draft project from quote/invoice', [
-        'source_id' => $source->id,
-        'source_type' => get_class($source)
-    ]);
-
-    // Prevent duplicates - check both invoice_id and quote_id
-    $existingProjects = Project::where(function($query) use ($source) {
-        $query->where('invoice_id', $source->id)
-              ->orWhere('quote_id', $source->id);
-    })->get();
-
-    if ($existingProjects->isNotEmpty()) {
-        Log::warning("Draft project(s) already exist, skipping creation.", [
-            'source_id' => $source->id,
-            'existing_project_ids' => $existingProjects->pluck('id')
+    public function createDraftProjectFromQuote($quote)
+    {
+        Log::info('Creating draft project from quote', [
+            'quote_id' => $quote->id
         ]);
-        return $existingProjects->count() === 1 ? $existingProjects->first() : $existingProjects->all();
+
+        // Check if projects already exist for this quote
+        $existingProjects = Project::where('quote_id', $quote->id)->get();
+
+        if ($existingProjects->isNotEmpty()) {
+            Log::warning("Draft project(s) already exist for quote, skipping creation.", [
+                'quote_id' => $quote->id,
+                'existing_project_ids' => $existingProjects->pluck('id')
+            ]);
+            return $existingProjects->count() === 1 ? $existingProjects->first() : $existingProjects->all();
+        }
+
+        return DB::transaction(function () use ($quote) {
+            $hasProjectsValue = $quote->getAttribute('has_projects');
+
+            if ($hasProjectsValue !== null && trim($hasProjectsValue) !== '') {
+                $projectTitles = $this->extractValidProjectTitles($hasProjectsValue);
+
+                if (empty($projectTitles)) {
+                    Log::info('has_projects exists but has no valid titles → NO project created', [
+                        'quote_id' => $quote->id,
+                        'has_projects' => $hasProjectsValue
+                    ]);
+                    return null;
+                }
+
+                Log::info('Creating draft projects from quote', [
+                    'quote_id' => $quote->id,
+                    'titles' => $projectTitles
+                ]);
+
+                $projects = [];
+                foreach ($projectTitles as $title) {
+                    $project = $this->createSingleProject($quote, $title, 'draft');
+                    if ($project) {
+                        $projects[] = $project;
+                    }
+                }
+
+                return count($projects) === 1 ? $projects[0] : $projects;
+            }
+
+            Log::info('has_projects is null/empty → NO draft project created from quote', [
+                'quote_id' => $quote->id
+            ]);
+
+            return null;
+        });
     }
 
-    return DB::transaction(function () use ($source) {
-        $hasProjectsValue = $source->getAttribute('has_projects');
+    /**
+     * Create draft project(s) from an invoice (direct invoice path)
+     * PATH 2: Invoice → Draft Projects
+     */
+    public function createDraftProjectFromInvoice($invoice)
+    {
+        Log::info('Creating draft project from invoice', [
+            'invoice_id' => $invoice->id
+        ]);
 
-        // ONLY create projects if has_projects actually has valid titles
-        if ($hasProjectsValue !== null && trim($hasProjectsValue) !== '') {
-            $projectTitles = $this->extractValidProjectTitles($hasProjectsValue);
-            
-            if (empty($projectTitles)) {
-                Log::info('has_projects exists but has no valid titles → NO project created', [
-                    'source_id' => $source->id,
-                    'has_projects' => $hasProjectsValue
+        // Check if projects already exist for this invoice
+        $existingProjects = $invoice->projects;
+
+        if ($existingProjects->isNotEmpty()) {
+            Log::warning("Draft project(s) already exist for invoice, skipping creation.", [
+                'invoice_id' => $invoice->id,
+                'existing_project_ids' => $existingProjects->pluck('id')
+            ]);
+            return $existingProjects->count() === 1 ? $existingProjects->first() : $existingProjects->all();
+        }
+
+        return DB::transaction(function () use ($invoice) {
+            $hasProjectsValue = $invoice->getAttribute('has_projects');
+
+            if ($hasProjectsValue !== null && trim($hasProjectsValue) !== '') {
+                $projectTitles = $this->extractValidProjectTitles($hasProjectsValue);
+
+                if (empty($projectTitles)) {
+                    Log::info('has_projects exists but has no valid titles → NO project created', [
+                        'invoice_id' => $invoice->id,
+                        'has_projects' => $hasProjectsValue
+                    ]);
+                    return null;
+                }
+
+                Log::info('Creating draft projects from invoice', [
+                    'invoice_id' => $invoice->id,
+                    'titles' => $projectTitles
+                ]);
+
+                $projects = [];
+                foreach ($projectTitles as $title) {
+                    $project = $this->createSingleProject($invoice, $title, 'draft');
+                    if ($project) {
+                        // Link project to invoice via pivot
+                        $invoice->projects()->attach($project->id);
+                        $projects[] = $project;
+                    }
+                }
+
+                return count($projects) === 1 ? $projects[0] : $projects;
+            }
+
+            Log::info('has_projects is null/empty → NO draft project created from invoice', [
+                'invoice_id' => $invoice->id
+            ]);
+
+            return null;
+        });
+    }
+
+    /**
+     * Update quote-based projects when quote is signed
+     * Creates invoice and updates project status to pending
+     */
+    public function updateProjectsOnQuoteSigned($quote, $invoice)
+    {
+        Log::info('Updating projects after quote signed', [
+            'quote_id' => $quote->id,
+            'invoice_id' => $invoice->id
+        ]);
+
+        return DB::transaction(function () use ($quote, $invoice) {
+            $projects = Project::where('quote_id', $quote->id)
+                ->where('status', 'draft')
+                ->get();
+
+            if ($projects->isEmpty()) {
+                Log::warning('No draft projects found for quote', [
+                    'quote_id' => $quote->id
                 ]);
                 return null;
             }
 
-            Log::info('Creating draft projects from has_projects titles', [
-                'source_id' => $source->id,
-                'titles' => $projectTitles
-            ]);
+            $updatedProjects = [];
 
-            $projects = [];
-            foreach ($projectTitles as $title) {
-                $project = $this->createSingleProject($source, $title, 'draft');
-                if ($project) $projects[] = $project;
-            }
-
-            return count($projects) === 1 ? $projects[0] : $projects;
-        }
-
-        Log::info('has_projects is null, empty, or missing → NO draft project created', [
-            'source_id' => $source->id,
-            'has_projects_raw' => $hasProjectsValue
-        ]);
-
-        return null;
-    });
-}
-    /**
-     * Update project status from draft to pending after payment
-     * Called from handleManualPayment or Stripe webhook
-     * 
-     * @param mixed $invoice
-     * @param array $paymentData Additional payment data (optional)
-     * @return Project|array|null
-     * @throws \Exception
-     */
- public function updateProjectAfterPayment($invoice, array $paymentData = [])
-{
-    Log::info('Updating project after payment', [
-        'invoice_id' => $invoice->id,
-        'quote_id'   => $invoice->quote_id ?? null,
-        'payment_data' => $paymentData
-    ]);
-
-    return DB::transaction(function () use ($invoice) {
-
-        /**
-         * 1️⃣ FIRST: try to update quote-based project
-         */
-        if ($invoice->quote_id) {
-            $project = Project::where('quote_id', $invoice->quote_id)
-                ->where('status', 'draft')
-                ->first();
-
-            if ($project) {
+            foreach ($projects as $project) {
                 $project->update([
-                    'invoice_id' => $invoice->id,
-                    'status' => 'pending',
-                    'description' => 'Project activated after payment.',
+                    'status' => 'draft',
+                    'description' => 'Project after quote acceptance.',
                 ]);
 
-                $this->sendProjectCreationEmail($project, $invoice);
+                // Link project to invoice via pivot
+                $invoice->projects()->attach($project->id);
 
-                return $project;
+                Log::info('Project updated after quote signed', [
+                    'project_id' => $project->id,
+                    'quote_id' => $quote->id,
+                    'invoice_id' => $invoice->id
+                ]);
+
+                $updatedProjects[] = $project;
             }
-        }
 
-        /**
-         * 2️⃣ SECOND: invoice-based project (direct invoice flow)
-         */
-        $draftProjects = Project::where('invoice_id', $invoice->id)
-            ->where('status', 'draft')
-            ->get();
+            return count($updatedProjects) === 1 ? $updatedProjects[0] : $updatedProjects;
+        });
+    }
 
-        if ($draftProjects->isEmpty()) {
-            // ONLY place where creation is allowed
-            return $this->createProjectForInvoice($invoice);
-        }
+    /**
+     * Update project status after payment
+     * PATH 1: Quote → Invoice → Payment (projects already pending, just notify)
+     * PATH 2: Invoice → Payment (draft → pending + activate)
+     */
+    public function updateProjectAfterPayment($invoice, array $paymentData = [])
+    {
+        Log::info('Updating project after payment', [
+            'invoice_id' => $invoice->id,
+            'payment_data' => $paymentData
+        ]);
 
-        $updatedProjects = [];
+        return DB::transaction(function () use ($invoice) {
+            // Get all projects linked to this invoice
+            $projects = $invoice->projects;
 
-        foreach ($draftProjects as $project) {
-            $project->update([
-                'status' => 'pending',
-                'description' => 'Project activated after payment.',
-            ]);
+            if ($projects->isEmpty()) {
+                Log::warning('No projects found for invoice after payment', [
+                    'invoice_id' => $invoice->id
+                ]);
+                return null;
+            }
 
-            $this->sendProjectCreationEmail($project, $invoice);
+            $updatedProjects = [];
 
-            $updatedProjects[] = $project;
-        }
+            foreach ($projects as $project) {
+                // If project is still draft (direct invoice path), activate it
+                if ($project->status === 'draft') {
+                    $project->update([
+                        'status' => 'pending',
+                        'description' => 'Project activated after payment.',
+                    ]);
 
-        return count($updatedProjects) === 1 ? $updatedProjects[0] : $updatedProjects;
-    });
-}
+                    Log::info('Draft project activated after payment', [
+                        'project_id' => $project->id,
+                        'invoice_id' => $invoice->id
+                    ]);
+                } else {
+                    Log::info('Payment notification for pending project', [
+                        'project_id' => $project->id,
+                        'invoice_id' => $invoice->id
+                    ]);
+                }
+
+                $updatedProjects[] = $project;
+            }
+
+            // Send ONE email for all projects
+            if (!empty($updatedProjects)) {
+                $this->sendProjectsCreationEmail($updatedProjects, $invoice);
+            }
+
+            return count($updatedProjects) === 1 ? $updatedProjects[0] : $updatedProjects;
+        });
+    }
 
     /**
      * Cancel project update - revert from pending back to draft
-     * Called from cancelManualPayment
-     * 
-     * @param mixed $invoice
-     * @return bool
      */
-  public function cancelProjectUpdate($invoice)
-{
-    Log::info('Cancelling project update', [
-        'invoice_id' => $invoice->id,
-        'quote_id'   => $invoice->quote_id ?? null
-    ]);
+    public function cancelProjectUpdate($invoice)
+    {
+        Log::info('Cancelling project update', [
+            'invoice_id' => $invoice->id
+        ]);
 
-    return DB::transaction(function () use ($invoice) {
+        return DB::transaction(function () use ($invoice) {
+            $projects = $invoice->projects()->where('status', 'pending')->get();
 
-        /**
-         * 1️⃣ Cancel quote-based project
-         */
-        if ($invoice->quote_id) {
-            $project = Project::where('quote_id', $invoice->quote_id)
-                ->where('status', 'pending')
-                ->first();
+            if ($projects->isEmpty()) {
+                Log::warning('No pending projects found for invoice', [
+                    'invoice_id' => $invoice->id
+                ]);
+                return false;
+            }
 
-            if ($project) {
+            foreach ($projects as $project) {
                 $project->update([
                     'status' => 'draft',
                     'description' => 'Payment cancelled - project reverted to draft.',
                 ]);
 
-                return true;
+                Log::info('Project reverted to draft', [
+                    'project_id' => $project->id,
+                    'invoice_id' => $invoice->id
+                ]);
             }
-        }
 
-        /**
-         * 2️⃣ Cancel invoice-based project
-         */
-        $pendingProjects = Project::where('invoice_id', $invoice->id)
-            ->where('status', 'pending')
-            ->get();
-
-        if ($pendingProjects->isEmpty()) {
-            return false;
-        }
-
-        foreach ($pendingProjects as $project) {
-            $project->update([
-                'status' => 'draft',
-                'description' => 'Payment cancelled - project reverted to draft.',
-            ]);
-        }
-
-        return true;
-    });
-}
-
+            return true;
+        });
+    }
 
     /**
      * Delete project and all related data (tasks, assignments)
-     * Called when deleting invoice or project
-     * 
-     * @param int $projectId
-     * @return bool
      */
     public function deleteProject($projectId)
     {
@@ -311,22 +360,20 @@ public function createDraftProject($source)
 
             // Delete related tasks
             $deletedTasks = Task::where('project_id', $projectId)->delete();
-            Log::info('Deleted project tasks', [
-                'project_id' => $projectId,
-                'tasks_deleted' => $deletedTasks
-            ]);
 
             // Delete project assignments
             $deletedAssignments = ProjectAssignment::where('project_id', $projectId)->delete();
-            Log::info('Deleted project assignments', [
-                'project_id' => $projectId,
-                'assignments_deleted' => $deletedAssignments
-            ]);
+
+            // Detach all invoice relationships
+            $project->invoices()->detach();
 
             // Delete the project
             $project->delete();
+
             Log::info('Project deleted successfully', [
-                'project_id' => $projectId
+                'project_id' => $projectId,
+                'tasks_deleted' => $deletedTasks,
+                'assignments_deleted' => $deletedAssignments
             ]);
 
             return true;
@@ -335,9 +382,6 @@ public function createDraftProject($source)
 
     /**
      * Delete all projects associated with an invoice
-     * 
-     * @param int $invoiceId
-     * @return bool
      */
     public function deleteProjectsByInvoice($invoiceId)
     {
@@ -345,7 +389,14 @@ public function createDraftProject($source)
             'invoice_id' => $invoiceId
         ]);
 
-        $projects = Project::where('invoice_id', $invoiceId)->get();
+        $invoice = \App\Models\Invoice::find($invoiceId);
+
+        if (!$invoice) {
+            Log::warning('Invoice not found', ['invoice_id' => $invoiceId]);
+            return false;
+        }
+
+        $projects = $invoice->projects;
 
         if ($projects->isEmpty()) {
             Log::info('No projects found for invoice', [
@@ -362,173 +413,109 @@ public function createDraftProject($source)
     }
 
     /**
-     * Create a project + related tables for an invoice
-     * 
-     * @param mixed $invoice
-     * @return Project|array|null
-     * @throws \Exception
+     * Create a single project with tasks
      */
-    /**
- * Create project(s) after payment or on demand
- */
-public function createProjectForInvoice($invoice)
-{
-    $existingProjects = Project::where('invoice_id', $invoice->id)->get();
+    private function createSingleProject($source, $customTitle = null, $status = 'pending')
+    {
+        try {
+            $today = now();
+            $nextMonday = $today->isMonday() ? $today->copy() : $today->copy()->next('Monday');
 
-    if ($existingProjects->count() > 0) {
-        Log::warning("Project already exists, skipping creation.", [
-            'invoice_id' => $invoice->id,
-            'existing_project_ids' => $existingProjects->pluck('id')
-        ]);
-        return $existingProjects->count() === 1 ? $existingProjects->first() : $existingProjects->all();
-    }
+            $sourceType = get_class($source);
+            $isQuote = strpos($sourceType, 'Quote') !== false;
+            $isInvoice = strpos($sourceType, 'Invoice') !== false;
 
-    return DB::transaction(function () use ($invoice) {
-        // SAME FIXED LOGIC AS ABOVE
-        $hasProjectsValue = $invoice->getAttribute('has_projects');
+            $projectName = $customTitle ?? ('Project for ' . ($isQuote ? 'Quote' : 'Invoice') . ' #' . $source->id);
 
-        if ($hasProjectsValue !== null && trim($hasProjectsValue) !== '') {
-            $projectTitles = $this->extractValidProjectTitles($hasProjectsValue);
+            $projectData = [
+                'client_id' => $source->client_id,
+                'name' => $projectName,
+                'description' => $status === 'draft'
+                    ? 'Draft project created from ' . ($isQuote ? 'quote' : 'invoice') . '.'
+                    : 'Auto-created project after payment.',
+                'status' => $status,
+                'start_date' => $nextMonday,
+                'estimated_end_date' => $nextMonday->copy()->addDays(7),
+            ];
 
-            if (empty($projectTitles)) {
-                Log::info('has_projects exists but no valid titles → NO project created after payment', [
-                    'invoice_id' => $invoice->id,
-                    'has_projects' => $hasProjectsValue
-                ]);
-                return null;
+            // Only set quote_id for quotes (invoices use pivot table)
+            if ($isQuote) {
+                $projectData['quote_id'] = $source->id;
             }
 
-            Log::info('Creating pending projects from has_projects after payment', [
-                'invoice_id' => $invoice->id,
-                'titles' => $projectTitles
+            $project = Project::create($projectData);
+
+            Log::info('Successfully created project', [
+                'project_id' => $project->id,
+                'quote_id' => $project->quote_id ?? null,
+                'client_id' => $source->client_id,
+                'status' => $status,
+                'name' => $projectName,
+                'source_type' => $sourceType
             ]);
 
-            $projects = [];
-            foreach ($projectTitles as $title) {
-                $project = $this->createSingleProject($invoice, $title, 'pending');
-                if ($project) $projects[] = $project;
+            // Log activity
+            if (isset($this->activityLogger) && $source->client) {
+                $this->activityLogger->log(
+                    'clients_details',
+                    'projects',
+                    $source->client->id,
+                    request()->ip(),
+                    request()->userAgent(),
+                    [
+                        'project_id' => $project->id,
+                        'project_name' => $projectName,
+                        'client_id' => $source->client_id,
+                        'status' => $status,
+                        'source_type' => $isQuote ? 'quote' : 'invoice',
+                        'source_id' => $source->id,
+                        'url' => request()->fullUrl()
+                    ],
+                    "Project created from " . ($isQuote ? 'quote' : 'invoice') . " #{$source->id} for client #{$source->client->id}"
+                );
             }
 
-            return count($projects) === 1 ? $projects[0] : $projects;
+            // Create tasks
+            $this->createTasksForProject($project, $source);
+
+            // Assign team member
+            $this->assignTeamToProject($project);
+
+            // Note: Email is sent separately when multiple projects are created
+            // to avoid sending multiple emails. See updateProjectAfterPayment method.
+
+            return $project;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to create project', [
+                'source_id' => $source->id,
+                'source_type' => get_class($source),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
         }
+    }
 
-        // NO MORE DEFAULT PROJECT AFTER PAYMENT
-        Log::info('has_projects is null/empty/missing → NO project created after payment', [
-            'invoice_id' => $invoice->id
-        ]);
-
-        return null; // Victory — no zombie projects
-    });
-}
     /**
-     * Create a single project with tasks
-     * 
-     * @param mixed $invoice The invoice or quote object
-     * @param string|null $customTitle Custom project title
-     * @param string $status Project status ('draft' or 'pending')
-     * @return Project
+     * Create tasks for a project based on services
      */
-   private function createSingleProject($source, $customTitle = null, $status = 'pending')
-{
-    try {
-        $today = now();
-        $nextMonday = $today->isMonday() ? $today->copy() : $today->copy()->next('Monday');
-
-        // Determine project name
-        $sourceType = get_class($source);
-        $isQuote = strpos($sourceType, 'Quote') !== false;
-        $isInvoice = strpos($sourceType, 'Invoice') !== false;
-        
-        $projectName = $customTitle ?? ('Project for ' . ($isQuote ? 'Quote' : 'Invoice') . ' #' . $source->id);
-
-        // Prepare project data
-        $projectData = [
-            'client_id' => $source->client_id,
-            'name' => $projectName,
-            'description' => $status === 'draft' 
-                ? 'Draft project created from ' . ($isQuote ? 'quote' : 'invoice') . '.' 
-                : 'Auto-created project after first payment.',
-            'status' => $status,
-            'start_date' => $nextMonday,
-            'estimated_end_date' => $nextMonday->copy()->addDays(7),
-        ];
-
-        // Assign quote_id or invoice_id based on source type
-        if ($isQuote) {
-            $projectData['quote_id'] = $source->id;
-            // If the quote has an associated invoice, also link it
-            if (isset($source->invoice_id) && $source->invoice_id) {
-                $projectData['invoice_id'] = $source->invoice_id;
-            }
-        } elseif ($isInvoice) {
-            $projectData['invoice_id'] = $source->id;
-            // If the invoice has an associated quote, also link it
-            if (isset($source->quote_id) && $source->quote_id) {
-                $projectData['quote_id'] = $source->quote_id;
-            }
-        }
-
-        $project = Project::create($projectData);
-
-        Log::info('Successfully created project', [
-            'project_id' => $project->id,
-            'quote_id' => $project->quote_id ?? null,
-            'invoice_id' => $project->invoice_id ?? null,
-            'client_id' => $source->client_id,
-            'status' => $status,
-            'name' => $projectName,
-            'source_type' => $sourceType
-        ]);
-
-        // Log client details for the created project
-        if (isset($this->activityLogger) && $source->client) {
-            $sourceType = class_basename($source);
-            $this->activityLogger->log(
-                'clients_details',
-                'projects',
-                $source->client->id,
-                request()->ip(),
-                request()->userAgent(),
-                [
-                    'project_id' => $project->id,
-                    'project_name' => $projectName,
-                    'client_id' => $source->client_id,
-                    'status' => $status,
-                    'source_type' => $isQuote ? 'quote' : 'invoice',
-                    'source_id' => $isQuote ? $source->id : ($isInvoice ? $source->id : null),
-                    'url' => request()->fullUrl()
-                ],
-                "Project created from {$sourceType} #{$source->id} for client #{$source->client->id}"
-            );
-        }
-
-        // Create tasks for the project
+    private function createTasksForProject($project, $source)
+    {
         $source_services = $source->services;
+
         if ($source_services->isEmpty()) {
             Log::warning('No services found for source', [
                 'source_id' => $source->id,
-                'source_type' => $sourceType
+                'project_id' => $project->id
             ]);
-            return $project;
+            return;
         }
 
-        Log::debug('Source services loaded', [
-            'count' => $source_services->count(),
-            'services' => $source_services->toArray()
-        ]);
-
-        // Calculate total number of tasks across all services
+        // Calculate total tasks
         $totalTasks = 0;
         foreach ($source_services as $sourceService) {
             $serviceId = (string)($sourceService->service_id ?? $sourceService->id ?? null);
-            
-            Log::debug('Processing source service', [
-                'source_service' => $sourceService->toArray(),
-                'service_id' => $serviceId,
-                'service_id_type' => gettype($serviceId),
-                'exists_in_tasklist' => !empty($this->defaultTasklist) && isset($this->defaultTasklist[$serviceId]),
-                'available_tasklist_keys' => is_array($this->defaultTasklist) ? array_keys($this->defaultTasklist) : []
-            ]);
 
             if (!empty($this->defaultTasklist) && isset($this->defaultTasklist[$serviceId]) && is_array($this->defaultTasklist[$serviceId])) {
                 $totalTasks += count($this->defaultTasklist[$serviceId]);
@@ -537,141 +524,154 @@ public function createProjectForInvoice($invoice)
             }
         }
 
-        // Calculate percentage per task
         $taskPercentage = $totalTasks > 0 ? round(100 / $totalTasks, 2) : 0;
-
-        // Always create tasks with 'pending' status (tasks table doesn't have 'draft')
-        // The project status itself indicates if it's draft or active
         $currentStart = $project->start_date->copy();
-        
+
         foreach ($source_services as $sourceService) {
             $serviceId = (string)($sourceService->service_id ?? $sourceService->id ?? null);
-            
-            Log::debug('Creating tasks for service', [
-                'service_id' => $serviceId,
-                'has_default_tasks' => !empty($this->defaultTasklist) && isset($this->defaultTasklist[$serviceId]),
-                'available_tasklist_keys' => is_array($this->defaultTasklist) ? array_keys($this->defaultTasklist) : []
-            ]);
 
             if (!empty($this->defaultTasklist) && isset($this->defaultTasklist[$serviceId]) && is_array($this->defaultTasklist[$serviceId])) {
-                // Create tasks from default task list for this service
                 foreach ($this->defaultTasklist[$serviceId] as $taskData) {
                     $taskEnd = $currentStart->copy()->addDay();
-                    
+
                     Task::create([
                         'title' => $taskData['title'],
                         'project_id' => $project->id,
                         'description' => $taskData['description'],
-                        'status' => 'pending', // Always use 'pending' for tasks
+                        'status' => 'pending',
                         'start_date' => $currentStart,
                         'end_date' => $taskEnd,
                         'percentage' => $taskPercentage,
                     ]);
-                    
+
                     $currentStart = $taskEnd;
                 }
-                
-                Log::info('Created tasks from default list', [
-                    'service_id' => $serviceId,
-                    'task_count' => count($this->defaultTasklist[$serviceId])
-                ]);
             } else {
-                // Create a single generic task if service not in default list
                 $taskEnd = $currentStart->copy()->addDay();
-                
+
                 Task::create([
                     'title' => $sourceService->service->name ?? 'Service Task',
                     'project_id' => $project->id,
                     'description' => $sourceService->service->description ?? 'Task for service',
-                    'status' => 'pending', // Always use 'pending' for tasks
+                    'status' => 'pending',
                     'start_date' => $currentStart,
                     'end_date' => $taskEnd,
                     'percentage' => $taskPercentage,
                 ]);
-                
+
                 $currentStart = $taskEnd;
             }
         }
 
         Log::info('Successfully created tasks for project', [
             'project_id' => $project->id,
-            'total_tasks' => $totalTasks,
-            'task_status' => 'pending'
+            'total_tasks' => $totalTasks
         ]);
+    }
 
-        Log::info('Attempting to assign team user to project', [
-            'project_id' => $project->id,
-        ]);
-
-        // Pick teamuser with oldest last assignment
+    /**
+     * Assign team member to project
+     */
+    private function assignTeamToProject($project)
+    {
         $teamUser = TeamUser::withMax('assignments', 'created_at')
-            ->orderBy('assignments_max_created_at') // old first, null first
+            ->orderBy('assignments_max_created_at')
             ->first();
 
         if ($teamUser) {
             ProjectAssignment::create([
                 'project_id' => $project->id,
                 'team_id' => $teamUser->id,
-                'assigned_by' => 1, // Using a default user ID for now
+                'assigned_by' => 1,
                 'assigned_at' => now(),
             ]);
+
+            Log::info('Team member assigned to project', [
+                'project_id' => $project->id,
+                'team_id' => $teamUser->id
+            ]);
         }
-
-        // Only send email if project status is 'pending' (payment made)
-        if ($status === 'pending') {
-            $this->sendProjectCreationEmail($project, $source);
-        }
-
-        return $project;
-
-    } catch (\Exception $e) {
-        Log::error('Failed to create project', [
-            'source_id' => $source->id,
-            'source_type' => get_class($source),
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        throw $e;
     }
-}
 
     /**
-     * Send project creation email
-     * 
-     * @param Project $project
-     * @param mixed $invoice
-     * @return void
+     * Send project creation email for multiple projects (sends ONE email)
      */
-    private function sendProjectCreationEmail($project, $invoice)
+    private function sendProjectsCreationEmail($projects, $source)
     {
-        Log::info('Sending project creation email...', [
-            'project_id' => $project->id,
+        // Ensure projects is an array/collection
+        if (!is_array($projects) && !($projects instanceof \Illuminate\Support\Collection)) {
+            $projects = [$projects];
+        }
+
+        // Convert collection to array for easier handling
+        $projectsArray = is_array($projects) ? $projects : $projects->all();
+        $projectCount = count($projectsArray);
+
+        Log::info('Sending project creation email for multiple projects...', [
+            'project_count' => $projectCount,
+            'project_ids' => array_map(function($p) { return $p->id; }, $projectsArray),
         ]);
 
-        // Prepare email data
-        $email = 'mangaka.wir@gmail.com'; // for now use your email
-        $assigned_team = ProjectAssignment::with('teamUser')
-            ->where('project_id', $project->id)
-            ->latest()
-            ->first();
+        $email = 'mangaka.wir@gmail.com';
+
+        // Load relationships for all projects
+        $projectsWithRelations = [];
+        foreach ($projectsArray as $project) {
+            // Ensure tasks are loaded
+            if (!$project->relationLoaded('tasks')) {
+                $project->load('tasks');
+            }
+
+            $assigned_team = ProjectAssignment::with('teamUser')
+                ->where('project_id', $project->id)
+                ->latest()
+                ->first();
+
+            $projectsWithRelations[] = [
+                'project' => $project,
+                'tasks' => $project->tasks,
+                'assigned_team' => $assigned_team,
+            ];
+        }
+
         $data = [
-            'project' => $project,
-            'client' => $invoice->client,
-            'client_id'  => $invoice->client_id,
-            'invoice' => $invoice,
-            'tasks'   => $project->tasks,
-            'assigned_team' => $assigned_team,
+            'projects' => $projectsWithRelations,
+            'client' => $source->client,
+            'client_id' => $source->client_id,
+            'source' => $source,
+            'project_count' => $projectCount,
         ];
 
-        // Send email using your method
-         Mail::send('emails.project_created', $data, function ($message) use ($email, $project, $invoice) {
-        $message->to($email)
-                ->subject('New Project Created - #' . $project->id);
-        
-        // Add custom header for client_id
-        $message->getSymfonyMessage()->getHeaders()->addTextHeader('X-Client-Id', (string)$invoice->client_id);
-    });
+        $firstProject = $projectsArray[0];
+        $subject = $projectCount === 1
+            ? 'New Project Created - #' . $firstProject->id
+            : "New Projects Created - {$projectCount} Projects";
 
-        Log::info('Project creation email sent successfully.');
+        Mail::send('emails.project_created', $data, function ($message) use ($email, $source, $subject) {
+            $message->to($email)
+                    ->subject($subject);
+
+            $message->getSymfonyMessage()->getHeaders()->addTextHeader('X-Client-Id', (string)$source->client_id);
+        });
+
+        Log::info('Project creation email sent successfully.', [
+            'project_count' => $projectCount
+        ]);
+    }
+
+    /**
+     * Send project creation email (legacy method for single project - kept for backward compatibility)
+     */
+    private function sendProjectCreationEmail($project, $source)
+    {
+        $this->sendProjectsCreationEmail([$project], $source);
+    }
+
+    /**
+     * Send project creation email (legacy method for single project - kept for backward compatibility)
+     */
+    private function sendProjectCreationEmail($project, $source)
+    {
+        $this->sendProjectsCreationEmail([$project], $source);
     }
 }

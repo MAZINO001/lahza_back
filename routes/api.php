@@ -27,6 +27,9 @@ use App\Http\Controllers\CommentController;
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 
+// Stripe webhook endpoint (no auth middleware)
+Route::post('/stripe/webhook', [PaymentController::class, 'handleWebhook']);
+
 // -----------------------------
 // Authenticated routes
 // -----------------------------
@@ -62,11 +65,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('offers', [OfferController::class, 'index']);
     Route::get('offers/{offer}', [OfferController::class, 'show']);
 
-    // Projects & tasks (READ)
-    Route::get('/projects', [ProjectController::class, 'index']);
-    Route::get('/project/{project}', [ProjectController::class, 'show']);
-    Route::get('/tasks', [TaskController::class, 'allTasks']);
-    Route::get('getProgress/{project}', [ProjectProgressController::class, 'index']);
+        // Projects & tasks (READ)
+        Route::get('/projects', [ProjectController::class, 'index']);
+        Route::get('/project/{project}', [ProjectController::class, 'show']);
+        Route::get('/tasks', [TaskController::class, 'allTasks']);
+        Route::get('getProgress/{project}', [ProjectProgressController::class, 'index']);
+
+        //create local project
+        Route::post('/projects', [ProjectController::class, 'store']);
 
     // CSV export (read)
     Route::get('/export', [ClientImportExportController::class, 'export']);
