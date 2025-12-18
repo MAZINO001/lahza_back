@@ -156,30 +156,23 @@ class InvoicesController extends Controller
             }
             // app(ProjectCreationService::class)->createProjectForInvoice($invoice);
                         $this->projectCreationService->createDraftProject($invoice);
-            // Log the activity with all relevant details
-            $this->activityLogger->log(
-                'invoice_created_from_quote',
-                'invoices',
-                $invoice->id, // Using invoice ID as record_id for direct reference
-                request()->ip(),
-                request()->userAgent()
-            );
+         
 
             // Store additional details in the activity log
             $this->activityLogger->log(
-                'invoice_details',
+                'clients_details',
                 'invoices',
-                // $invoice->client->id,
-                1111,
+                $invoice->client->id,
                 request()->ip(),
                 request()->userAgent(),
                 [
                     'invoice_id' => $invoice->id,
-                    'quote_id' => $quote->id ?? null,
                     'client_id' => $invoice->client_id,
                     'total_amount' => $invoice->total_amount,
+                    'status' => $invoice->status,
                     'url' => request()->fullUrl()
-                ]
+                ],
+                "Invoice #{$invoice->id} created for client #{$invoice->client_id} with total: {$invoice->total_amount}"
             );
 
     return response()->json([$invoice->load("invoiceServices"), 'invoice_id' => $invoice->id], 201);
