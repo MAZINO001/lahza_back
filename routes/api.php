@@ -108,6 +108,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('invoices', InvoicesController::class)->except(['index', 'show']);
         Route::apiResource('quotes', QuotesController::class)->except(['index', 'show']);
         Route::apiResource('services', ServicesController::class)->except(['index', 'show']);
+        Route::get('/services/{service}/invoices', [ServicesController::class, 'getInvoices']);
         Route::apiResource('offers', OfferController::class)->except(['index', 'show']);
 
         // CSV import
