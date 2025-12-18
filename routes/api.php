@@ -27,6 +27,9 @@ use App\Http\Controllers\CommentController;
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 
+// Stripe webhook endpoint (no auth middleware)
+Route::post('/stripe/webhook', [PaymentController::class, 'handleWebhook']);
+
 // -----------------------------
 // Authenticated routes
 // -----------------------------

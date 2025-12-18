@@ -17,8 +17,12 @@ class Invoice extends Model
         'notes',
         'total_amount',
         'balance_due',
+        'checksum',
         'has_projects',
-        'checksum'
+    ];
+
+    protected $casts = [
+        'has_projects' => 'array',
     ];
 
     public function client()
@@ -47,6 +51,11 @@ class Invoice extends Model
     public function files()
     {
         return $this->morphMany(File::class, 'fileable');
+    }
+
+    public function projects()
+    {
+        return $this->belongsToMany(Project::class)->withTimestamps();
     }
 
     public function adminSignature()

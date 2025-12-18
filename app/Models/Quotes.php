@@ -16,7 +16,6 @@ class Quotes extends Model
         'total_amount',
     ];
 
-
     public function client()
     {
         return $this->belongsTo(Client::class);
@@ -47,6 +46,14 @@ class Quotes extends Model
     public function quoteServices()
     {
         return $this->hasMany(Quotes_service::class, 'quote_id');
+    }
+
+    /**
+     * Projects created from this quote (one quote can have many projects)
+     */
+    public function projects()
+    {
+        return $this->hasMany(Project::class, 'quote_id');
     }
 
     /**
