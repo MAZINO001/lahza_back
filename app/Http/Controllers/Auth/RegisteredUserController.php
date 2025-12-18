@@ -21,173 +21,188 @@ use Illuminate\Validation\Rules;
 class RegisteredUserController extends Controller
 {
     public function store(Request $request): \Illuminate\Http\JsonResponse
-    {
-        $rules = [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'user_type' => ['required', Rule::in(['client', 'team', 'intern', 'other'])],
-        ];
-        // Role-specific validations
-        switch ($request->user_type) {
-            case 'client':
-                $rules = array_merge($rules, [
-                    'company' => 'nullable|string|max:255',
-                    'address' => 'nullable|string|max:255',
-                    'phone' => 'nullable|string|max:20',
-                    'city' => 'nullable|string|max:255',
-                    'country' => 'nullable|string|max:255',
-                    'client_type' => ['required', Rule::in(['individual', 'company'])],
-                    'siren' => 'nullable|string|max:255',
-                    'vat' => 'nullable|string|max:255',
-                    'ice' => 'nullable|string|max:255',
-                ]);
-                break;
+{
+    $rules = [
+        'name' => 'required|string|max:255',
+        'email' => 'required|string|email|max:255|unique:users',
+        'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        'user_type' => ['required', Rule::in(['client', 'team', 'intern', 'other'])],
+    ];
 
-            case 'team':
-                $rules = array_merge($rules, [
-                    'poste' => 'required|string|max:255',
-                    'department' => 'required|string|max:255',
-                ]);
-                break;
+    switch ($request->user_type) {
+        case 'client':
+            $rules = array_merge($rules, [
+                'company' => 'nullable|string|max:255',
+                'address' => 'nullable|string|max:255',
+                'phone' => 'nullable|string|max:20',
+                'city' => 'nullable|string|max:255',
+                'country' => 'nullable|string|max:255',
+                'client_type' => ['required', Rule::in(['individual', 'company'])],
+                'siren' => 'nullable|string|max:255',
+                'vat' => 'nullable|string|max:255',
+                'ice' => 'nullable|string|max:255',
+            ]);
+            break;
 
-            case 'intern':
-                $rules = array_merge($rules, [
-                    'department' => 'required|string|max:255',
-                    'linkedin' => 'nullable|string|max:255',
-                    'github' => 'nullable|string|max:255',
-                    // 'cv' => 'nullable|file|mimes:pdf,doc,docx|max:2048',
-                    'portfolio' => 'nullable|string|max:255',
-                    'start_date' => 'required|date',
-                    'end_date' => 'required|date|after_or_equal:start_date',
-                ]);
-                break;
+        case 'team':
+            $rules = array_merge($rules, [
+                'poste' => 'required|string|max:255',
+                'department' => 'required|string|max:255',
+            ]);
+            break;
 
-            case 'other':
-                $rules = array_merge($rules, [
-                    'description' => 'required|string|max:1000',
-                    'tags' => 'nullable|array',
-                ]);
-                break;
-        }
+        case 'intern':
+            $rules = array_merge($rules, [
+                'department' => 'required|string|max:255',
+                'start_date' => 'required|date',
+                'end_date' => 'required|date|after_or_equal:start_date',
+                'cv' => 'required|file|mimes:pdf,doc,docx,txt|max:2048',
 
-        $request->validate($rules);
+            ]);
+            break;
 
-        $role = match ($request->user_type) {
-            'client' => 'client',
-            // 'team', 'intern', 'other' => 'member',
-            'team', 'intern', 'other' => 'admin',
-        };
+        case 'other':
+            $rules = array_merge($rules, [
+                'description' => 'required|string|max:1000',
+                'tags' => 'nullable|array',
+            ]);
+            break;
+    }
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => $role,
-            'user_type' => $request->user_type,
-            'status' => 'active',
-        ]);
+    $request->validate($rules);
 
-        switch ($request->user_type) {
-            case 'client':
-                $latestClient = Client::latest('id')->first();
-                $nextNumber = $latestClient ? $latestClient->id + 1 : 1;
-                $clientNumber = 'Client-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+    try {
+        $result = DB::transaction(function () use ($request) {
 
-                $client = Client::create([
-                    'user_id' => $user->id,
-                    'company' => $request->company,
-                    'address' => $request->address,
-                    'phone' => $request->phone,
-                    'city' => $request->city,
-                    'country' => $request->country,
-                    'currency' => $request->currency,
-                    'client_type' => $request->client_type,
-                    'siren' => $request->siren,
-                    'vat' => $request->vat,
-                    'ice' => $request->ice,
-                    'client_number' => $clientNumber,
-                ]);
+            $role = match ($request->user_type) {
+                'client' => 'client',
+                'team', 'intern', 'other' => 'admin',
+            };
 
-                DB::table('user_permissions')->insert([
-                    ['user_id' => $user->id, 'permission_id' => 2],
-                ]);
+            // Create user
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'role' => $role,
+                'user_type' => $request->user_type,
+                'status' => 'active',
+            ]);
 
-                // Send registration email to client
-                $this->sendClientRegistrationEmail($user, $client);
-                $client_id = $client->id;
-                break;
+            $clientId = null;
 
-            case 'team':
-                TeamUser::create([
-                    'user_id' => $user->id,
-                    'department' => $request->department,
-                    'poste' => $request->poste,
-                ]);
-                DB::table('user_permissions')->insert([
-                    ['user_id' => $user->id, 'permission_id' => 5],
-                    ['user_id' => $user->id, 'permission_id' => 2],
-                ]);
-                break;
+            switch ($request->user_type) {
 
-            case 'intern':
-                $data = is_string($request->data) ? json_decode($request->data, true) : $request->all();
+                case 'client':
+                    $latestClient = Client::latest('id')->first();
+                    $nextNumber = $latestClient ? $latestClient->id + 1 : 1;
 
-                // Create intern first
-                $intern = Intern::create([
-                    'user_id' => $user->id,
-                    'department' => $data['department'] ?? $request->department,
-                    'linkedin' => $data['linkedin'] ?? $request->linkedin,
-                    'github' => $data['github'] ?? $request->github,
-                    'portfolio' => $data['portfolio'] ?? $request->portfolio,
-                    'start_date' => $data['start_date'] ?? $request->start_date,
-                    'end_date' => $data['end_date'] ?? $request->end_date,
-                ]);
-
-                // Handle CV upload and attach to intern
-                if ($request->hasFile('cv')) {
-                    $file = $request->file('cv');
-                    $path = $file->store('cvs', 'public');
-
-                    $intern->files()->create([
+                    $client = Client::create([
                         'user_id' => $user->id,
-                        'path' => $path,
-                        'type' => 'cv',
+                        'company' => $request->company,
+                        'address' => $request->address,
+                        'phone' => $request->phone,
+                        'city' => $request->city,
+                        'country' => $request->country,
+                        'currency' => $request->currency,
+                        'client_type' => $request->client_type,
+                        'siren' => $request->siren,
+                        'vat' => $request->vat,
+                        'ice' => $request->ice,
+                        'client_number' => 'Client-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT),
                     ]);
-                }
 
-                DB::table('user_permissions')->insert([
-                    ['user_id' => $user->id, 'permission_id' => 2],
-                    ['user_id' => $user->id, 'permission_id' => 5],
-                ]);
-                break;
+                    DB::table('user_permissions')->insert([
+                        ['user_id' => $user->id, 'permission_id' => 2],
+                    ]);
 
+                    $this->sendClientRegistrationEmail($user, $client);
+                    $clientId = $client->id;
+                    break;
 
+                case 'team':
+                    TeamUser::create([
+                        'user_id' => $user->id,
+                        'department' => $request->department,
+                        'poste' => $request->poste,
+                    ]);
 
-            case 'other':
-                Other::create([
-                    'user_id' => $user->id,
-                    'description' => $request->description,
-                    'tags' => $request->tags ?? [],
-                ]);
-                DB::table('user_permissions')->insert([
-                    ['user_id' => $user->id, 'permission_id' => 2],
-                    ['user_id' => $user->id, 'permission_id' => 5],
-                ]);
-                break;
-    
-        }
+                    DB::table('user_permissions')->insert([
+                        ['user_id' => $user->id, 'permission_id' => 5],
+                        ['user_id' => $user->id, 'permission_id' => 2],
+                    ]);
+                    break;
 
-        // Auth::login($user);
-        
-        // Return success response with user data
-    
+                case 'intern':
+                    
+    if ($request->hasFile('cv')) {
+        $file = $request->file('cv');
+        $cvName = $file->getClientOriginalName();
+    }
+                    $intern = Intern::create([
+                        'user_id' => $user->id,
+                        'department' => $request->department,
+                        'linkedin' => $request->linkedin,
+                        'github' => $request->github,
+                        'portfolio' => $request->portfolio,
+                        'start_date' => $request->start_date,
+                        'end_date' => $request->end_date,
+                        'cv' => $cvName,
+                    ]);
+
+                    if ($request->hasFile('cv')) {
+                        $path = $request->file('cv')->store('cvs', 'public');
+
+                        $intern->files()->create([
+                            'user_id' => $user->id,
+                            'path' => $path,
+                            'type' => 'cv',
+                        ]);
+                    }
+
+                    DB::table('user_permissions')->insert([
+                        ['user_id' => $user->id, 'permission_id' => 2],
+                        ['user_id' => $user->id, 'permission_id' => 5],
+                    ]);
+                    break;
+
+                case 'other':
+                    Other::create([
+                        'user_id' => $user->id,
+                        'description' => $request->description,
+                        'tags' => $request->tags ?? [],
+                    ]);
+
+                    DB::table('user_permissions')->insert([
+                        ['user_id' => $user->id, 'permission_id' => 2],
+                        ['user_id' => $user->id, 'permission_id' => 5],
+                    ]);
+                    break;
+            }
+
+            return [
+                'user' => $user,
+                'client_id' => $clientId,
+            ];
+        });
+
         return response()->json([
             'success' => true,
-            'message' => $request->user_type.' registered successfully',
-            'client_id' => $client_id??null,
-            ]);
-        }
+            'message' => $request->user_type . ' registered successfully',
+            'client_id' => $result['client_id'],
+        ]);
+
+    } catch (\Throwable $e) {
+        Log::error('Registration failed', [
+            'error' => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Registration failed. Please try again.',
+        ], 500);
+    }
+}
     
 
     /**
