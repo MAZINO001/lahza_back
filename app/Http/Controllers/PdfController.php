@@ -16,31 +16,90 @@ class PdfController extends Controller
         $invoice = Invoice::with(['client', 'invoiceServices.service', 'files'])->findOrFail($id);
         $type = 'invoice';
 
-        $clientSignatureBase64 = null;
+        // totals
+        $totalHT = 0;
+        $totalTVA = 0;
+        $totalTTC = 0;
 
+        foreach ($invoice->invoiceServices ?? [] as $line) {
+            $ttc = (float) ($line->individual_total ?? 0);
+            $rate = ((float) ($line->tax ?? 0)) / 100;
+
+            $ht = $rate > 0 ? $ttc / (1 + $rate) : $ttc;
+            $tva = $ttc - $ht;
+
+            $totalHT += $ht;
+            $totalTVA += $tva;
+            $totalTTC += $ttc;
+        }
+
+        $currency = $invoice->client->currency ?? 'MAD';
+
+        // client signature
+        $clientSignatureBase64 = null;
         if ($invoice->clientSignature()) {
             $clientSignatureBase64 = $this->getImageBase64($invoice->clientSignature()->path);
         }
 
-        $pdf = PDF::loadView('pdf.document', compact('invoice', 'type', 'clientSignatureBase64'));
+        $pdf = PDF::loadView(
+            'pdf.document',
+            compact(
+                'invoice',
+                'type',
+                'totalHT',
+                'totalTVA',
+                'totalTTC',
+                'currency',
+                'clientSignatureBase64'
+            )
+        );
 
         return response($pdf->output(), 200)
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'inline; filename="invoice-' . $invoice->id . '.pdf"');
     }
 
+
     public function quote($id)
     {
         $quote = Quotes::with(['client', 'files', 'services'])->findOrFail($id);
         $type = 'quote';
 
-        $clientSignatureBase64 = null;
+        $totalHT = 0;
+        $totalTVA = 0;
+        $totalTTC = 0;
 
+        foreach ($quote->services ?? [] as $service) {
+            $ttc = (float) ($service->pivot->individual_total ?? 0);
+            $rate = ((float) ($service->tax ?? 0)) / 100;
+
+            $ht = $rate > 0 ? $ttc / (1 + $rate) : $ttc;
+            $tva = $ttc - $ht;
+
+            $totalHT += $ht;
+            $totalTVA += $tva;
+            $totalTTC += $ttc;
+        }
+
+        $currency = $quote->client->currency ?? 'MAD';
+
+        $clientSignatureBase64 = null;
         if ($quote->clientSignature()) {
             $clientSignatureBase64 = $this->getImageBase64($quote->clientSignature()->path);
         }
 
-        $pdf = PDF::loadView('pdf.document', compact('quote', 'type', 'clientSignatureBase64'));
+        $pdf = PDF::loadView(
+            'pdf.document',
+            compact(
+                'quote',
+                'type',
+                'totalHT',
+                'totalTVA',
+                'totalTTC',
+                'currency',
+                'clientSignatureBase64'
+            )
+        );
 
         return response($pdf->output(), 200)
             ->header('Content-Type', 'application/pdf')
