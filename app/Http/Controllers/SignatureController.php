@@ -24,7 +24,8 @@ class SignatureController extends Controller
         }
 
         $user = $request->user();
-        $type = $user && $user->role === 'admin' ? 'admin_signature' : 'client_signature';
+        // $type = $user && $user->role === 'admin' ? 'admin_signature' : 'client_signature';
+        $type = 'client_signature';
 
         $path = $request->file('signature')->store('signatures', 'public');
 
@@ -77,6 +78,7 @@ class SignatureController extends Controller
 
     public function destroy(Request $request, $model, $id)
     {
+        logger($model);
         $instance = $this->getModelInstance($model, $id);
 
         if (!$instance) {
