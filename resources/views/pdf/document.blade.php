@@ -261,13 +261,25 @@
 
         .total_container {
             width: 30%;
-            font-weight: 900;
-            font-size: 16px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #ebe6e6;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            border-bottom: 1px solid #ebe6e6;
+
+        }
+
+        .total_container_ttc {
+            font-weight: 900;
+            font-size: 16px;
+            padding-bottom: 10px;
+
+        }
+
+        .total_container_ht {
+            font-weight: 300;
+            font-size: 14px;
+            padding-bottom: 10px;
+            opacity: 0.7;
         }
 
         .total_container span:nth-child(2) {
@@ -525,7 +537,8 @@
                 <tr>
                     <th>Article & Description</th>
                     <th>Quantité</th>
-                    <th>Prix HT</th>
+                    <th>Tva</th>
+                    <th>Montant HT</th>
                     <th>Montant TTC</th>
                 </tr>
             </thead>
@@ -541,7 +554,10 @@
                                 @endif
                             </td>
                             <td>{{ number_format((float) ($line->quantity ?? 0), 2, '.', ' ') }}</td>
-                            <td>{{ number_format((float) ($service->base_Price ?? 0), 2, '.', ' ') }}</td>
+                            <td>{{ number_format((float) ($line->tax ?? 0), 2, '.', ' ') }}</td>
+                            <td>
+                                {{ number_format(($line->individual_total ?? 0) / (1 + ($line->tax ?? 0) / 100), 2, '.', ' ') }}
+                            </td>
                             <td>{{ number_format((float) ($line->individual_total ?? 0), 2, '.', ' ') }}</td>
                         </tr>
                     @endforeach
@@ -555,14 +571,17 @@
                                 @endif
                             </td>
                             <td>{{ number_format((float) ($service->pivot->quantity ?? 0), 2, '.', ' ') }}</td>
-                            <td>{{ number_format((float) ($service->base_Price ?? 0), 2, '.', ' ') }}</td>
+                            <td>{{ number_format((float) ($service->tax ?? 0), 2, '.', ' ') }}</td>
+                            <td>
+                                {{ number_format(($service->pivot->individual_total ?? 0) / (1 + ($service->tax ?? 0) / 100), 2, '.', ' ') }}
+                            </td>
                             <td>{{ number_format((float) ($service->pivot->individual_total ?? 0), 2, '.', ' ') }}</td>
                         </tr>
                     @endforeach
                 @endif
             </tbody>
             <tr>
-                <td colspan="3" class="Sous-total">
+                <td colspan="4" class="Sous-total">
                     <span>Sous-total</span>
                 </td>
                 <td>
@@ -575,6 +594,7 @@
                 </td>
             </tr>
         </table>
+
         <div class="totals">
             <div class="notes">
                 @if ($type === 'invoice')
@@ -583,26 +603,30 @@
                     {{ $quote->notes ?? 'Merci de votre confiance.' }}
                 @endif
             </div>
+
             <div class="total_container">
-                <span>Total TTC</span>
-                @php($currency = $type === 'invoice' ? $invoice->client->currency ?? 'MAD' : $quote->client->currency ?? 'MAD')
-                <span>
-                    @if ($type === 'invoice')
-                        {{ number_format((float) ($invoice->total_amount ?? 0), 2, '.', ' ') }}
-                        {{ $currency }}
-                    @else
-                        {{ number_format((float) ($quote->total_amount ?? 0), 2, '.', ' ') }} {{ $currency }}
-                    @endif
-                </span>
+                <div class="total_container_ht">
+                    <span>Total HT</span>
+                    <span>{{ number_format($totalHT, 2, '.', ' ') }} {{ $currency }}</span>
+                </div>
+
+                <div class="total_container_ht">
+                    <span>Total TVA</span>
+                    <span>{{ number_format($totalTVA, 2, '.', ' ') }} {{ $currency }}</span>
+                </div>
+
+                <div class="total_container_ttc">
+                    <span>Total TTC</span>
+                    <span>{{ number_format($totalTTC, 2, '.', ' ') }} {{ $currency }}</span>
+                </div>
             </div>
         </div>
 
+        <!-- Rest of your template: payment info, signatures, etc. -->
         <div class="last">
-
-
             <div class="payment-info">
                 <div class="bank-details">
-                    <p> <b><strong class="mode">Mode de paiement :</strong></b> Par virement ou Chèque</p>
+                    <p><b><strong class="mode">Mode de paiement :</strong></b> Par virement ou Chèque</p>
                     <div class="bank-info">
                         <p><strong>Banque :</strong> ATTIJARI WAFABANK</p>
                         <p><strong>Nom du compte :</strong> LAHZA HM</p>
@@ -612,7 +636,6 @@
                         <p><strong>RC :</strong> 88049</p>
                     </div>
                 </div>
-
             </div>
 
             <div class="footer">
@@ -622,6 +645,7 @@
                     consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/
                 </div>
             </div>
+
             <div class="signatures">
                 <div class="admin_sign">
                     <img src="{{ public_path('images/admin_signature.png') }}" alt="Admin Signature"

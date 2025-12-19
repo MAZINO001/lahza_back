@@ -485,7 +485,6 @@ class ProjectCreationService
             // to avoid sending multiple emails. See updateProjectAfterPayment method.
 
             return $project;
-
         } catch (\Exception $e) {
             Log::error('Failed to create project', [
                 'source_id' => $source->id,
@@ -609,7 +608,9 @@ class ProjectCreationService
 
         Log::info('Sending project creation email for multiple projects...', [
             'project_count' => $projectCount,
-            'project_ids' => array_map(function($p) { return $p->id; }, $projectsArray),
+            'project_ids' => array_map(function ($p) {
+                return $p->id;
+            }, $projectsArray),
         ]);
 
         $email = 'mangaka.wir@gmail.com';
@@ -649,7 +650,7 @@ class ProjectCreationService
 
         Mail::send('emails.project_created', $data, function ($message) use ($email, $source, $subject) {
             $message->to($email)
-                    ->subject($subject);
+                ->subject($subject);
 
             $message->getSymfonyMessage()->getHeaders()->addTextHeader('X-Client-Id', (string)$source->client_id);
         });
@@ -659,17 +660,6 @@ class ProjectCreationService
         ]);
     }
 
-    /**
-     * Send project creation email (legacy method for single project - kept for backward compatibility)
-     */
-    private function sendProjectCreationEmail($project, $source)
-    {
-        $this->sendProjectsCreationEmail([$project], $source);
-    }
-
-    /**
-     * Send project creation email (legacy method for single project - kept for backward compatibility)
-     */
     private function sendProjectCreationEmail($project, $source)
     {
         $this->sendProjectsCreationEmail([$project], $source);
