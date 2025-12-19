@@ -6,9 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>
         @if ($type === 'invoice')
-            Facture {{ $invoice->invoice_number ?? 'INV-' . ($invoice->id ?? '') }}
+            Facture {{ 'INVOICE-' . str_pad($invoice->id ?? 0, 5, '0', STR_PAD_LEFT) }}
         @else
-            Devis {{ $quote->quote_number ?? 'Q-' . ($quote->id ?? '') }}
+            Facture {{ 'QUOTES-' . str_pad($quote->id ?? 0, 5, '0', STR_PAD_LEFT) }}
         @endif
     </title>
     <link rel="stylesheet" href="{{ public_path('fonts/roboto.css') }}">
@@ -261,13 +261,25 @@
 
         .total_container {
             width: 30%;
-            font-weight: 900;
-            font-size: 16px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #ebe6e6;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            border-bottom: 1px solid #ebe6e6;
+
+        }
+
+        .total_container_ttc {
+            font-weight: 900;
+            font-size: 16px;
+            padding-bottom: 10px;
+
+        }
+
+        .total_container_ht {
+            font-weight: 300;
+            font-size: 14px;
+            padding-bottom: 10px;
+            opacity: 0.7;
         }
 
         .total_container span:nth-child(2) {
@@ -334,12 +346,12 @@
 
 
         * .signatures .admin_sign {
-            border: 1px solid #051630;
+            /* border: 1px solid #051630; */
             padding: 20px 30px;
         }
 
         .signatures .client_sign {
-            border: 1px solid #051630;
+            /* border: 1px solid #051630; */
             padding: 20px 30px;
         }
 
@@ -357,6 +369,8 @@
             padding: 30px 20px;
             text-align: center
         }
+
+
 
         .signatures>.client_sign {
             float: right;
@@ -418,6 +432,16 @@
             /* bottom: 0; */
             /* width: 100%; */
         }
+
+        .status {
+            border: 1px solid #8a7d7d;
+            padding: 4px;
+            border-radius: 5px;
+            text-align: center;
+            width: 100px;
+            float: right;
+            text-transform: capitalize;
+        }
     </style>
 </head>
 
@@ -456,21 +480,23 @@
             <div class="client-info">
                 <div>
                     @php($client = $type === 'invoice' ? $invoice->client ?? null : $quote->client ?? null)
-                    <h3>{{ $client->company ?? ($client->name ?? '') }}</h3>
+                    <h3>{{ $client?->company ?? ($client?->name ?? '') }}</h3>
                     <p>
-                        {{ $client->address ?? '' }}<br>
-                        {{ $client->city ?? '' }}<br>
-                        {{ $client->country ?? '' }}<br>
-                        {{ empty($client->ice) ? 'SIREN : ' . $client->siren : 'ICE : ' . $client->ice }}
+                        {{ $client?->address ?? '' }}<br>
+                        {{ $client?->city ?? '' }}<br>
+                        {{ $client?->country ?? '' }}<br>
+                        {{ empty($client?->ice) ? 'SIREN : ' . ($client?->siren ?? '') : 'ICE : ' . ($client?->ice ?? '') }}
                     </p>
                 </div>
                 <div>
                     @if ($type === 'invoice')
                         <p>N° de facture</p>
-                        <h3>{{ $invoice->invoice_number ?? 'INV-00' . ($invoice->id ?? '') }}</h3>
+                        <h3>{{ sprintf('INV-%05d', $invoice->id ?? 0) }}</h3>
+                        <h3>{{ $invoice->status }}</h3>
                     @else
                         <p>N° de devis</p>
-                        <h3>{{ $quote->quote_number ?? 'Q-' . ($quote->id ?? '') }}</h3>
+                        <h3>{{ sprintf('Q-%05d', $quote->id ?? 0) }}</h3>
+                        <h3 class="status">{{ $quote->status }}</h3>
                     @endif
                 </div>
             </div>
@@ -487,10 +513,20 @@
                             @endif
                         </tr>
                     </thead>
+                    @if ($type === 'quote')
+                    <div class="conditions">
+                        <strong>objectif :</strong><br>
+                    @if($quote->description)
+                    {{ $quote->description }}
+                    @else 
+                    null
+                    @endif
+                    </div>
+                    @endif
                     <tbody>
                         <tr>
                             @if ($type === 'invoice')
-                                <td>{{ optional($invoice->invoice_date ? \Carbon\Carbon::parse($invoice->invoice_date) : null)->translatedFormat('d F Y') }}
+                                <td>{{ optional($invoice->invoice_date ? \Carbon\Carbon::parse($invoice->invoice_date) : '-')->translatedFormat('d F Y') }}
                                 </td>
                                 <td>{{ optional($invoice->due_date ? \Carbon\Carbon::parse($invoice->due_date) : null)->translatedFormat('d F Y') }}
                                 </td>
@@ -511,7 +547,8 @@
                 <tr>
                     <th>Article & Description</th>
                     <th>Quantité</th>
-                    <th>Prix HT</th>
+                    <th>Tva</th>
+                    <th>Montant HT</th>
                     <th>Montant TTC</th>
                 </tr>
             </thead>
@@ -527,7 +564,10 @@
                                 @endif
                             </td>
                             <td>{{ number_format((float) ($line->quantity ?? 0), 2, '.', ' ') }}</td>
-                            <td>{{ number_format((float) ($service->base_Price ?? 0), 2, '.', ' ') }}</td>
+                            <td>{{ number_format((float) ($line->tax ?? 0), 2, '.', ' ') }}</td>
+                            <td>
+                                {{ number_format(($line->individual_total ?? 0) / (1 + ($line->tax ?? 0) / 100), 2, '.', ' ') }}
+                            </td>
                             <td>{{ number_format((float) ($line->individual_total ?? 0), 2, '.', ' ') }}</td>
                         </tr>
                     @endforeach
@@ -541,18 +581,21 @@
                                 @endif
                             </td>
                             <td>{{ number_format((float) ($service->pivot->quantity ?? 0), 2, '.', ' ') }}</td>
-                            <td>{{ number_format((float) ($service->base_Price ?? 0), 2, '.', ' ') }}</td>
+                            <td>{{ number_format((float) ($service->tax ?? 0), 2, '.', ' ') }}</td>
+                            <td>
+                                {{ number_format(($service->pivot->individual_total ?? 0) / (1 + ($service->tax ?? 0) / 100), 2, '.', ' ') }}
+                            </td>
                             <td>{{ number_format((float) ($service->pivot->individual_total ?? 0), 2, '.', ' ') }}</td>
                         </tr>
                     @endforeach
                 @endif
             </tbody>
             <tr>
-                <td colspan="3" class="Sous-total">
+                <td colspan="4" class="Sous-total">
                     <span>Sous-total</span>
                 </td>
                 <td>
-                    @php($currency = $type === 'invoice' ? $invoice->client->currency ?? 'MAD' : $quote->client->currency ?? 'MAD')
+                    @php($currency = $type === 'invoice' ? $invoice->client?->currency ?? 'MAD' : $quote->client?->currency ?? 'MAD')
                     @if ($type === 'invoice')
                         {{ number_format((float) ($invoice->total_amount ?? 0), 2, '.', ' ') }}
                     @else
@@ -561,6 +604,7 @@
                 </td>
             </tr>
         </table>
+
         <div class="totals">
             <div class="notes">
                 @if ($type === 'invoice')
@@ -569,26 +613,30 @@
                     {{ $quote->notes ?? 'Merci de votre confiance.' }}
                 @endif
             </div>
+
             <div class="total_container">
-                <span>Total TTC</span>
-                @php($currency = $type === 'invoice' ? $invoice->client->currency ?? 'MAD' : $quote->client->currency ?? 'MAD')
-                <span>
-                    @if ($type === 'invoice')
-                        {{ number_format((float) ($invoice->total_amount ?? 0), 2, '.', ' ') }}
-                        {{ $currency }}
-                    @else
-                        {{ number_format((float) ($quote->total_amount ?? 0), 2, '.', ' ') }} {{ $currency }}
-                    @endif
-                </span>
+                <div class="total_container_ht">
+                    <span>Total HT</span>
+                    <span>{{ number_format($totalHT, 2, '.', ' ') }} {{ $currency }}</span>
+                </div>
+
+                <div class="total_container_ht">
+                    <span>Total TVA</span>
+                    <span>{{ number_format($totalTVA, 2, '.', ' ') }} {{ $currency }}</span>
+                </div>
+
+                <div class="total_container_ttc">
+                    <span>Total TTC</span>
+                    <span>{{ number_format($totalTTC, 2, '.', ' ') }} {{ $currency }}</span>
+                </div>
             </div>
         </div>
 
+        <!-- Rest of your template: payment info, signatures, etc. -->
         <div class="last">
-
-
             <div class="payment-info">
                 <div class="bank-details">
-                    <p> <b><strong class="mode">Mode de paiement :</strong></b> Par virement ou Chèque</p>
+                    <p><b><strong class="mode">Mode de paiement :</strong></b> Par virement ou Chèque</p>
                     <div class="bank-info">
                         <p><strong>Banque :</strong> ATTIJARI WAFABANK</p>
                         <p><strong>Nom du compte :</strong> LAHZA HM</p>
@@ -598,7 +646,6 @@
                         <p><strong>RC :</strong> 88049</p>
                     </div>
                 </div>
-
             </div>
 
             <div class="footer">
@@ -608,15 +655,19 @@
                     consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/
                 </div>
             </div>
+
             <div class="signatures">
                 <div class="admin_sign">
-                    {{-- <img src="{{$quote->total_amount}}" alt="lahza logo"> --}}
-                    admin signature
+                    <img src="{{ public_path('images/admin_signature.png') }}" alt="Admin Signature"
+                        style="width:200px;">
                 </div>
-                <div class="client_sign">client signature </div>
+                <div class="client_sign">
+                    @if ($clientSignatureBase64)
+                        <img src="{{ $clientSignatureBase64 }}" alt="Client Signature" style="width:200px;">
+                    @endif
+                </div>
             </div>
         </div>
-
     </div>
 </body>
 

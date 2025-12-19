@@ -3,18 +3,19 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-
+use App\Traits\LogsActivity;
 class Quotes extends Model
 {
+    use LogsActivity;
     protected $fillable = [
         'client_id',
         'quotation_date',
         'status',
         'notes',
-        'quote_number',
+        'has_projects',
         'total_amount',
+        'description'
     ];
-
 
     public function client()
     {
@@ -23,7 +24,7 @@ class Quotes extends Model
 
     public function services()
     {
-        return $this->belongsToMany(Service::class, 'quotes_services')
+        return $this->belongsToMany(Service::class, 'quotes_services', 'quote_id', 'service_id')
             ->withPivot(['quantity', 'tax', 'individual_total'])
             ->withTimestamps();
     }
@@ -47,11 +48,41 @@ class Quotes extends Model
     {
         return $this->hasMany(Quotes_service::class, 'quote_id');
     }
-    // ro check if the quote is singed from both parties
+
+    /**
+     * Projects created from this quote (one quote can have many projects)
+     */
+    public function projects()
+    {
+        return $this->hasMany(Project::class, 'quote_id');
+    }
+
+    /**
+     * Get the invoice associated with the quote.
+     */
+    public function invoice()
+    {
+        return $this->hasOne(Invoice::class, 'quote_id');
+    }
+    // To check if the quote is signed from both parties
+    // Note: Admin signature is always considered present (auto-signed), so we only check client signature
     protected $appends = ['is_fully_signed'];
 
     public function getIsFullySignedAttribute()
     {
-        return $this->adminSignature() && $this->clientSignature();
+        // Admin is always auto-signing, so we only need to check client signature
+        return $this->clientSignature() !== null;
+    }
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
+       public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
     }
 }

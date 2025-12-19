@@ -3,11 +3,10 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-
+use App\Traits\LogsActivity;
 class Intern extends Model
 {
-
-
+    use LogsActivity;
     protected $fillable = [
         'user_id',
         'department',
@@ -27,5 +26,9 @@ class Intern extends Model
     public function files()
     {
         return $this->morphMany(File::class, 'fileable');
+    }
+       public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
     }
 }

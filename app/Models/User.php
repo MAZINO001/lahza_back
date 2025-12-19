@@ -5,14 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable; // important for auth
 use Illuminate\Notifications\Notifiable;
+use App\Traits\LogsActivity;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
-
+    use HasApiTokens ,HasFactory, Notifiable;
+    use LogsActivity;
     public function clients()
     {
-        return $this->hasMany(Client::class);
+        return $this->hasOne(Client::class);
     }
 
     // Fields you allow to be mass-assigned
@@ -41,20 +43,37 @@ class User extends Authenticatable
         return $this->belongsToMany(Permission::class, 'user_permissions');
     }
 
-    public function teams()
+    /**
+     * Get the team user record associated with the user.
+     */
+    public function teamUser()
     {
-        return $this->belongsToMany(TeamUser::class, 'team_users')
-            ->withPivot('poste')
-            ->withTimestamps();
+        return $this->hasOne(TeamUser::class, 'user_id');
     }
 
-    public function histories()
+    /**
+     * Get the user's department.
+     */
+    public function getDepartmentAttribute()
     {
-        return $this->hasMany(History::class);
+        return $this->teamUser ? $this->teamUser->department : null;
     }
+
+    /**
+     * Get the user's position.
+     */
+    public function getPosteAttribute()
+    {
+        return $this->teamUser ? $this->teamUser->poste : null;
+    }
+
 
     public function files()
     {
-        return $this->hasMany(File::class);
+        return $this->morphMany(File::class, 'fileable');
+    }
+       public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
     }
 }

@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
+
 class Client extends Model
 {
+    use LogsActivity;
     protected $fillable = [
         'user_id',
         'name',
@@ -15,7 +18,6 @@ class Client extends Model
         'country',
         'currency',
         'client_type',
-        'client_number',
         'siren',
         'vat',
         'ice',
@@ -27,5 +29,22 @@ class Client extends Model
     public function quotes()
     {
         return $this->hasMany(Quotes::class);
+    }
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasManyThrough(Payment::class, Quotes::class);
+    }
+      public function files()
+    {
+        return $this->morphMany(File::class, 'fileable');
+    }
+       public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
     }
 }
