@@ -86,6 +86,11 @@ class SignatureController extends Controller
         }
 
         $user = $request->user();
+        if($instance instanceof Quotes){
+         if($instance->invoice->status === 'paid'|| $instance->invoice->status === 'partially_paid'){
+            return response()->json(['message' => 'Invoice is paid'], 400);
+         }   
+        }
 
         if ($user && $user->role === 'admin') {
             $type = 'client_signature';
