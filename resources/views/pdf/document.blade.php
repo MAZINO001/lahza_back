@@ -562,7 +562,8 @@
                         </tr>
                     @endforeach
                 @else
-                    @foreach ($quote->services ?? [] as $service)
+                    @foreach ($quote->quoteServices ?? [] as $line)
+                        @php($service = $line->service ?? null)
                         <tr>
                             <td>
                                 <strong>{{ $service->name ?? '' }}</strong>
@@ -570,12 +571,12 @@
                                     <div class="item-description">{!! nl2br(e($service->description)) !!}</div>
                                 @endif
                             </td>
-                            <td>{{ number_format((float) ($service->pivot->quantity ?? 0), 2, '.', ' ') }}</td>
-                            <td>{{ number_format((float) ($service->tax ?? 0), 2, '.', ' ') }}</td>
+                            <td>{{ number_format((float) ($line->quantity ?? 0), 2, '.', ' ') }}</td>
+                            <td>{{ number_format((float) ($line->tax ?? 0), 2, '.', ' ') }}</td>
                             <td>
-                                {{ number_format(($service->pivot->individual_total ?? 0) / (1 + ($service->tax ?? 0) / 100), 2, '.', ' ') }}
+                                {{ number_format(($line->individual_total ?? 0) / (1 + ($line->tax ?? 0) / 100), 2, '.', ' ') }}
                             </td>
-                            <td>{{ number_format((float) ($service->pivot->individual_total ?? 0), 2, '.', ' ') }}</td>
+                            <td>{{ number_format((float) ($line->individual_total ?? 0), 2, '.', ' ') }}</td>
                         </tr>
                     @endforeach
                 @endif
