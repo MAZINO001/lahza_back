@@ -514,7 +514,14 @@
                         </tr>
                     </thead>
                     @if ($type === 'quote')
-                    
+                    <div class="conditions">
+                        <strong>objectif :</strong><br>
+                    @if($quote->description)
+                    {{ $quote->description }}
+                    @else 
+                    null
+                    @endif
+                    </div>
                     @endif
                     <tbody>
                         <tr>
