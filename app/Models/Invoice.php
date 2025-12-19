@@ -55,7 +55,7 @@ class Invoice extends Model
 
     public function projects()
     {
-        return $this->belongsToMany(Project::class)->withTimestamps();
+        return $this->belongsToMany(Project::class,'invoice_project')->withTimestamps();
     }
 
     public function adminSignature()

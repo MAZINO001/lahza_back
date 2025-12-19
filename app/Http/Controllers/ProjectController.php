@@ -27,7 +27,7 @@ class ProjectController extends Controller
             'status' => 'required|in:pending,in_progress,completed,cancelled',
             'start_date' => 'required|date',
             'estimated_end_date' => 'required|date|after_or_equal:start_date',
-            'quote_id' => 'nullable|exists:quotes,id',
+            // 'quote_id' => 'nullable|exists:quotes,id',
             'invoice_ids' => 'nullable|array',
             'invoice_ids.*' => 'exists:invoices,id'
         ]);
@@ -88,4 +88,26 @@ class ProjectController extends Controller
         
         return response()->json(null, 204);
     }
+    public function getProjectInvoices(){
+        return Project::doesntHave('invoices')->get()->toArray();
+    }
+
+
+public function assignProjectToInvoice(Request $request)
+{
+    $invoiceId = $request->input('invoice_id');
+    $projectId = $request->input('project_id');
+
+    // Get invoice model (you need the model to call the relation)
+    $invoice = Invoice::findOrFail($invoiceId);
+
+    // This line checks if the row exists; if not, it creates it
+    $invoice->projects()->syncWithoutDetaching([$projectId]);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Invoice and project linked successfully.'
+    ]);
 }
+}
+

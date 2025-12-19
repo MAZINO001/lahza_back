@@ -41,8 +41,15 @@ public function progress()
 {
     return $this->hasMany(ProjectProgress::class, 'team_id');
 }
-   public function comments()
-    {
-        return $this->morphMany(Comment::class, 'commentable');
-    }
+public function comments()
+{
+    return $this->morphMany(Comment::class, 'commentable');
+}
+/**
+ * Get the events associated with the team user.
+ */
+public function events()
+{
+    return $this->belongsToMany(Event::class, 'event_team', 'team_id', 'event_id');
+}
 }
