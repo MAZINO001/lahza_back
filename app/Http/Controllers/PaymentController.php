@@ -170,5 +170,16 @@ if ($payment->status !== 'paid') {
         'message' => "Payment cancelled successfully"
     ]);
 }
-
+public function updatePaymentDate(Request $request ,Payment $payment){
+    $request->validate([
+        'updated_at' => 'required|date',
+    ]);
+$payment->update(
+    ['updated_at' => $request->updated_at]
+);
+return response()->json([
+    'success' => true,
+    'message' => 'Payment date updated successfully',
+],205);
+}
 }

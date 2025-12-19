@@ -123,6 +123,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('quotes', QuotesController::class)->except(['index', 'show']);
         Route::apiResource('services', ServicesController::class)->except(['index', 'show']);
         Route::get('/services/{service}/invoices', [ServicesController::class, 'getInvoices']);
+        Route::get('/services/{service}/quotes', [ServicesController::class, 'getQuotes']);
         Route::apiResource('offers', OfferController::class)->except(['index', 'show']);
 
     // CSV import
@@ -134,23 +135,23 @@ Route::middleware('auth:sanctum')->group(function () {
     // Emails
     Route::post('/email/send', [EmailController::class, 'sendEmail']);
 
-    // Payments
-    Route::post('/quotes/{quote}/pay', [PaymentController::class, 'createPaymentLink']);
-    Route::put('/payments/{payment}', [PaymentController::class, 'updatePayment']);
-    Route::get('/payments', [PaymentController::class, 'getPayment']);
-    Route::put('/validatePayments/{payment}', [PaymentController::class, 'handleManualPayment']);
-    Route::put('/cancelPayment/{payment}', [PaymentController::class, 'cancelPayment']);
-    Route::get('getRemaining/{invoice}', [PaymentController::class, 'getRemaining']);
-    Route::get('getInvoicePayments/{invoice}', [PaymentController::class, 'getInvoicePayments']);
-    Route::post('/invoices/pay/{invoice}/{percentage}', [PaymentController::class, 'createAdditionalPayment']);
-
-    // Projects & tasks (WRITE)
-    Route::prefix('projects/tasks/{project}')->controller(TaskController::class)->group(function () {
-        Route::post('/', 'store');
-        Route::put('/{task}', 'update');
-        Route::delete('/{task}', 'destroy');
-    });
-    Route::put('/task/{task}', [TaskController::class, 'updateStatus']);
+        // Payments
+        Route::post('/quotes/{quote}/pay', [PaymentController::class, 'createPaymentLink']);
+        Route::put('/payments/{payment}', [PaymentController::class, 'updatePayment']);
+        Route::get('/payments', [PaymentController::class, 'getPayment']);
+        Route::put('/validatePayments/{payment}', [PaymentController::class, 'handleManualPayment']);
+        Route::put('/cancelPayment/{payment}', [PaymentController::class, 'cancelPayment']);
+        Route::get('getRemaining/{invoice}', [PaymentController::class, 'getRemaining']);
+        Route::get('getInvoicePayments/{invoice}', [PaymentController::class, 'getInvoicePayments']);
+        Route::post('/invoices/pay/{invoice}/{percentage}', [PaymentController::class, 'createAdditionalPayment']);
+        Route::put('/payment/date/{payment}', [PaymentController::class, 'updatePaymentDate']);
+        // Projects & tasks (WRITE)
+        Route::prefix('projects/tasks/{project}')->controller(TaskController::class)->group(function () {
+            Route::post('/', 'store');
+            Route::put('/{task}', 'update');
+            Route::delete('/{task}', 'destroy');
+        });
+        Route::put('/task/{task}', [TaskController::class, 'updateStatus']);
 
     // Project Additional Data (WRITE)
     Route::prefix('additional-data')->controller(ProjectAdditionalDataController::class)->group(function () {
