@@ -17,12 +17,12 @@ class Service extends Model
     ];
 
 
-    public function quotes()
-    {
-        return $this->belongsToMany(Quotes::class, 'quotes_services')
-            ->withPivot(['quantity', 'tax', 'individual_total'])
-            ->withTimestamps();
-    }
+public function quotes()
+{
+    return $this->belongsToMany(Quotes::class, 'quotes_services', 'service_id', 'quote_id')
+        ->withPivot(['quantity', 'tax', 'individual_total'])
+        ->withTimestamps();
+}
     public function offers()
     {
         return $this->hasMany(Offer::class);
