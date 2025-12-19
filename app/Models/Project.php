@@ -41,7 +41,7 @@ class Project extends Model
     }
     public function invoices()
     {
-        return $this->belongsToMany(Invoice::class)->withTimestamps();
+        return $this->belongsToMany(Invoice::class,'invoice_project')->withTimestamps();
     }
        public function comments()
     {

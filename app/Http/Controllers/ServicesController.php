@@ -55,4 +55,9 @@ class ServicesController extends Controller
         $service->delete();
         return response()->json(null, 204);
     }
+
+    public function getInvoices(Service $service)
+{
+    return $service->invoices;
+}
 }
