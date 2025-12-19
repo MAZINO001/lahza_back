@@ -4,7 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facture INV-000634</title>
+    <title>
+        @if ($type === 'invoice')
+            Facture {{ $invoice->invoice_number ?? 'INV-' . ($invoice->id ?? '') }}
+        @else
+            Devis {{ $quote->quote_number ?? 'Q-' . ($quote->id ?? '') }}
+        @endif
+    </title>
     <link rel="stylesheet" href="{{ public_path('fonts/roboto.css') }}">
 
     <style>
@@ -28,6 +34,7 @@
             /* padding: 30px; */
             /* box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); */
             background: white;
+            height: 100%;
         }
 
         .header {
@@ -125,7 +132,7 @@
 
 
         .client-info h3 {
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 900;
             margin-bottom: 8px;
         }
@@ -134,7 +141,7 @@
             font-size: 13px;
             line-height: 1.6;
             color: #222;
-            font-weight: 900;
+            font-weight: 700;
         }
 
         .invoice-details {
@@ -252,8 +259,8 @@
             text-align: right;
         } */
 
-        .total-div {
-            width: 50%;
+        .total_container {
+            width: 30%;
             font-weight: 900;
             font-size: 16px;
             padding-bottom: 10px;
@@ -261,6 +268,10 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+        }
+
+        .total_container span:nth-child(2) {
+            margin-left: 15px
         }
 
         .payment-info {
@@ -308,7 +319,7 @@
             margin-bottom: 25px;
         }
 
-        .thank-you {
+        .notes {
             font-size: 12px;
             font-weight: normal;
         }
@@ -365,6 +376,7 @@
             display: inline-block;
             vertical-align: top;
             padding: 5px;
+            width: 200px;
         }
 
         .client-info>div:nth-child(2) {
@@ -375,7 +387,7 @@
             right: 0;
             top: 0;
             text-align: right;
-            width: 100px;
+            width: 200px;
         }
 
         .totals {
@@ -399,6 +411,13 @@
             float: right;
             text-align: right;
         }
+
+        .last {
+            /* background-color: red; */
+            /* position: absolute; */
+            /* bottom: 0; */
+            /* width: 100%; */
+        }
     </style>
 </head>
 
@@ -407,7 +426,7 @@
         <div class="header">
             <div class="company-info">
                 <div class="company-logo">
-                    <img src="{{ asset('logo.png') }}" alt="lahza logo">
+                    <img src="{{ public_path('logo.png') }}" alt="lahza logo">
                 </div>
 
                 <div class="data">
@@ -424,37 +443,63 @@
             </div>
         </div>
         <div class="invoice-title">
-            <h2>FACTURE</h2>
+            <h2>
+                @if ($type === 'invoice')
+                    FACTURE
+                @else
+                    DEVIS
+                @endif
+            </h2>
         </div>
 
         <div class="client-invoice-info">
             <div class="client-info">
                 <div>
-                    <h3>NEWERA</h3>
+                    @php($client = $type === 'invoice' ? $invoice->client ?? null : $quote->client ?? null)
+                    <h3>{{ $client->company ?? ($client->name ?? '') }}</h3>
                     <p>
-                        7 Angle Rue de Fès & Rue de Uruguay, 5ème Ét. N°21,<br>
-                        Tanger<br>
-                        90000, Morocco<br>
-                        SIREN (ou ICE) :
+                        {{ $client->address ?? '' }}<br>
+                        {{ $client->city ?? '' }}<br>
+                        {{ $client->country ?? '' }}<br>
+                        {{ empty($client->ice) ? 'SIREN : ' . $client->siren : 'ICE : ' . $client->ice }}
                     </p>
                 </div>
                 <div>
-                    <p>N° de facture</p>
-                    <h3>INV-000634</h3>
+                    @if ($type === 'invoice')
+                        <p>N° de facture</p>
+                        <h3>{{ $invoice->invoice_number ?? 'INV-00' . ($invoice->id ?? '') }}</h3>
+                    @else
+                        <p>N° de devis</p>
+                        <h3>{{ $quote->quote_number ?? 'Q-' . ($quote->id ?? '') }}</h3>
+                    @endif
                 </div>
             </div>
             <div class="invoice-details">
                 <table border="1" class="one">
                     <thead>
                         <tr>
-                            <th>Date de facture</th>
-                            <th>Date d'échéance</th>
+                            @if ($type === 'invoice')
+                                <th>Date de facture</th>
+                                <th>Date d'échéance</th>
+                            @else
+                                <th>Date du devis</th>
+                                <th>Date d'échéance</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td>06 août 2025</td>
-                            <td>06 août 2025</td>
+                            @if ($type === 'invoice')
+                                <td>{{ optional($invoice->invoice_date ? \Carbon\Carbon::parse($invoice->invoice_date) : null)->translatedFormat('d F Y') }}
+                                </td>
+                                <td>{{ optional($invoice->due_date ? \Carbon\Carbon::parse($invoice->due_date) : null)->translatedFormat('d F Y') }}
+                                </td>
+                            @else
+                                <td>{{ optional($quote->quotation_date ? \Carbon\Carbon::parse($quote->quotation_date) : null)->translatedFormat('d F Y') }}
+                                </td>
+                                <td>{{ optional($quote->due_date ?? null ? \Carbon\Carbon::parse($quote->due_date) : null)->translatedFormat('d F Y') }}
+                                </td>
+                            @endif
                         </tr>
                     </tbody>
                 </table>
@@ -471,75 +516,107 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>
-                        <strong>Serveur d'hébergement WEB - Full Pack</strong>
-                        <div class="item-description">
-                            - Offre de 100 Dh / mois<br>
-                            - Nom de domaine Gratuit<br>
-                            - Certificat de sécurité SSL<br>
-                            - Espace du serveur 80GB<br>
-                            - Sous domaine illimités<br>
-                            - Databases illimité<br>
-                            - Web mail Active<br>
-                            - Adresses mail professionnels<br>
-                            - Système LiteSpeed<br>
-                            - Sauvegarde automatique 24h / 24<br>
-                            - Sécurité du Serveur 24/h<br>
-                            - FTP & SFTP Access
-                        </div>
-                    </td>
-                    <td>1.00</td>
-                    <td>1,200.00</td>
-                    <td>1,440.00</td>
-                </tr>
+                @if ($type === 'invoice')
+                    @foreach ($invoice->invoiceServices ?? [] as $line)
+                        @php($service = $line->service ?? null)
+                        <tr>
+                            <td>
+                                <strong>{{ $service->name ?? '' }}</strong>
+                                @if (!empty($service->description))
+                                    <div class="item-description">{!! nl2br(e($service->description)) !!}</div>
+                                @endif
+                            </td>
+                            <td>{{ number_format((float) ($line->quantity ?? 0), 2, '.', ' ') }}</td>
+                            <td>{{ number_format((float) ($service->base_Price ?? 0), 2, '.', ' ') }}</td>
+                            <td>{{ number_format((float) ($line->individual_total ?? 0), 2, '.', ' ') }}</td>
+                        </tr>
+                    @endforeach
+                @else
+                    @foreach ($quote->services ?? [] as $service)
+                        <tr>
+                            <td>
+                                <strong>{{ $service->name ?? '' }}</strong>
+                                @if (!empty($service->description))
+                                    <div class="item-description">{!! nl2br(e($service->description)) !!}</div>
+                                @endif
+                            </td>
+                            <td>{{ number_format((float) ($service->pivot->quantity ?? 0), 2, '.', ' ') }}</td>
+                            <td>{{ number_format((float) ($service->base_Price ?? 0), 2, '.', ' ') }}</td>
+                            <td>{{ number_format((float) ($service->pivot->individual_total ?? 0), 2, '.', ' ') }}</td>
+                        </tr>
+                    @endforeach
+                @endif
             </tbody>
             <tr>
                 <td colspan="3" class="Sous-total">
                     <span>Sous-total</span>
                 </td>
-                <td>1,440.00</td>
+                <td>
+                    @php($currency = $type === 'invoice' ? $invoice->client->currency ?? 'MAD' : $quote->client->currency ?? 'MAD')
+                    @if ($type === 'invoice')
+                        {{ number_format((float) ($invoice->total_amount ?? 0), 2, '.', ' ') }}
+                    @else
+                        {{ number_format((float) ($quote->total_amount ?? 0), 2, '.', ' ') }}
+                    @endif
+                </td>
             </tr>
         </table>
-
         <div class="totals">
-            <div class="thank-you">
-                Merci de votre confiance.
+            <div class="notes">
+                @if ($type === 'invoice')
+                    {{ $invoice->notes ?? 'Merci de votre confiance.' }}
+                @else
+                    {{ $quote->notes ?? 'Merci de votre confiance.' }}
+                @endif
             </div>
-            <div class="total-div">
+            <div class="total_container">
                 <span>Total TTC</span>
-                <span>1,440.00 MAD</span>
+                @php($currency = $type === 'invoice' ? $invoice->client->currency ?? 'MAD' : $quote->client->currency ?? 'MAD')
+                <span>
+                    @if ($type === 'invoice')
+                        {{ number_format((float) ($invoice->total_amount ?? 0), 2, '.', ' ') }}
+                        {{ $currency }}
+                    @else
+                        {{ number_format((float) ($quote->total_amount ?? 0), 2, '.', ' ') }} {{ $currency }}
+                    @endif
+                </span>
             </div>
         </div>
 
+        <div class="last">
 
 
-        <div class="payment-info">
-            <div class="bank-details">
-                <p> <b><strong class="mode">Mode de paiement :</strong></b> Par virement ou Chèque</p>
-                <div class="bank-info">
-                    <p><strong>Banque :</strong> ATTIJARI WAFABANK</p>
-                    <p><strong>Nom du compte :</strong> LAHZA HM</p>
-                    <p><strong>R.I.B :</strong> 007640001433200000026029</p>
-                    <p><strong>SWIFT :</strong> BCMAMAMC</p>
-                    <p><strong>ICE :</strong> 002 056 959 000 039</p>
-                    <p><strong>RC :</strong> 88049</p>
+            <div class="payment-info">
+                <div class="bank-details">
+                    <p> <b><strong class="mode">Mode de paiement :</strong></b> Par virement ou Chèque</p>
+                    <div class="bank-info">
+                        <p><strong>Banque :</strong> ATTIJARI WAFABANK</p>
+                        <p><strong>Nom du compte :</strong> LAHZA HM</p>
+                        <p><strong>R.I.B :</strong> 007640001433200000026029</p>
+                        <p><strong>SWIFT :</strong> BCMAMAMC</p>
+                        <p><strong>ICE :</strong> 002 056 959 000 039</p>
+                        <p><strong>RC :</strong> 88049</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="footer">
+                <div class="conditions">
+                    <strong>Conditions d'utilisation</strong><br>
+                    En signant la facture, le client accepte sans réserves nos conditions. Pour plus d'informations,
+                    consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/
                 </div>
             </div>
-
-        </div>
-
-        <div class="footer">
-            <div class="conditions">
-                <strong>Conditions d'utilisation</strong><br>
-                En signant la facture, le client accepte sans réserves nos conditions. Pour plus d'informations,
-                consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/
+            <div class="signatures">
+                <div class="admin_sign">
+                    {{-- <img src="{{$quote->total_amount}}" alt="lahza logo"> --}}
+                    admin signature
+                </div>
+                <div class="client_sign">client signature </div>
             </div>
         </div>
-        <div class="signatures">
-            <div class="admin_sign">admin signature</div>
-            <div class="client_sign">client signature </div>
-        </div>
+
     </div>
 </body>
 

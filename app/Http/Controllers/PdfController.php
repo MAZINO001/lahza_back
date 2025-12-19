@@ -12,7 +12,7 @@ class PdfController extends Controller
 {
     public function invoice($id)
     {
-        $invoice = Invoice::findOrFail($id);
+        $invoice = Invoice::with(['client', 'invoiceServices.service'])->findOrFail($id);
         $type = 'invoice';
 
         $pdf = PDF::loadView('pdf.document', compact('invoice', 'type'));
@@ -24,7 +24,7 @@ class PdfController extends Controller
 
     public function quote($id)
     {
-        $quote = Quotes::findOrFail($id);
+        $quote = Quotes::with(['client', 'services'])->findOrFail($id);
         $type = 'quote';
 
         $pdf = PDF::loadView('pdf.document', compact('quote', 'type'));
