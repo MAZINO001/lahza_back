@@ -513,6 +513,9 @@
                             @endif
                         </tr>
                     </thead>
+                    @if ($type === 'quote')
+                    
+                    @endif
                     <tbody>
                         <tr>
                             @if ($type === 'invoice')

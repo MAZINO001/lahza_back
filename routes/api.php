@@ -77,8 +77,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/tasks', [TaskController::class, 'allTasks']);
         Route::get('getProgress/{project}', [ProjectProgressController::class, 'index']);
 
-        //create local project
-        Route::post('/projects', [ProjectController::class, 'store']);
+      
 
         Route::get('project/invoices',[ProjectController::class,'getProjectInvoices']);
         Route::post('project/invoice/assign',[ProjectController::class , 'assignProjectToInvoice']);
