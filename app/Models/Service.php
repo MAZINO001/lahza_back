@@ -31,4 +31,15 @@ class Service extends Model
     {
         return $this->morphMany(Comment::class, 'commentable');
     }
+  public function invoices()
+{
+    return $this->belongsToMany(
+        Invoice::class,
+        'invoice_services',
+        'service_id',
+        'invoice_id'
+    )->withPivot(['quantity', 'tax', 'individual_total'])
+     ->withTimestamps();
+}
+
 }
