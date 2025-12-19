@@ -60,4 +60,8 @@ class ServicesController extends Controller
 {
     return $service->invoices;
 }
+    public function getQuotes(Service $service)
+{
+    return $service->quotes;
+}
 }

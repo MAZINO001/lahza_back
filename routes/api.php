@@ -121,6 +121,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('quotes', QuotesController::class)->except(['index', 'show']);
         Route::apiResource('services', ServicesController::class)->except(['index', 'show']);
         Route::get('/services/{service}/invoices', [ServicesController::class, 'getInvoices']);
+        Route::get('/services/{service}/quotes', [ServicesController::class, 'getQuotes']);
         Route::apiResource('offers', OfferController::class)->except(['index', 'show']);
 
         // CSV import
@@ -141,7 +142,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('getRemaining/{invoice}', [PaymentController::class, 'getRemaining']);
         Route::get('getInvoicePayments/{invoice}', [PaymentController::class, 'getInvoicePayments']);
         Route::post('/invoices/pay/{invoice}/{percentage}', [PaymentController::class, 'createAdditionalPayment']);
-
+        Route::put('/payment/date/{payment}', [PaymentController::class, 'updatePaymentDate']);
         // Projects & tasks (WRITE)
         Route::prefix('projects/tasks/{project}')->controller(TaskController::class)->group(function () {
             Route::post('/', 'store');

@@ -14,6 +14,7 @@ class Quotes extends Model
         'notes',
         'has_projects',
         'total_amount',
+        'description'
     ];
 
     public function client()

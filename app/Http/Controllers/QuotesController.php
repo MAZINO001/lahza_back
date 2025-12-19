@@ -66,19 +66,23 @@ class QuotesController extends Controller
             'services.*.tax' => 'nullable|numeric',
             'services.*.individual_total' => 'nullable|numeric',
             'has_projects' => 'nullable',
+            'description' => 'nullable'
         ]);
 
         return DB::transaction(function () use ($validated) {
-            $quote = Quotes::create([
+            $quoteData = [
                 'client_id' => $validated['client_id'],
                 'quotation_date' => $validated['quotation_date'],
                 'status' => $validated['status'],
-                'notes' => $validated['notes'],
+                'notes' => $validated['notes'] ?? null,
                 'total_amount' => $validated['total_amount'],
-                'has_projects' => is_array($validated["has_projects"])
-                    ? json_encode($validated["has_projects"])
-                    : $validated["has_projects"],
-            ]);
+                'has_projects' => is_array($validated['has_projects'] ?? null) 
+                    ? json_encode($validated['has_projects']) 
+                    : ($validated['has_projects'] ?? null),
+                'description' => $validated['description'] ?? null
+            ];
+            
+            $quote = Quotes::create($quoteData);
 
             // Insert pivot records
             if (!empty($validated['services'])) {
@@ -295,6 +299,7 @@ class QuotesController extends Controller
             'services.*.tax' => 'nullable|numeric',
             'services.*.individual_total' => 'nullable|numeric',
             'has_projects' => 'nullable',
+            'description' => 'nullable'
         ]);
 
         return DB::transaction(function () use ($quote, $validated) {
@@ -307,6 +312,7 @@ class QuotesController extends Controller
                 'has_projects' => is_array($validated["has_projects"])
                     ? json_encode($validated["has_projects"])
                     : $validated["has_projects"],
+                'description' => $validated['description']
             ]);
 
             // Update pivot table if services provided
