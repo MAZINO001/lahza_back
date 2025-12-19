@@ -15,14 +15,18 @@ class ServicesController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
+            'name'        => 'required|string|max:255',
+            'description' => 'nullable|string|max:65535',
+            'base_price'  => 'required|numeric|min:0',
+            'tax_rate'    => 'required|numeric|min:0|max:100',
+            'status'      => 'required|in:active,inactive',
         ]);
 
         $service = Service::create($validated);
+
         return response()->json($service, 201);
     }
+
 
     public function show($id)
     {
@@ -34,9 +38,11 @@ class ServicesController extends Controller
         $service = Service::findOrFail($id);
 
         $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'description' => 'nullable|string',
-            'price' => 'sometimes|numeric|min:0',
+            'name'        => 'required|string|max:255',
+            'description' => 'nullable|string|max:65535',
+            'base_price'  => 'required|numeric|min:0',
+            'tax_rate'    => 'required|numeric|min:0|max:100',
+            'status'      => 'required|in:active,inactive',
         ]);
 
         $service->update($validated);
@@ -49,4 +55,13 @@ class ServicesController extends Controller
         $service->delete();
         return response()->json(null, 204);
     }
+
+    public function getInvoices(Service $service)
+{
+    return $service->invoices;
+}
+    public function getQuotes(Service $service)
+{
+    return $service->quotes;
+}
 }

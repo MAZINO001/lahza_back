@@ -3,18 +3,53 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-
+use App\Traits\LogsActivity;
 class TeamUser extends Model
 {
+    use LogsActivity;
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'team_users';
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array
+     */
     protected $fillable = [
-        'team_id',   // if you want to mass assign
         'user_id',   // needed for your registration logic
-        'poste',     // optional, but included if set
+        'department',// department information
+        'poste',
+        'skills'
     ];
-    public function users()
+
+    /**
+     * Get the user that owns the team user record.
+     */
+    public function user()
     {
-        return $this->belongsToMany(User::class, 'team_users')
-                    ->withPivot('poste')
-                    ->withTimestamps();
+        return $this->belongsTo(User::class);
     }
+    public function assignments()
+{
+    return $this->hasMany(ProjectAssignment::class, 'team_id');
+}
+public function progress()
+{
+    return $this->hasMany(ProjectProgress::class, 'team_id');
+}
+public function comments()
+{
+    return $this->morphMany(Comment::class, 'commentable');
+}
+/**
+ * Get the events associated with the team user.
+ */
+public function events()
+{
+    return $this->belongsToMany(Event::class, 'event_team', 'team_id', 'event_id');
+}
 }

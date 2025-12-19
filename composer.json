@@ -14,10 +14,13 @@
         "barryvdh/laravel-snappy": "^1.0",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.2",
+        "laravel/telescope": "^5.15",
         "laravel/tinker": "^2.10.1",
-        "maatwebsite/excel": "^1.1"
+        "maatwebsite/excel": "^1.1",
+        "stripe/stripe-php": "^19.0"
     },
     "require-dev": {
+        "barryvdh/laravel-ide-helper": "^3.6",
         "fakerphp/faker": "^1.23",
         "laravel/breeze": "^2.3",
         "laravel/pail": "^1.2.2",

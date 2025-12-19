@@ -3,19 +3,26 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-
+use Illuminate\Support\Str;
+use App\Traits\LogsActivity;
 class Invoice extends Model
 {
+    use LogsActivity;
     protected $fillable = [
         'client_id',
         'quote_id',
-        'invoice_number',
         'invoice_date',
         'due_date',
         'status',
         'notes',
         'total_amount',
         'balance_due',
+        'checksum',
+        'has_projects',
+    ];
+
+    protected $casts = [
+        'has_projects' => 'array',
     ];
 
     public function client()
@@ -40,8 +47,33 @@ class Invoice extends Model
             ->withTimestamps();
     }
 
+
     public function files()
     {
         return $this->morphMany(File::class, 'fileable');
     }
+
+    public function projects()
+    {
+        return $this->belongsToMany(Project::class,'invoice_project')->withTimestamps();
+    }
+
+    public function adminSignature()
+    {
+        return $this->files()->where('type', 'admin_signature')->first();
+    }
+
+    public function clientSignature()
+    {
+        return $this->files()->where('type', 'client_signature')->first();
+    }
+  public function payments()
+    {
+        return $this->hasMany(Payment::class, 'invoice_id');
+    }
+       public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
+
 }
