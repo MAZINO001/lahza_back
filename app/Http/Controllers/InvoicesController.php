@@ -338,4 +338,7 @@ class InvoicesController extends Controller
             ]);
         }
     }
+    public function getInvoiceProjects(){
+        return Invoice::doesnthave('projects')->get()->toArray();
+    }
 }

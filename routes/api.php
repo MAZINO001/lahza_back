@@ -23,6 +23,9 @@ use App\Http\Controllers\ProjectAdditionalDataController;
 use App\Http\Controllers\ProjectAssignmentController;
 use App\Http\Controllers\ProjectProgressController;
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\EventController;
+
+
 
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
@@ -67,12 +70,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Projects & tasks (READ)
         Route::get('/projects', [ProjectController::class, 'index']);
+        //create local project 
+        Route::post('/projects', [ProjectController::class, 'store']);
+
         Route::get('/project/{project}', [ProjectController::class, 'show']);
         Route::get('/tasks', [TaskController::class, 'allTasks']);
         Route::get('getProgress/{project}', [ProjectProgressController::class, 'index']);
 
-        //create local project 
-        Route::post('/projects', [ProjectController::class, 'store']);
+
+        Route::get('project/invoices',[ProjectController::class,'getProjectInvoices']);
+        Route::post('project/invoice/assign',[ProjectController::class , 'assignProjectToInvoice']);
 
         // CSV export (read)
         Route::get('/export', [ClientImportExportController::class, 'export']);
@@ -106,6 +113,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('clients/{id}/history', [ClientController::class, 'getClientHistory']);
         // Resources (FULL)
         Route::apiResource('invoices', InvoicesController::class)->except(['index', 'show']);
+
+
+        Route::get('invoice/projects',[InvoicesController::class,'getInvoiceProjects']);
+
+
         Route::apiResource('quotes', QuotesController::class)->except(['index', 'show']);
         Route::apiResource('services', ServicesController::class)->except(['index', 'show']);
         Route::get('/services/{service}/invoices', [ServicesController::class, 'getInvoices']);
@@ -159,6 +171,18 @@ Route::middleware('auth:sanctum')->group(function () {
         // Comments (FULL)
         Route::delete('comments/{comment}', [CommentController::class, 'deletecomments']);
     // });
+
+
+
+Route::prefix('events')->group(function () {
+    Route::get('/', [EventController::class, 'index']);       // show all events
+    Route::get('/{id}', [EventController::class, 'show']);   // show one event
+    Route::post('/', [EventController::class, 'store']);     // create event
+    Route::put('/{id}', [EventController::class, 'update']); // update event
+    Route::delete('/{id}', [EventController::class, 'destroy']); // delete event
+});
+
+
 
     // -----------------------------
     // Client-only routes
