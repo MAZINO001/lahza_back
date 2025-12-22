@@ -51,60 +51,70 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // -------------------------------------------------
-    // SHARED READ ROUTES (admin + client) ✅ FIX
+    // SHARED READ ROUTES (admin + client)
     // -------------------------------------------------
-    // Route::middleware('role:admin,client')->group(function () {
+    Route::middleware('role:admin,client')->group(function () {
 
-    // Clients
-    Route::get('clients/{id}', [ClientController::class, 'show']);
+        // Clients
+        Route::get('clients/{id}', [ClientController::class, 'show']);
 
-    // Resources (READ)
-    Route::get('invoices', [InvoicesController::class, 'index']);
-    Route::get('invoices/{invoice}', [InvoicesController::class, 'show']);
-    Route::get('quotes', [QuotesController::class, 'index']);
-    Route::get('quotes/{quote}', [QuotesController::class, 'show']);
-    Route::get('services', [ServicesController::class, 'index']);
-    Route::get('services/{service}', [ServicesController::class, 'show']);
-    Route::get('offers', [OfferController::class, 'index']);
-    Route::get('offers/{offer}', [OfferController::class, 'show']);
+        // Resources (READ)
+        Route::get('invoices', [InvoicesController::class, 'index']);
+        Route::get('invoices/{invoice}', [InvoicesController::class, 'show']);
+        Route::get('quotes', [QuotesController::class, 'index']);
+        Route::get('quotes/{quote}', [QuotesController::class, 'show']);
+        Route::get('services', [ServicesController::class, 'index']);
+        Route::get('services/{service}', [ServicesController::class, 'show']);
+        Route::get('offers', [OfferController::class, 'index']);
+        Route::get('offers/{offer}', [OfferController::class, 'show']);
 
         // Projects & tasks (READ)
         Route::get('/projects', [ProjectController::class, 'index']);
-        //create local project
-        Route::post('/projects', [ProjectController::class, 'store']);
-
         Route::get('/project/{project}', [ProjectController::class, 'show']);
         Route::get('/tasks', [TaskController::class, 'allTasks']);
         Route::get('getProgress/{project}', [ProjectProgressController::class, 'index']);
+        Route::get('project/invoices', [ProjectController::class, 'getProjectInvoices']);
 
-      
+        // CSV export (read)
+        Route::get('/export', [ClientImportExportController::class, 'export']);
 
-        Route::get('project/invoices',[ProjectController::class,'getProjectInvoices']);
-        Route::post('project/invoice/assign',[ProjectController::class , 'assignProjectToInvoice']);
+        // Comments (READ)
+        Route::get('comments/{type}/{id}', [CommentController::class, 'index']);
+        Route::get('comments/user/{userId}', [CommentController::class, 'getUserComments']);
+        Route::get('comments', [CommentController::class, 'getAllComments']);
+        Route::post('comments/{type}/{id}', [CommentController::class, 'store']);
 
-    // CSV export (read)
-    Route::get('/export', [ClientImportExportController::class, 'export']);
+        // Project additional data (READ)
+        Route::get('additional-data/project/{project_id}', [ProjectAdditionalDataController::class, 'showByProject']);
 
-    // Comments (READ)
-    Route::get('comments/{type}/{id}', [CommentController::class, 'index']);
-    Route::get('comments/user/{userId}', [CommentController::class, 'getUserComments']);
-    Route::get('comments', [CommentController::class, 'getAllComments']);
+        // Signature routes for both admin and client
+        Route::post('/{model}/{id}/signature', [SignatureController::class, 'upload'])
+            ->where('model', 'invoices|quotes');
+        Route::delete('/{model}/{id}/signature', [SignatureController::class, 'destroy'])
+            ->where('model', 'invoices|quotes');
 
-    // Project additional data (READ)
-    Route::get('additional-data/project/{project_id}', [ProjectAdditionalDataController::class, 'showByProject']);
-    Route::post('comments/{type}/{id}', [CommentController::class, 'store']);
+        // Events (accessible to both)
+        Route::prefix('events')->group(function () {
+            Route::get('/', [EventController::class, 'index']);
+            Route::get('/{id}', [EventController::class, 'show']);
+        });
 
-    // **FIXED: Signature routes for both admin and client**
-    Route::post('/{model}/{id}/signature', [SignatureController::class, 'upload'])
-        ->where('model', 'invoices|quotes');
-    Route::delete('/{model}/{id}/signature', [SignatureController::class, 'destroy'])
-        ->where('model', 'invoices|quotes');
-    // });
+        // payments
+        Route::get('/payments', [PaymentController::class, 'getPayment']);
+        Route::get('getInvoicePayments/{invoice}', [PaymentController::class, 'getInvoicePayments']);
+    
+        // Quotes → invoice conversion
+        Route::post('quotes/{quote}/create-invoice', [QuotesController::class, 'createInvoiceFromQuote']);
 
-    // -----------------------------
+        // Project additional data (LIMITED - clients can only create/update their own)
+        Route::post('additional-data', [ProjectAdditionalDataController::class, 'store']);
+        Route::put('additional-data/{id}', [ProjectAdditionalDataController::class, 'update']);
+    });
+
+    // -------------------------------------------------
     // Admin-only routes
-    // -----------------------------
-    // Route::middleware('role:admin')->group(function () {
+    // -------------------------------------------------
+    Route::middleware('role:admin')->group(function () {
 
         // Clients (FULL)
         Route::get('clients', [ClientController::class, 'index']);
@@ -112,39 +122,39 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('clients/{id}', [ClientController::class, 'destroy']);
         Route::get('clients/{id}/emails', [EmailController::class, 'getClientEmails']);
         Route::get('clients/{id}/history', [ClientController::class, 'getClientHistory']);
-        // Resources (FULL)
+
+        // Resources (CREATE, UPDATE, DELETE)
         Route::apiResource('invoices', InvoicesController::class)->except(['index', 'show']);
-
-
-        Route::get('invoice/projects',[InvoicesController::class,'getInvoiceProjects']);
-
-
+        Route::get('invoice/projects', [InvoicesController::class, 'getInvoiceProjects']);
         Route::apiResource('quotes', QuotesController::class)->except(['index', 'show']);
         Route::apiResource('services', ServicesController::class)->except(['index', 'show']);
         Route::get('/services/{service}/invoices', [ServicesController::class, 'getInvoices']);
         Route::get('/services/{service}/quotes', [ServicesController::class, 'getQuotes']);
         Route::apiResource('offers', OfferController::class)->except(['index', 'show']);
 
-    // CSV import
-    Route::post('/import', [ClientImportExportController::class, 'import']);
-    Route::post('/uploadClients', [csvController::class, 'uploadClients']);
-    Route::post('/uploadInvoices', [csvController::class, 'uploadInvoices']);
-    Route::post('/uploadServices', [csvController::class, 'uploadServices']);
+        // CSV import & management
+        Route::post('/import', [ClientImportExportController::class, 'import']);
+        Route::post('/uploadClients', [csvController::class, 'uploadClients']);
+        Route::post('/uploadInvoices', [csvController::class, 'uploadInvoices']);
+        Route::post('/uploadServices', [csvController::class, 'uploadServices']);
 
-    // Emails
-    Route::post('/email/send', [EmailController::class, 'sendEmail']);
+        // Emails
+        Route::post('/email/send', [EmailController::class, 'sendEmail']);
 
         // Payments
         Route::post('/quotes/{quote}/pay', [PaymentController::class, 'createPaymentLink']);
         Route::put('/payments/{payment}', [PaymentController::class, 'updatePayment']);
-        Route::get('/payments', [PaymentController::class, 'getPayment']);
+        
         Route::put('/validatePayments/{payment}', [PaymentController::class, 'handleManualPayment']);
         Route::put('/cancelPayment/{payment}', [PaymentController::class, 'cancelPayment']);
         Route::get('getRemaining/{invoice}', [PaymentController::class, 'getRemaining']);
-        Route::get('getInvoicePayments/{invoice}', [PaymentController::class, 'getInvoicePayments']);
+        
         Route::post('/invoices/pay/{invoice}/{percentage}', [PaymentController::class, 'createAdditionalPayment']);
         Route::put('/payment/date/{payment}', [PaymentController::class, 'updatePaymentDate']);
+
         // Projects & tasks (WRITE)
+        Route::post('/projects', [ProjectController::class, 'store']);
+        Route::post('project/invoice/assign', [ProjectController::class, 'assignProjectToInvoice']);
         Route::prefix('projects/tasks/{project}')->controller(TaskController::class)->group(function () {
             Route::post('/', 'store');
             Route::put('/{task}', 'update');
@@ -152,47 +162,40 @@ Route::middleware('auth:sanctum')->group(function () {
         });
         Route::put('/task/{task}', [TaskController::class, 'updateStatus']);
 
-    // Project Additional Data (WRITE)
-    Route::prefix('additional-data')->controller(ProjectAdditionalDataController::class)->group(function () {
-        Route::post('/', 'store');
-        Route::put('/{id}', 'update');
-        Route::delete('/{id}', 'destroy');
+        // Project Additional Data (WRITE)
+        Route::prefix('additional-data')->controller(ProjectAdditionalDataController::class)->group(function () {
+            Route::post('/', 'store');
+            Route::put('/{id}', 'update');
+            Route::delete('/{id}', 'destroy');
+        });
+
+        // Project assignments
+        Route::post('addAssignment', [ProjectAssignmentController::class, 'store']);
+        Route::delete('deleteAssignment', [ProjectAssignmentController::class, 'destroy']);
+
+        // Activity logs
+        Route::get('logs', [LogsActivityController::class, 'index']);
+        Route::get('logs/{activityLog}', [LogsActivityController::class, 'show']);
+
+
+        // Comments (DELETE only for admin)
+        Route::delete('comments/{comment}', [CommentController::class, 'deletecomments']);
+
+        // Events (full CRUD for admin)
+        Route::prefix('events')->group(function () {
+            Route::post('/', [EventController::class, 'store']);
+            Route::put('/{id}', [EventController::class, 'update']);
+            Route::delete('/{id}', [EventController::class, 'destroy']);
+        });
     });
 
-    // Project assignments
-    Route::post('addAssignment', [ProjectAssignmentController::class, 'store']);
-    Route::delete('deleteAssignment', [ProjectAssignmentController::class, 'destroy']);
-
-    // Logs
-    Route::get('logs', [LogsActivityController::class, 'index']);
-    Route::get('logs/{activityLog}', [LogsActivityController::class, 'show']);
-
-    // Quotes → invoice
-    Route::post('quotes/{quote}/create-invoice', [QuotesController::class, 'createInvoiceFromQuote']);
-
-    // Comments (FULL)
-    Route::delete('comments/{comment}', [CommentController::class, 'deletecomments']);
-    // });
-
-
-
-Route::prefix('events')->group(function () {
-    Route::get('/', [EventController::class, 'index']);       // show all events
-    Route::get('/{id}', [EventController::class, 'show']);   // show one event
-    Route::post('/', [EventController::class, 'store']);     // create event
-    Route::put('/{id}', [EventController::class, 'update']); // update event
-    Route::delete('/{id}', [EventController::class, 'destroy']); // delete event
-});
-
-
-
-    // -----------------------------
+    // -------------------------------------------------
     // Client-only routes
-    // -----------------------------
-    // Route::middleware('role:client')->group(function () {
+    // -------------------------------------------------
+    Route::middleware('role:client')->group(function () {
 
-    // Project additional data (WRITE limited)
-    Route::post('additional-data', [ProjectAdditionalDataController::class, 'store']);
-    Route::put('additional-data/{id}', [ProjectAdditionalDataController::class, 'update']);
-    // });
+        
+
+        // Already included in shared routes above
+    });
 });

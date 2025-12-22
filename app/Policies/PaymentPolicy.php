@@ -2,11 +2,11 @@
 
 namespace App\Policies;
 
-use App\Models\Invoice;
 use App\Models\User;
+use App\Models\Payment;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
-class InvoicePolicy
+class PaymentPolicy
 {
     use HandlesAuthorization;
 
@@ -15,15 +15,15 @@ class InvoicePolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->role === 'admin'|| $user->role === 'client';
+        return $user->role === 'admin';
     }
 
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, Invoice $invoice): bool
+    public function view(User $user, Payment $payment): bool
     {
-        return $user->role === 'admin' || $user->clients->id === $invoice->client_id;
+        return $user->role === 'admin' || $user->clients->id === $payment->client_id;
     }
 
     /**
@@ -37,7 +37,7 @@ class InvoicePolicy
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, Invoice $invoice): bool
+    public function update(User $user, Payment $payment): bool
     {
         return $user->role === 'admin';
     }
@@ -45,7 +45,7 @@ class InvoicePolicy
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, Invoice $invoice): bool
+    public function delete(User $user, Payment $payment): bool
     {
         return $user->role === 'admin';
     }
@@ -53,7 +53,7 @@ class InvoicePolicy
     /**
      * Determine whether the user can restore the model.
      */
-    public function restore(User $user, Invoice $invoice): bool
+    public function restore(User $user, Payment $payment): bool
     {
         return $user->role === 'admin';
     }
@@ -61,7 +61,7 @@ class InvoicePolicy
     /**
      * Determine whether the user can permanently delete the model.
      */
-    public function forceDelete(User $user, Invoice $invoice): bool
+    public function forceDelete(User $user, Payment $payment): bool
     {
         return $user->role === 'admin';
     }

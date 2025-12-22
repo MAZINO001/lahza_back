@@ -4,14 +4,27 @@ namespace App\Repositories;
 
 use App\Models\Invoice;
 use App\Models\Payment;
+use Illuminate\Support\Facades\Auth;
 
 class PaymentRepository
 {
-    public function getPayment()
-    {
-        // return Payment::latestOfMany('quote_id')->get();
-        return Payment::with(['invoice', 'user'])->latest()->get();
-    }
+public function getPayment()
+{
+    /** @var \App\Models\User */
+    $user =  Auth::user();
+    $payments = Payment::with(['invoice', 'user'])
+        ->when($user->role === 'client', function ($query) use ($user) {
+            $clientId = $user->clients()->first()->id ?? 0; 
+            $query->whereHas('invoice', function ($q) use ($clientId) {
+                $q->where('client_id', $clientId);
+            });
+        })
+        ->latest()
+        ->get();
+
+    return $payments;
+}
+
     public function create(array $data)
     {
         return Payment::create($data);

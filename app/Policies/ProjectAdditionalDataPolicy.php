@@ -13,7 +13,7 @@ class ProjectAdditionalDataPolicy
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
@@ -21,31 +21,31 @@ class ProjectAdditionalDataPolicy
      */
     public function view(User $user, ProjectAdditionalData $projectAdditionalData): bool
     {
-        return false;
+        return $user->role === 'admin' || $user->clients->id === $projectAdditionalData->project->client_id;
     }
 
     /**
      * Determine whether the user can create models.
      */
-    public function create(User $user): bool
-    {
-        return false;
-    }
+public function create(User $user): bool
+{
+    return $user->role === 'client' || $user->role === 'admin'; 
+}
 
-    /**
-     * Determine whether the user can update the model.
-     */
-    public function update(User $user, ProjectAdditionalData $projectAdditionalData): bool
-    {
-        return false;
+public function update(User $user, ProjectAdditionalData $projectAdditionalData): bool
+{
+    // Ensure the client owns the project the data belongs to
+    if($user->role === 'admin') {
+        return true;
     }
-
+    return $user->role === 'client' && $user->clients->id === $projectAdditionalData->project->client_id;
+}
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, ProjectAdditionalData $projectAdditionalData): bool
+    public function delete(User $user): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
@@ -53,7 +53,7 @@ class ProjectAdditionalDataPolicy
      */
     public function restore(User $user, ProjectAdditionalData $projectAdditionalData): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
@@ -61,6 +61,6 @@ class ProjectAdditionalDataPolicy
      */
     public function forceDelete(User $user, ProjectAdditionalData $projectAdditionalData): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 }

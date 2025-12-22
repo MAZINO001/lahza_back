@@ -23,6 +23,7 @@ class OfferController extends Controller
     }
     public function store(Request $request)
     {
+        $this->authorize('create', Offer::class);
         $validated = $request->validate([
             'service_id' => 'required|exists:services,id',
             'title' => 'required|string|max:255',
@@ -41,6 +42,7 @@ class OfferController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorize('update');
         $offer = Offer::findOrFail($id);
 
         $validated = $request->validate([

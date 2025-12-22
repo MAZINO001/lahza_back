@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Invoice;
 use App\Models\Project;
+use Illuminate\Support\Facades\Auth;
+
 class ProjectController extends Controller
 {
     /**
@@ -12,7 +14,11 @@ class ProjectController extends Controller
      */
     public function index()
     {
-        return Project::with('invoices')->get();
+        $this->authorize('viewAny', Project::class);
+        $user = Auth::user();
+        return Project::with('invoices')->when($user->role === 'client', function ($query) use ($user) {
+            $query->where('client_id', $user->clients->id);
+        })->get();
     }
 
     /**
@@ -20,6 +26,8 @@ class ProjectController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', Project::class);
+
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'name' => 'required|string|max:255',
@@ -46,6 +54,7 @@ class ProjectController extends Controller
      */
     public function show(Project $project)
     {
+        $this->authorize('view',$project);
         return $project;
     }
 
@@ -54,6 +63,7 @@ class ProjectController extends Controller
      */
     public function update(Request $request, Project $project)
     {
+        $this->authorize('update', $project);
         $validated = $request->validate([
             'client_id' => 'sometimes|required|exists:clients,id',
             'name' => 'sometimes|required|string|max:255',
@@ -80,6 +90,7 @@ class ProjectController extends Controller
      */
     public function destroy(Project $project)
     {
+        $this->authorize('delete');
         // Detach all invoices before deleting the project
         $project->invoices()->detach();
         
@@ -95,6 +106,8 @@ class ProjectController extends Controller
 
 public function assignProjectToInvoice(Request $request)
 {
+    $this->authorize('create');
+
     $invoiceId = $request->input('invoice_id');
     $projectId = $request->input('project_id');
 

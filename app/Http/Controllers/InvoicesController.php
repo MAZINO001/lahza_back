@@ -34,7 +34,13 @@ class InvoicesController extends Controller
 
     public function index()
     {
-        $invoices = Invoice::with(['invoiceServices', 'client.user:id,name', 'files', 'projects'])->get();
+        /** @var \App\Models\User */
+
+        $user = Auth::user();
+        $invoices = Invoice::with(['invoiceServices', 'client.user:id,name', 'files', 'projects'])->when($user->role === 'client', function ($query) use ($user) {
+            $clientId = $user->clients()->first()->id ?? 0;
+            $query->where('client_id', $clientId);
+        })->get();
         $allServices = Service::all();
 
         // Add signature URLs to each invoice
@@ -54,6 +60,8 @@ class InvoicesController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', Invoice::class);
+
         $validate = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'quote_id' => 'nullable|exists:quotes,id',
@@ -176,6 +184,8 @@ class InvoicesController extends Controller
     public function update(Request $request, $id)
     {
         $invoice = Invoice::findOrFail($id);
+        $this->authorize('update', $invoice);
+
 
         $validate = $request->validate([
             'client_id' => 'required|exists:clients,id',
@@ -228,6 +238,8 @@ class InvoicesController extends Controller
 
     public function destroy($id)
     {
+        $this->authorize('delete', Invoice::class);
+        
         $invoice = Invoice::findOrFail($id);
 
         // Delete associated projects

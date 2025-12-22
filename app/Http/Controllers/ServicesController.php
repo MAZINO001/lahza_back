@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Service;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\Auth;
 class ServicesController extends Controller
 {
     public function index()
@@ -14,6 +14,7 @@ class ServicesController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create');
         $validated = $request->validate([
             'name'        => 'required|string|max:255',
             'description' => 'nullable|string|max:65535',
@@ -30,13 +31,16 @@ class ServicesController extends Controller
 
     public function show($id)
     {
+        $this->authorize('view',Service::findOrFail($id));
         return Service::findOrFail($id);
     }
 
     public function update(Request $request, $id)
     {
         $service = Service::findOrFail($id);
-
+        
+        $this->authorize('update',$service);
+        
         $validated = $request->validate([
             'name'        => 'required|string|max:255',
             'description' => 'nullable|string|max:65535',
@@ -52,16 +56,35 @@ class ServicesController extends Controller
     public function destroy($id)
     {
         $service = Service::findOrFail($id);
+        $this->authorize('delete',$service);
         $service->delete();
         return response()->json(null, 204);
     }
 
-    public function getInvoices(Service $service)
+public function getQuotes(Service $service)
 {
-    return $service->invoices;
+    $user = Auth::user();
+
+    $quotes = $service->quotes()
+        ->when($user->role === 'client', function($query) use ($user) {
+            $query->where('client_id', $user->clients->first()->id ?? 0);
+        })
+        ->get();
+
+    return response()->json($quotes);
 }
-    public function getQuotes(Service $service)
+
+public function getInvoices(Service $service)
 {
-    return $service->quotes;
+    $user = Auth::user();
+
+    $invoices = $service->invoices()
+        ->when($user->role === 'client', function($query) use ($user) {
+            $query->where('client_id', $user->clients->first()->id ?? 0);
+        })
+        ->get();
+
+    return response()->json($invoices);
 }
+
 }

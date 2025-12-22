@@ -26,7 +26,8 @@ class QuotesController extends Controller
         PaymentServiceInterface $paymentService,
         ProjectCreationService $projectCreationService,
         ActivityLoggerService $activityLogger
-    ) {
+        ) 
+    {
         $this->paymentService = $paymentService;
         $this->projectCreationService = $projectCreationService;
         $this->activityLogger = $activityLogger;
@@ -34,7 +35,10 @@ class QuotesController extends Controller
 
     public function index()
     {
-        $quotes = Quotes::with(['quoteServices', 'client.user:id,name,email', 'files', 'projects'])->get();
+        $user = Auth::user();
+        $quotes = Quotes::with(['quoteServices', 'client.user:id,name,email', 'files', 'projects'])->when($user->role ==='client',function($query) use ($user){
+            $query->where('client_id', $user->clients->id);
+        })->get();
         $allServices = Service::all();
 
         // Add signature URLs to each quote
@@ -54,6 +58,7 @@ class QuotesController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create',Quotes::class);
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'quotation_date' => 'required|date',
@@ -139,6 +144,8 @@ class QuotesController extends Controller
     public function show($id)
     {
         $quote = Quotes::with(['quoteServices', 'files', 'projects'])->findOrFail($id);
+        
+        $this->authorize('view', $quote); 
 
         // Add signature URLs to the response
         $quote->admin_signature_url = asset('images/admin_signature.png');
@@ -287,6 +294,8 @@ class QuotesController extends Controller
     {
         $quote = Quotes::findOrFail($id);
 
+        $this->authorize('update',$quote);
+
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'quotation_date' => 'required|date',
@@ -348,6 +357,7 @@ class QuotesController extends Controller
     public function destroy($id)
     {
         $quote = Quotes::findOrFail($id);
+        $this->authorize('delete');
 
         // Note: Projects linked to quotes should be handled carefully
         // If quote has an invoice, the invoice owns the project relationship

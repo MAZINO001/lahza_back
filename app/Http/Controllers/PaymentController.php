@@ -49,6 +49,7 @@ public function getPayment(){
      */
     public function updatePayment(Request $request, Payment $payment)
     {
+        $this->authorize('update', $payment);
         $request->validate([
             'percentage' => 'required|numeric|min:0.01|max:100',
         ]);
@@ -92,6 +93,9 @@ public function getRemaining(Request $request, Invoice $invoice){
     }
  public function createAdditionalPayment(Request $request, Invoice $invoice, $percentage)
 {
+    // $this->authorize('update', $invoice);
+
+
     // Validate the percentage from the URL parameter
     $validated = validator([
         'percentage' => $percentage,
@@ -112,6 +116,8 @@ public function getRemaining(Request $request, Invoice $invoice){
 }
 public function handleManualPayment(Payment $payment, bool $cancel = false)
 {
+    $this->authorize('update', $payment);
+
     if ($payment->payment_method === 'stripe') {
         return response()->json([
             'error' => true,
@@ -145,6 +151,9 @@ public function handleManualPayment(Payment $payment, bool $cancel = false)
     ]);
 }
 public function cancelPayment(Payment $payment) {
+    $this->authorize('update', $payment);
+
+
 if ($payment->payment_method === 'stripe') {
         return response()->json([
             'error' => true,
@@ -171,6 +180,9 @@ if ($payment->status !== 'paid') {
     ]);
 }
 public function updatePaymentDate(Request $request ,Payment $payment){
+    $this->authorize('update', $payment);
+
+    
     $request->validate([
         'updated_at' => 'required|date',
     ]);

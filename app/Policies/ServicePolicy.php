@@ -11,25 +11,36 @@ class ServicePolicy
     /**
      * Determine whether the user can view any models.
      */
-    public function viewAny(User $user): bool
-    {
-        return false;
-    }
-
+public function viewAny(User $user): bool
+{
+    return $user->role === 'admin' || $user->role === 'client';
+}
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, Service $service): bool
-    {
+public function view(User $user, Service $service): bool
+{
+    if ($user->role === 'admin') {
+        return true;
+    }
+
+    $clientId = $user->clients->first()->id ?? null;
+    if (!$clientId) {
         return false;
     }
+
+    $hasClientQuote = $service->quotes()->where('client_id', $clientId)->exists();
+    $hasClientInvoice = $service->invoices()->where('client_id', $clientId)->exists();
+
+    return $hasClientQuote || $hasClientInvoice;
+}
 
     /**
      * Determine whether the user can create models.
      */
     public function create(User $user): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
@@ -37,7 +48,7 @@ class ServicePolicy
      */
     public function update(User $user, Service $service): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
@@ -45,7 +56,7 @@ class ServicePolicy
      */
     public function delete(User $user, Service $service): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
@@ -53,7 +64,7 @@ class ServicePolicy
      */
     public function restore(User $user, Service $service): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
@@ -61,6 +72,6 @@ class ServicePolicy
      */
     public function forceDelete(User $user, Service $service): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 }

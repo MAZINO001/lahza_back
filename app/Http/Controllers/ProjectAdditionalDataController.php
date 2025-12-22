@@ -11,6 +11,7 @@ class ProjectAdditionalDataController extends Controller
      public function showByProject($project_id)
     {
         $data = ProjectAdditionalData::where('project_id', $project_id)->first();
+        $this->authorize('view',$data);
 
         if (!$data) {
             return response()->json(['message' => 'Additional data not found'], 404);
@@ -25,7 +26,7 @@ class ProjectAdditionalDataController extends Controller
      */
 public function store(Request $request)
 {
-
+$this->authorize('create');
     $validated = $request->validate([
         'project_id' => 'required|exists:projects,id',
         'client_id'  => 'required|exists:clients,id',
@@ -82,6 +83,8 @@ public function update(Request $request, $id)
 
     // Find record
     $data = ProjectAdditionalData::find($id);
+
+    $this->authorize('update',$data);
 
     if (!$data) {
         Log::error("DATA NOT FOUND", ['id' => $id]);
@@ -212,7 +215,7 @@ public function update(Request $request, $id)
 public function destroy($id)
 {
     $data = ProjectAdditionalData::find($id);
-
+$this->authorize('delete');
     if (!$data) {
         return response()->json(['message' => 'Additional data not found'], 404);
     }

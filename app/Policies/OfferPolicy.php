@@ -11,33 +11,30 @@ class OfferPolicy
     /**
      * Determine whether the user can view any models.
      */
-    public function viewAny(User $user): bool
-    {
-        return false;
-    }
+public function viewAny(User $user): bool
+{
+    return true; // Both admin and client can see the list
+}
 
-    /**
-     * Determine whether the user can view the model.
-     */
-    public function view(User $user, Offer $offer): bool
-    {
-        return false;
-    }
+public function view(User $user, Offer $offer): bool
+{
+    return true; // Everyone can view specific offers
+}
 
     /**
      * Determine whether the user can create models.
      */
     public function create(User $user): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, Offer $offer): bool
+    public function update(User $user): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
@@ -45,7 +42,7 @@ class OfferPolicy
      */
     public function delete(User $user, Offer $offer): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
@@ -53,7 +50,7 @@ class OfferPolicy
      */
     public function restore(User $user, Offer $offer): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 
     /**
@@ -61,6 +58,6 @@ class OfferPolicy
      */
     public function forceDelete(User $user, Offer $offer): bool
     {
-        return false;
+        return $user->role === 'admin';
     }
 }
