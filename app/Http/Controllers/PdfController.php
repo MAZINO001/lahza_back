@@ -69,9 +69,9 @@ class PdfController extends Controller
         $totalTVA = 0;
         $totalTTC = 0;
 
-        foreach ($quote->services ?? [] as $service) {
-            $ttc = (float) ($service->pivot->individual_total ?? 0);
-            $rate = ((float) ($service->tax ?? 0)) / 100;
+         foreach ($quote->quoteServices ?? [] as $line) {
+            $ttc = (float) ($line->individual_total ?? 0);
+            $rate = ((float) ($line->tax ?? 0)) / 100;
 
             $ht = $rate > 0 ? $ttc / (1 + $rate) : $ttc;
             $tva = $ttc - $ht;
