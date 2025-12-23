@@ -76,4 +76,8 @@ class User extends Authenticatable
     {
         return $this->morphMany(Comment::class, 'commentable');
     }
+    public function certifications()
+    {
+        return $this->morphMany(Certification::class, 'owner');
+    }
 }

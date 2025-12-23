@@ -9,9 +9,7 @@ class CertificationController extends Controller
 {
     public function index(Request $request)
     {
-        return Certification::where('owner_type', $request->owner_type)
-            ->where('owner_id', $request->owner_id)
-            ->get();
+        return Certification::all();
     }
 
     public function store(Request $request)

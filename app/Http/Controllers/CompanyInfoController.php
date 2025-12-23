@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\CompanyInfo;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 class CompanyInfoController extends Controller
 {
     public function index()

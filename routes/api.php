@@ -26,7 +26,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\CompanyInfoController;
 use App\Http\Controllers\CertificationController;
-
+use App\Http\Controllers\ExpenseController;
 
 
 Route::post('/register', [RegisteredUserController::class, 'store']);
@@ -200,6 +200,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/certifications/{certification}', [CertificationController::class, 'show']);
     Route::put('/certifications/{certification}', [CertificationController::class, 'update']);
     Route::delete('/certifications/{certification}', [CertificationController::class, 'destroy']);
+
+    Route::apiResource('expenses', ExpenseController::class);
+
 
     });
 
