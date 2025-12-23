@@ -24,6 +24,7 @@ use App\Http\Controllers\ProjectAssignmentController;
 use App\Http\Controllers\ProjectProgressController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\CompanyInfoController;
 
 
 
@@ -187,6 +188,10 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/{id}', [EventController::class, 'update']);
             Route::delete('/{id}', [EventController::class, 'destroy']);
         });
+
+        Route::get('/company-info', [CompanyInfoController::class, 'index']);
+        Route::post('/company-info', [CompanyInfoController::class, 'store']);
+        Route::put('/company-info/{companyinfo}', [CompanyInfoController::class, 'update']);
     });
 
     // -------------------------------------------------
@@ -196,6 +201,5 @@ Route::middleware('auth:sanctum')->group(function () {
 
         
 
-        // Already included in shared routes above
     });
 });
