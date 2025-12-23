@@ -145,5 +145,5 @@ class CompanyInfoController extends Controller
 
 
         return response()->json(['message' => 'Company detail updated successfully', 'data' => $companyinfo]);
-    }
+        }
 }
