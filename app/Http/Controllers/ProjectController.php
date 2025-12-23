@@ -100,6 +100,7 @@ class ProjectController extends Controller
         return response()->json(null, 204);
     }
     public function getProjectInvoices(){
+        $this->authorize('create', Project::class);
         return Project::doesntHave('invoices')->get()->toArray();
     }
 

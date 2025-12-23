@@ -25,6 +25,7 @@ use App\Http\Controllers\ProjectProgressController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\CompanyInfoController;
+use App\Http\Controllers\CertificationController;
 
 
 
@@ -74,7 +75,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/project/{project}', [ProjectController::class, 'show']);
         Route::get('/tasks', [TaskController::class, 'allTasks']);
         Route::get('getProgress/{project}', [ProjectProgressController::class, 'index']);
-        Route::get('project/invoices', [ProjectController::class, 'getProjectInvoices']);
+        Route::get('getproject/invoices', [ProjectController::class, 'getProjectInvoices']);
 
         // CSV export (read)
         Route::get('/export', [ClientImportExportController::class, 'export']);
@@ -192,6 +193,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/company-info', [CompanyInfoController::class, 'index']);
         Route::post('/company-info', [CompanyInfoController::class, 'store']);
         Route::put('/company-info/{companyinfo}', [CompanyInfoController::class, 'update']);
+
+
+    Route::get('/certifications', [CertificationController::class, 'index']);
+    Route::post('/certifications', [CertificationController::class, 'store']);
+    Route::get('/certifications/{certification}', [CertificationController::class, 'show']);
+    Route::put('/certifications/{certification}', [CertificationController::class, 'update']);
+    Route::delete('/certifications/{certification}', [CertificationController::class, 'destroy']);
+
     });
 
     // -------------------------------------------------
