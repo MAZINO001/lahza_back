@@ -113,18 +113,7 @@ class CompanyInfoController extends Controller
             'account_name' => 'nullable|string|max:255',
         ]);
 
-        // // Handle file uploads
-        // foreach (['logo_path', 'logo_dark_path', 'signature_path', 'stamp_path'] as $fileField) {
-        //     if ($request->hasFile($fileField)) {
-        //         // Delete old file if exists
-        //         if ($companyinfo->{$fileField}) {
-        //             Storage::disk('public')->delete($companyinfo->{$fileField});
-        //         }
-        //         $data[$fileField] = $request->file($fileField)->store('company_files', 'public');
-        //     }
-        // }
-
-        // $companyinfo->update($data);
+    
         $paths = [
         'logo_path' => public_path('logo.png'),
         'logo_dark_path' => public_path('logo-dark.png'),
