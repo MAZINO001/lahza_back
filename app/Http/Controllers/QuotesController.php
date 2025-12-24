@@ -143,7 +143,7 @@ class QuotesController extends Controller
 
     public function show($id)
     {
-        $quote = Quotes::with(['quoteServices', 'files', 'projects'])->findOrFail($id);
+        $quote = Quotes::with(['quoteServices', 'files'])->findOrFail($id);
         
         $this->authorize('view', $quote); 
 

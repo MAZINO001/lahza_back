@@ -27,7 +27,7 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\CompanyInfoController;
 use App\Http\Controllers\CertificationController;
 use App\Http\Controllers\ExpenseController;
-
+use App\Http\Controllers\ObjectiveController;
 
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
@@ -202,6 +202,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/certifications/{certification}', [CertificationController::class, 'destroy']);
 
     Route::apiResource('expenses', ExpenseController::class);
+    Route::apiResource('objectives', ObjectiveController::class);
+    Route::post('objectives/{objective}/convert-to-event', [ObjectiveController::class, 'converObjecTtoEvent']);
 
 
     });
