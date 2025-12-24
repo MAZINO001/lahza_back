@@ -23,7 +23,7 @@ class PaymentPolicy
      */
     public function view(User $user, Payment $payment): bool
     {
-        return $user->role === 'admin' || $user->clients->id === $payment->client_id;
+        return $user->role === 'admin' || $user->client->id === $payment->client_id;
     }
 
     /**

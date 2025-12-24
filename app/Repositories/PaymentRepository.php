@@ -14,7 +14,7 @@ public function getPayment()
     $user =  Auth::user();
     $payments = Payment::with(['invoice', 'user'])
         ->when($user->role === 'client', function ($query) use ($user) {
-            $clientId = $user->clients()->first()->id ?? 0; 
+            $clientId = $user->client()->first()->id ?? 0; 
             $query->whereHas('invoice', function ($q) use ($clientId) {
                 $q->where('client_id', $clientId);
             });

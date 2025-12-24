@@ -21,7 +21,7 @@ class TaskPolicy
      */
     public function view(User $user, Task $task): bool
     {
-        return $user->role === 'admin' || $user->clients->id === $task->project->client_id;
+        return $user->role === 'admin' || $user->client->id === $task->project->client_id;
     }
 
     /**

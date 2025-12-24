@@ -20,7 +20,7 @@ public function viewAny(User $user): bool
      */
     public function view(User $user, Quotes $quotes): bool
     {
-        return $user->role === 'admin' || $user->clients->id === $quotes->client_id;
+        return $user->role === 'admin' || $user->client->id === $quotes->client_id;
     }
 
     /**

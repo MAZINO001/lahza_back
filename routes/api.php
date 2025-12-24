@@ -86,9 +86,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('comments', [CommentController::class, 'getAllComments']);
         Route::post('comments/{type}/{id}', [CommentController::class, 'store']);
 
-        // Project additional data (READ)
-        Route::get('additional-data/project/{project_id}', [ProjectAdditionalDataController::class, 'showByProject']);
-
+        
         // Signature routes for both admin and client
         Route::post('/{model}/{id}/signature', [SignatureController::class, 'upload'])
             ->where('model', 'invoices|quotes');
@@ -100,17 +98,21 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/', [EventController::class, 'index']);
             Route::get('/{id}', [EventController::class, 'show']);
         });
-
+        
         // payments
         Route::get('/payments', [PaymentController::class, 'getPayment']);
         Route::get('getInvoicePayments/{invoice}', [PaymentController::class, 'getInvoicePayments']);
-    
+        
         // Quotes → invoice conversion
         Route::post('quotes/{quote}/create-invoice', [QuotesController::class, 'createInvoiceFromQuote']);
-
-        // Project additional data (LIMITED - clients can only create/update their own)
-        Route::post('additional-data', [ProjectAdditionalDataController::class, 'store']);
-        Route::put('additional-data/{id}', [ProjectAdditionalDataController::class, 'update']);
+        
+        // Project additional data 
+        Route::prefix('additional-data')->controller(ProjectAdditionalDataController::class)->group(function () {
+            Route::get('/project/{project_id}', 'showByProject');
+            Route::post('/', 'store');
+            Route::put('/{id}', 'update');
+            Route::delete('/{id}', 'destroy');
+        });
     });
 
     // -------------------------------------------------
@@ -163,13 +165,6 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{task}', 'destroy');
         });
         Route::put('/task/{task}', [TaskController::class, 'updateStatus']);
-
-        // Project Additional Data (WRITE)
-        Route::prefix('additional-data')->controller(ProjectAdditionalDataController::class)->group(function () {
-            Route::post('/', 'store');
-            Route::put('/{id}', 'update');
-            Route::delete('/{id}', 'destroy');
-        });
 
         // Project assignments
         Route::post('addAssignment', [ProjectAssignmentController::class, 'store']);

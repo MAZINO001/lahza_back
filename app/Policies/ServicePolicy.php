@@ -24,7 +24,7 @@ public function view(User $user, Service $service): bool
         return true;
     }
 
-    $clientId = $user->clients->first()->id ?? null;
+    $clientId = $user->client->first()->id ?? null;
     if (!$clientId) {
         return false;
     }

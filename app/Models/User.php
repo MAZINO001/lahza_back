@@ -12,7 +12,7 @@ class User extends Authenticatable
 {
     use HasApiTokens ,HasFactory, Notifiable;
     use LogsActivity;
-    public function clients()
+    public function client()
     {
         return $this->hasOne(Client::class);
     }

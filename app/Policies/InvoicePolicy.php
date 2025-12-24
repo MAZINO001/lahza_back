@@ -23,7 +23,7 @@ class InvoicePolicy
      */
     public function view(User $user, Invoice $invoice): bool
     {
-        return $user->role === 'admin' || $user->clients->id === $invoice->client_id;
+        return $user->role === 'admin' || $user->client->id === $invoice->client_id;
     }
 
     /**

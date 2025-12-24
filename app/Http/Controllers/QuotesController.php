@@ -37,7 +37,7 @@ class QuotesController extends Controller
     {
         $user = Auth::user();
         $quotes = Quotes::with(['quoteServices', 'client.user:id,name,email', 'files', 'projects'])->when($user->role ==='client',function($query) use ($user){
-            $query->where('client_id', $user->clients->id);
+            $query->where('client_id', $user->client->id);
         })->get();
         $allServices = Service::all();
 

@@ -5,7 +5,7 @@ namespace App\Policies;
 use App\Models\ProjectAdditionalData;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
-
+use App\Models\Project;
 class ProjectAdditionalDataPolicy
 {
     /**
@@ -21,15 +21,20 @@ class ProjectAdditionalDataPolicy
      */
     public function view(User $user, ProjectAdditionalData $projectAdditionalData): bool
     {
-        return $user->role === 'admin' || $user->clients->id === $projectAdditionalData->project->client_id;
+        return $user->role === 'admin' || $user->client->id === $projectAdditionalData->project->client_id;
     }
 
     /**
      * Determine whether the user can create models.
      */
-public function create(User $user): bool
+public function create(User $user ,Project $project): bool
 {
-    return $user->role === 'client' || $user->role === 'admin'; 
+    if($user->role === 'admin') {
+        return true;
+    }
+    return $user->role === 'client' && 
+        $user->client && 
+        $user->client->id === $project->client_id;
 }
 
 public function update(User $user, ProjectAdditionalData $projectAdditionalData): bool
@@ -38,7 +43,7 @@ public function update(User $user, ProjectAdditionalData $projectAdditionalData)
     if($user->role === 'admin') {
         return true;
     }
-    return $user->role === 'client' && $user->clients->id === $projectAdditionalData->project->client_id;
+    return $user->role === 'client' && $user->client->id === $projectAdditionalData->project->client_id;
 }
     /**
      * Determine whether the user can delete the model.

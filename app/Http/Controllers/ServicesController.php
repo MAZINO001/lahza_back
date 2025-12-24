@@ -67,7 +67,7 @@ public function getQuotes(Service $service)
 
     $quotes = $service->quotes()
         ->when($user->role === 'client', function($query) use ($user) {
-            $query->where('client_id', $user->clients->first()->id ?? 0);
+            $query->where('client_id', $user->client->first()->id ?? 0);
         })
         ->get();
 
@@ -80,7 +80,7 @@ public function getInvoices(Service $service)
 
     $invoices = $service->invoices()
         ->when($user->role === 'client', function($query) use ($user) {
-            $query->where('client_id', $user->clients->first()->id ?? 0);
+            $query->where('client_id', $user->client->first()->id ?? 0);
         })
         ->get();
 

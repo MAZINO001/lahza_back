@@ -21,7 +21,7 @@ class CommentPolicy
      */
     public function view(User $user, Comment $comment): bool
     {
-        return $user->role === 'admin' || $user->clients->id === $comment->project->client_id;
+        return $user->role === 'admin' || $user->client->id === $comment->project->client_id;
     }
 
     /**

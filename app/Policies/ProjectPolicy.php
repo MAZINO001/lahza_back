@@ -21,7 +21,7 @@ public function viewAny(User $user): bool
      */
     public function view(User $user, Project $project): bool
     {
-        return $user->role === 'admin' || $user->clients->id === $project->client_id;
+        return $user->role === 'admin' || $user->client->id === $project->client_id;
     }
 
     /**

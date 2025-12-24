@@ -17,7 +17,7 @@ class ProjectController extends Controller
         $this->authorize('viewAny', Project::class);
         $user = Auth::user();
         return Project::with('invoices')->when($user->role === 'client', function ($query) use ($user) {
-            $query->where('client_id', $user->clients->id);
+            $query->where('client_id', $user->client->id);
         })->get();
     }
 

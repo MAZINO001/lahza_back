@@ -38,7 +38,7 @@ class InvoicesController extends Controller
 
         $user = Auth::user();
         $invoices = Invoice::with(['invoiceServices', 'client.user:id,name', 'files', 'projects'])->when($user->role === 'client', function ($query) use ($user) {
-            $clientId = $user->clients()->first()->id ?? 0;
+            $clientId = $user->client()->first()->id ?? 0;
             $query->where('client_id', $clientId);
         })->get();
         $allServices = Service::all();
@@ -80,6 +80,8 @@ class InvoicesController extends Controller
             'services.*.tax' => 'nullable|numeric',
             'services.*.individual_total' => 'nullable|numeric',
             'has_projects' => 'nullable',
+            'old_projects' => 'nullable|array',
+            'old_projects.*' => 'exists:projects,id',
         ]);
 
         return DB::transaction(function () use ($validate) {
@@ -108,6 +110,9 @@ class InvoicesController extends Controller
                         'individual_total' => $service['individual_total'] ?? 0,
                     ]);
                 }
+            }
+            if(!empty($validate['old_projects'])){
+             $invoice->projects()->sync($validate['old_projects']);
             }
 
             // Auto-sign with admin signature
@@ -202,6 +207,8 @@ class InvoicesController extends Controller
             'services.*.tax' => 'nullable|numeric',
             'services.*.individual_total' => 'nullable|numeric',
             'has_projects' => 'nullable',
+            'old_projects' => 'nullable|array',
+            'old_projects.*' => 'exists:projects,id',
         ]);
 
         return DB::transaction(function () use ($invoice, $validate) {
@@ -230,6 +237,9 @@ class InvoicesController extends Controller
                         'individual_total' => $service['individual_total'] ?? 0,
                     ]);
                 }
+            }
+             if(!empty($validate['old_projects'])){
+             $invoice->projects()->sync($validate['old_projects']);
             }
 
             return response()->json($invoice->load('invoiceServices', 'projects'));

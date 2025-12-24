@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Log;
 
 use Illuminate\Http\Request;
 use App\Models\ProjectAdditionalData;
+use App\Models\Project;
 class ProjectAdditionalDataController extends Controller
 {
      public function showByProject($project_id)
@@ -26,10 +27,8 @@ class ProjectAdditionalDataController extends Controller
      */
 public function store(Request $request)
 {
-$this->authorize('create');
     $validated = $request->validate([
         'project_id' => 'required|exists:projects,id',
-        'client_id'  => 'required|exists:clients,id',
         'host_acc' => 'nullable|string',
         'website_acc' => 'nullable|string',
         'social_media' => 'nullable|string',
@@ -39,7 +38,10 @@ $this->authorize('create');
         'other.*' => 'nullable|file',
     ]);
 
-    // Handle single files
+    $project = Project::findOrFail($validated['project_id']);
+
+    // Pass an array: [The Class the policy belongs to, The specific project to check]
+    $this->authorize('create', [ProjectAdditionalData::class, $project]);    // Handle single files
     if ($request->hasFile('logo')) {
         $validated['logo'] = $request->file('logo')->store('additionalData/logo', 'public');
     }
