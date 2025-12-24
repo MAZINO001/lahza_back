@@ -28,6 +28,9 @@ use App\Http\Controllers\CompanyInfoController;
 use App\Http\Controllers\CertificationController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ObjectiveController;
+use App\Http\Controllers\TeamAdditionalDataController;
+
+
 
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
@@ -190,25 +193,28 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/company-info/{companyinfo}', [CompanyInfoController::class, 'update']);
 
 
-    Route::get('/certifications', [CertificationController::class, 'index']);
-    Route::post('/certifications', [CertificationController::class, 'store']);
-    Route::get('/certifications/{certification}', [CertificationController::class, 'show']);
-    Route::put('/certifications/{certification}', [CertificationController::class, 'update']);
-    Route::delete('/certifications/{certification}', [CertificationController::class, 'destroy']);
+        Route::get('/certifications', [CertificationController::class, 'index']);
+        Route::post('/certifications', [CertificationController::class, 'store']);
+        Route::get('/certifications/{certification}', [CertificationController::class, 'show']);
+        Route::put('/certifications/{certification}', [CertificationController::class, 'update']);
+        Route::delete('/certifications/{certification}', [CertificationController::class, 'destroy']);
 
-    Route::apiResource('expenses', ExpenseController::class);
-    Route::apiResource('objectives', ObjectiveController::class);
-    Route::post('objectives/{objective}/convert-to-event', [ObjectiveController::class, 'converObjecTtoEvent']);
-
-
+        Route::apiResource('expenses', ExpenseController::class);
+        Route::apiResource('objectives', ObjectiveController::class);
+        Route::post('objectives/{objective}/convert-to-event', [ObjectiveController::class, 'converObjecTtoEvent']);
+        // Team Additional Data routes
+        Route::prefix('team-additional-data')->controller(TeamAdditionalDataController::class)->group(function () {
+            Route::post('/', 'store');
+            Route::get('/{teamUserId}', 'show');
+            Route::put('/{teamUserId}', 'update');
+            Route::delete('/{teamUserId}', 'destroy');
+        });
     });
 
     // -------------------------------------------------
     // Client-only routes
     // -------------------------------------------------
     Route::middleware('role:client')->group(function () {
-
-        
-
     });
+    
 });
