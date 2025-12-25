@@ -7,6 +7,9 @@ use App\Models\Invoice;
 use App\Models\User;
 use App\Models\Client;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use App\Models\Service;
 
 class csvController extends Controller
@@ -28,44 +31,76 @@ class csvController extends Controller
         $created = 0;
         $skipped = 0;
 
-        foreach ($rows as $row) {
+        $results = DB::transaction(function () use ($rows, $header) {
+            $created = 0;
+            $skipped = 0;
+            $createdUsers = [];
 
-            if (count($row) !== count($header)) {
-                continue;
+            foreach ($rows as $row) {
+
+                if (count($row) !== count($header)) {
+                    continue;
+                }
+
+                $data = array_combine($header, $row);
+
+                if (empty($data['email']) || User::where('email', $data['email'])->exists()) {
+                    $skipped++;
+                    continue;
+                }
+
+                $user = User::create([
+                    'name'      => $data['name'] ?? $data['company'] ?? 'Client',
+                    'email'     => $data['email'],
+                    'password'  => Hash::make("lahzaapp2025"),
+                    'role'      => 'client',
+                    'user_type' => 'client',
+                ]);
+
+                Client::create([
+                    'user_id'        => $user->id,
+                    'client_type'    => $data['client_type'] ?? null,
+                    'company'        => $data['company'] ?? null,
+                    'phone'          => $data['phone'] ?? null,
+                    'address'        => $data['address'] ?? null,
+                    'city'           => $data['city'] ?? null,
+                    'country'        => $data['country'] ?? null,
+                    'currency'       => $data['currency'] ?? null,
+                    'vat'            => $data['vat'] ?? null,
+                    'siren'          => $data['siren'] ?? null,
+                    'ice'            => $data['ice'] ?? null,
+                ]);
+
+                $created++;
+                $createdUsers[] = $user;
             }
 
-            $data = array_combine($header, $row);
+            return [
+                'created' => $created,
+                'skipped' => $skipped,
+                'users' => $createdUsers,
+            ];
+        });
 
+        $created = $results['created'] ?? 0;
+        $skipped = $results['skipped'] ?? 0;
 
-            if (User::where('email', $data['email'])->exists()) {
-                $skipped++;
-                continue;
+        // Send welcome email to each created user after successful commit
+        if (!empty($results['users'])) {
+            foreach ($results['users'] as $user) {
+                try {
+                    $password = 'lahzaapp2025';
+                    Mail::raw(
+                        "Hello {$user->name},\n\nYour account has been created on Lahza.\nEmail: {$user->email}\nPassword: {$password}\n\nPlease log in and change your password.",
+                        function ($message) use ($user) {
+                            $message->to($user->email)
+                                ->subject('Welcome to Lahza');
+                        }
+                    );
+                } catch (\Exception $e) {
+                    Log::error('Failed to send welcome email', ['email' => $user->email, 'error' => $e->getMessage()]);
+                }
             }
-
-            $user = User::create([
-                'name'      => $data['name'] ?? $data['company'],
-                'email'     => $data['email'],
-                'password'  => Hash::make("lahzaapp2025"),
-                'role'      => 'client',
-                'user_type' => 'client',
-            ]);
-
-
-            Client::create([
-                'user_id'        => $user->id,
-                'client_type'    => $data['client_type'] ?? null,
-                'company'        => $data['company'] ?? null,
-                'phone'          => $data['phone'] ?? null,
-                'address'        => $data['address'] ?? null,
-                'city'           => $data['city'] ?? null,
-                'country'        => $data['country'] ?? null,
-                'currency'       => $data['currency'] ?? null,
-                'vat'            => $data['vat'] ?? null,
-                'siren'          => $data['siren'] ?? null,
-                'ice'            => $data['ice'] ?? null,
-            ]);
-
-            $created++;
         }
 
         return response()->json([

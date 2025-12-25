@@ -425,6 +425,29 @@ class ProjectCreationService
             $isQuote = strpos($sourceType, 'Quote') !== false;
             $isInvoice = strpos($sourceType, 'Invoice') !== false;
 
+            $startDate = $nextMonday->startOfDay();
+
+            $totalServiceDays = $source->services->sum(function ($service) {
+                return (float) ($service->time ?? 0);
+            });
+
+            // Ensure at least 1 day
+            $totalServiceDays = max(1, $totalServiceDays);
+
+            $endDate = $startDate->copy();
+            $workdaysToAdd = ceil($totalServiceDays);
+
+            // Add the required number of weekdays
+            $addedDays = 0;
+            while ($addedDays < $workdaysToAdd) {
+                $endDate->addDay();
+                
+                if ($endDate->isWeekday()) {
+                    $addedDays++;
+                }
+            }
+
+
             $projectName = $customTitle ?? ('Project for ' . ($isQuote ? 'Quote' : 'Invoice') . ' #' . $source->id);
 
             $projectData = [
@@ -435,7 +458,7 @@ class ProjectCreationService
                     : 'Auto-created project after payment.',
                 'status' => $status,
                 'start_date' => $nextMonday,
-                'estimated_end_date' => $nextMonday->copy()->addDays(7),
+                'estimated_end_date' => $endDate,
             ];
 
             // Only set quote_id for quotes (invoices use pivot table)
