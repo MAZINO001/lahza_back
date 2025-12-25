@@ -8,6 +8,7 @@ use App\Models\ActivityLog;
 use App\Models\TeamUser;
 use App\Models\Intern;
 use App\Models\TeamAdditionalData;
+use Illuminate\Support\Facades\Storage;
 class UserController extends Controller
 {
     public function index()
@@ -48,7 +49,7 @@ class UserController extends Controller
     {
         return $request->user();
     }
-    public function convertTeamUser(Request $request  ,$internId)
+    public function convertTeamUser($internId)
     {
         $intern = Intern::findOrFail($internId);
 
@@ -56,7 +57,7 @@ class UserController extends Controller
         $team = TeamUser::create([
             'user_id' => $intern->user_id,
             'department' => $intern->department,
-            'poste' => $request->post?? null,
+            'poste' => $intern->post?? null,
 
         ]);
         TeamAdditionalData::create([
@@ -68,6 +69,8 @@ class UserController extends Controller
             'github' => $intern->github??null,
             'linkedin' => $intern->linkedin??null,
         ]);
+    Storage::move('csv/'.$intern->cv->getClientOriginalName(), 'team_additional_data/cv/'.$intern->cv->getClientOriginalName());
+
         $intern->delete();
 
         return response()->json(['message' => 'Team user converted successfully']);
