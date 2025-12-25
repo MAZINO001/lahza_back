@@ -29,6 +29,7 @@ use App\Http\Controllers\CertificationController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ObjectiveController;
 use App\Http\Controllers\TeamAdditionalDataController;
+use App\Http\Controllers\UserController;
 
 
 
@@ -209,6 +210,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/{teamUserId}', 'update');
             Route::delete('/{teamUserId}', 'destroy');
         });
+        Route::post('/convert-intern-to-eam-user/{internId}', [UserController::class, 'convertTeamUser']);
     });
 
     // -------------------------------------------------
@@ -216,5 +218,4 @@ Route::middleware('auth:sanctum')->group(function () {
     // -------------------------------------------------
     Route::middleware('role:client')->group(function () {
     });
-    
 });

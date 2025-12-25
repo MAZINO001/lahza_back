@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 class ServicesController extends Controller
 {
     public function index()
@@ -21,7 +22,12 @@ class ServicesController extends Controller
             'base_price'  => 'required|numeric|min:0',
             'tax_rate'    => 'required|numeric|min:0|max:100',
             'status'      => 'required|in:active,inactive',
+            'time'        => 'required|string|max:255',
+            'image'       => 'nullable|string|max:255',
         ]);
+        if($request->hasFile('image')){
+            $validated['image'] = $request->file('image')->store('services/images');
+        }
 
         $service = Service::create($validated);
 
@@ -47,15 +53,28 @@ class ServicesController extends Controller
             'base_price'  => 'required|numeric|min:0',
             'tax_rate'    => 'required|numeric|min:0|max:100',
             'status'      => 'required|in:active,inactive',
+            'time'        => 'required|string|max:255',
+            'image'       => 'nullable|string|max:255',
         ]);
+        if($request->hasFile('image')){
+            $oldImage = $service->image;
+            if($oldImage && Storage::exists($oldImage)){
+                Storage::delete($oldImage);
+        }
+        $validated['image'] = $request->file('image')->store('services/images');
+        }
 
         $service->update($validated);
+
         return response()->json($service);
     }
 
     public function destroy($id)
     {
         $service = Service::findOrFail($id);
+        if($service->image && Storage::exists($service->image)){
+            Storage::delete($service->image);
+        }
         $this->authorize('delete',$service);
         $service->delete();
         return response()->json(null, 204);

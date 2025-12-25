@@ -27,6 +27,10 @@ class TeamAdditionalData extends Model
         'salary',
         'certifications',
         'notes',
+        'portfolio',
+        'github',
+        'linkedin',
+        'cv',
     ];
 
     public function teamUser()

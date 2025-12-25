@@ -13,7 +13,8 @@ class Service extends Model
         'description',
         'base_price',
         'tax_rate',
-        "status"
+        "status",
+        'time'
     ];
 
 

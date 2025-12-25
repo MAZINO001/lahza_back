@@ -33,6 +33,7 @@ class ExpenseController extends Controller
             'payment_method' => 'nullable|string|max:255',
             'status' => 'nullable|in:pending,approved,reimbursed,paid',
             'attachment' => 'nullable|file|mimes:jpg,jpeg,png,pdf',
+            'repeatedly' => 'required|in:none,weekly,monthly,yearly',
         ]);
 
        if ($request->hasFile('attachment')) {
@@ -62,6 +63,8 @@ class ExpenseController extends Controller
             'payment_method' => 'nullable|string|max:255',
             'status' => 'nullable|in:pending,approved,reimbursed,paid',
             'attachment' => 'nullable|file|mimes:jpg,jpeg,png,pdf',
+            'repeatedly' => 'required|in:none,weekly,monthly,yearly',
+
         ]);
 
         if ($request->hasFile('attachment')) {

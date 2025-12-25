@@ -50,6 +50,10 @@ class User extends Authenticatable
     {
         return $this->hasOne(TeamUser::class, 'user_id');
     }
+    public function intern()
+    {
+        return $this->hasOne(Intern::class, 'user_id');
+    }
 
     /**
      * Get the user's department.

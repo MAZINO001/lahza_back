@@ -29,7 +29,14 @@ class TeamAdditionalDataController extends Controller
 
             'certifications' => 'nullable|string',
             'notes' => 'nullable|string',
+            'portfolio' => 'nullable|string',
+            'github' => 'nullable|string',
+            'linkedin' => 'nullable|string',
+            'cv' => 'nullable|string',
         ]);
+        if(file_exists('cv')){
+            $validated['cv'] = $request->file('cv')->store('team_additional_data/cv');
+        }
 
         $detail = TeamAdditionalData::create($validated);
 

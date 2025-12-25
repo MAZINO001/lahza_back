@@ -23,6 +23,7 @@ class Expense extends Model
         'payment_method',
         'status',
         'attachment',
+        'repeatedly'
     ];
 
     // Relationships
