@@ -415,8 +415,7 @@ class ProjectCreationService
     /**
      * Create a single project with tasks
      */
-    private function 
-    ($source, $customTitle = null, $status = 'pending')
+    private function createSingleProject($source, $customTitle = null, $status = 'pending')
     {
         try {
             $today = now();
