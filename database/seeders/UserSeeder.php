@@ -37,6 +37,12 @@ class UserSeeder extends Seeder
             'role' => 'client',
             'user_type' => 'client',
             'remember_token' => Str::random(10),
+            'preferences' => [
+                'language' => 'en',
+                'dark_mode' => false,
+                'email_notifications' => true,
+                'browser_notifications' => true,
+            ],
         ]);
 
         // Create client record for Moroccan client
@@ -66,6 +72,12 @@ class UserSeeder extends Seeder
             'role' => 'client',
             'user_type' => 'client',
             'remember_token' => Str::random(10),
+             'preferences' => [
+                'language' => 'en',
+                'dark_mode' => false,
+                'email_notifications' => true,
+                'browser_notifications' => true,
+            ],
         ]);
 
         // Create client record for French client
