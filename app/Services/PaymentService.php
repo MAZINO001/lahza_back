@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Payment; 
 use App\Services\ProjectCreationService;
 use App\Services\ActivityLoggerService;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\PaymentSuccessfulMail;
 class PaymentService implements PaymentServiceInterface
 {
     protected $paymentRepository;
@@ -428,9 +430,58 @@ class PaymentService implements PaymentServiceInterface
             }
             $paymentData = $invoice->payments()->latest()->first()?->toArray() ?? [];
             $this->projectCreationService->updateProjectAfterPayment($invoice ,$paymentData);
+
+            // Send payment success email
+            $this->sendPaymentSuccessEmail($payment);
         }
 
         return ['status' => 'ok'];
+    }
+
+    /**
+     * Send payment success email
+     */
+    public function sendPaymentSuccessEmail($payment)
+    {
+        try {
+            $invoice = $payment->invoice;
+            $clientEmail = $invoice->client->user->email ?? null;
+
+            if (!$clientEmail) {
+                Log::warning('Cannot send payment success email: client has no email address', [
+                    'payment_id' => $payment->id,
+                    'invoice_id' => $invoice->id,
+                ]);
+                return;
+            }
+
+            // Check email notifications preference
+            if (!($invoice->client->user->preferences['email_notifications'] ?? true)) {
+                Log::info('Payment success email not sent: email notifications disabled', [
+                    'payment_id' => $payment->id,
+                    'invoice_id' => $invoice->id,
+                ]);
+                return;
+            }
+
+            // Refresh payment to get latest data
+            $payment->refresh();
+
+            // Queue payment success email
+            Mail::to($clientEmail)->queue(new PaymentSuccessfulMail($payment));
+
+            Log::info('Payment success email queued successfully', [
+                'payment_id' => $payment->id,
+                'invoice_id' => $invoice->id,
+                'email' => $clientEmail,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to queue payment success email', [
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
     }
 
     public function getRemaining(Invoice $invoice)

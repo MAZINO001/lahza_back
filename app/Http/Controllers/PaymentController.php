@@ -9,6 +9,8 @@ use App\Models\Payment;
 use Illuminate\Support\Facades\Log;
 use App\Services\ProjectCreationService; 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\PaymentSuccessfulMail;
  
 class PaymentController extends Controller
 {
@@ -143,6 +145,9 @@ public function handleManualPayment(Payment $payment, bool $cancel = false)
             ->first()?->toArray() ?? [];
 
         $this->projectCreationService->updateProjectAfterPayment($payment->invoice, $paymentData);
+
+        // Send payment success email
+        $this->paymentService->sendPaymentSuccessEmail($payment);
     });
 
     return response()->json([

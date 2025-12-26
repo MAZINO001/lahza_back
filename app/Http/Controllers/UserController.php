@@ -49,6 +49,29 @@ class UserController extends Controller
     {
         return $request->user();
     }
+    public function updatePreferences(Request $request)
+    {
+        $validated = $request->validate([
+            'language' => 'sometimes|string|in:en,fr,ar,es',
+            'dark_mode' => 'sometimes|boolean',
+            'email_notifications' => 'sometimes|boolean',
+            'browser_notifications' => 'sometimes|boolean',
+        ]);
+
+        $user = $request->user();
+        $preferences = $user->preferences ?? [];
+        
+        // Merge new preferences with existing ones
+        $preferences = array_merge($preferences, $validated);
+        
+        $user->update(['preferences' => $preferences]);
+
+        return response()->json([
+            'message' => 'Preferences updated successfully',
+            'preferences' => $user->preferences,
+        ]);
+    }
+
     public function convertTeamUser($internId)
     {
         $intern = Intern::findOrFail($internId);

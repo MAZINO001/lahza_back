@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
+use App\Mail\ClientRegisteredMail;
 
 class RegisteredUserController extends Controller
 {
@@ -217,15 +218,7 @@ class RegisteredUserController extends Controller
                 'email' => $user->email
             ]);
 
-            $data = [
-                'user' => $user,
-                'client' => $client,
-            ];
-
-            Mail::send('emails.client_registered', $data, function ($message) use ($user) {
-                $message->to($user->email)
-                        ->subject('Welcome! Your Account Has Been Created');
-            });
+            Mail::to($user->email)->send(new ClientRegisteredMail($user, $client));
 
             Log::info('Client registration email sent successfully.', [
                 'user_id' => $user->id,

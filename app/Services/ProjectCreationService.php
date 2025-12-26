@@ -10,6 +10,8 @@ use App\Models\TeamUser;
 use App\Models\ProjectAssignment;
 use App\Services\ActivityLoggerService;
 use Illuminate\Support\Facades\Mail;
+use App\Mail\ProjectCreatedMail;
+use App\Mail\SendReportMail;
 
 class ProjectCreationService
 {
@@ -128,7 +130,9 @@ class ProjectCreationService
                         $projects[] = $project;
                     }
                 }
-
+                if(!empty($projects)){
+                    $this->sendProjectsCreationEmail($projects, $quote);
+                }
                 return count($projects) === 1 ? $projects[0] : $projects;
             }
 
@@ -189,7 +193,11 @@ class ProjectCreationService
                         $projects[] = $project;
                     }
                 }
-
+                if(!empty($projects)){
+                    $this->sendProjectsCreationEmail($projects, $invoice);
+                }else{
+                    $this->sendProjectsCreationEmail($projects, $invoice);
+                }
                 return count($projects) === 1 ? $projects[0] : $projects;
             }
 
@@ -671,20 +679,30 @@ class ProjectCreationService
             ? 'New Project Created - #' . $firstProject->id
             : "New Projects Created - {$projectCount} Projects";
 
-        Mail::send('emails.project_created', $data, function ($message) use ($email, $source, $subject) {
-            $message->to($email)
-                ->subject($subject);
-
-            $message->getSymfonyMessage()->getHeaders()->addTextHeader('X-Client-Id', (string)$source->client_id);
-        });
-
-        Log::info('Project creation email sent successfully.', [
-            'project_count' => $projectCount
-        ]);
+        if($source->client->user->preferences['email_notifications'] ?? true){
+            try {
+                Mail::to($email)->send(new ProjectCreatedMail([
+                    'projects' => $projectsWithRelations,
+                    'client' => $source->client,
+                    'client_id' => $source->client_id,
+                    'source' => $source,
+                    'project_count' => $projectCount,
+                    'subject' => $subject,
+                ]));
+                
+                Log::info('Project creation email sent successfully', [
+                    'email' => $email,
+                    'project_count' => $projectCount,
+                    'client_id' => $source->client_id,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to send project creation email', [
+                    'email' => $email,
+                    'error' => $e->getMessage(),
+                    'client_id' => $source->client_id,
+                ]);
+            }
+        }
     }
 
-    private function sendProjectCreationEmail($project, $source)
-    {
-        $this->sendProjectsCreationEmail([$project], $source);
-    }
 }

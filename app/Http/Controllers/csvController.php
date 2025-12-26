@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use App\Models\Service;
+use App\Mail\WelcomeMail;
 
 class csvController extends Controller
 {
@@ -90,13 +91,8 @@ class csvController extends Controller
             foreach ($results['users'] as $user) {
                 try {
                     $password = 'lahzaapp2025';
-                    Mail::raw(
-                        "Hello {$user->name},\n\nYour account has been created on Lahza.\nEmail: {$user->email}\nPassword: {$password}\n\nPlease log in and change your password.",
-                        function ($message) use ($user) {
-                            $message->to($user->email)
-                                ->subject('Welcome to Lahza');
-                        }
-                    );
+                    Mail::to($user->email)->send(new WelcomeMail($user, $password));
+                    Log::info('Welcome email sent successfully', ['email' => $user->email]);
                 } catch (\Exception $e) {
                     Log::error('Failed to send welcome email', ['email' => $user->email, 'error' => $e->getMessage()]);
                 }
