@@ -7,6 +7,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable; // important for auth
 use Illuminate\Notifications\Notifiable;
 use App\Traits\LogsActivity;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Auth\Passwords\CanResetPassword;
+use App\Notifications\ResetPasswordNotification;
 
 class User extends Authenticatable
 {
@@ -88,5 +90,16 @@ class User extends Authenticatable
     public function certifications()
     {
         return $this->morphMany(Certification::class, 'owner');
+    }
+
+    /**
+     * Send the password reset notification.
+     *
+     * @param  string  $token
+     * @return void
+     */
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }

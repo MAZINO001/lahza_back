@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\ClientImportExportController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\LogsActivityController;
 use App\Http\Controllers\InvoicesController;
@@ -31,10 +33,11 @@ use App\Http\Controllers\ObjectiveController;
 use App\Http\Controllers\TeamAdditionalDataController;
 use App\Http\Controllers\UserController;
 
-
-
+// Public Auth Routes
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
+Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->middleware('guest')->name('password.email');
+Route::post('/reset-password', [NewPasswordController::class, 'store'])->middleware('guest')->name('password.store');
 
 // Stripe webhook endpoint (no auth middleware)
 Route::post('/stripe/webhook', [PaymentController::class, 'handleWebhook']);
