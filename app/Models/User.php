@@ -12,20 +12,24 @@ class User extends Authenticatable
 {
     use HasApiTokens ,HasFactory, Notifiable;
     use LogsActivity;
-    public function client()
-    {
-        return $this->hasOne(Client::class);
-    }
-
-    // Fields you allow to be mass-assigned
+    
     protected $fillable = [
         'name',
         'email',
         'password',
         'role',
         'user_type',
+        'preferences',
+        'remember_token',
+        'email_verified_at',
 
     ];
+    public function client()
+    {
+        return $this->hasOne(Client::class);
+    }
+
+    // Fields you allow to be mass-assigned
 
     // Hide sensitive fields when returning JSON
     protected $hidden = [
@@ -36,6 +40,7 @@ class User extends Authenticatable
     // Cast fields if needed
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'preferences' => 'array',  
     ];
 
     public function permissions()
