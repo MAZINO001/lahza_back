@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use App\Services\ActivityLoggerService;
+use App\Mail\InvoiceCreatedMail;
+use App\Mail\SendReportMail;
+use App\Mail\QuoteCreatedMail;
+use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 
 class QuotesController extends Controller
 {
@@ -116,6 +120,9 @@ class QuotesController extends Controller
 
             // Create draft project(s) for quote path (PATH 1)
             $this->projectCreationService->createDraftProjectFromQuote($quote);
+
+            // Send quote created email with PDF attachment
+            $this->sendQuoteCreatedEmail($quote);
 
             // Log activity
             $this->activityLogger->log(
@@ -247,6 +254,9 @@ class QuotesController extends Controller
 
             // Update quote-based projects: draft → pending + link to invoice
             $this->projectCreationService->updateProjectsOnQuoteSigned($quote, $invoice);
+
+            // If the invoice ended up with no projects, notify client/admin
+            $invoice->load('projects');  
 
             // Determine payment method based on client country
             $paymentMethod = strtolower($quote->client->country) === 'maroc'
@@ -403,46 +413,174 @@ class QuotesController extends Controller
     }
 
     /**
+     * Send quote created email with PDF attachment
+     */
+    private function sendQuoteCreatedEmail($quote)
+    {
+        try {
+            // Get client's email from user relationship
+            $clientEmail = $quote->client->user->email ?? null;
+
+            if (!$clientEmail) {
+                Log::warning('Cannot send quote email: client has no email address', [
+                    'quote_id' => $quote->id,
+                    'client_id' => $quote->client_id,
+                ]);
+                return;
+            }
+
+            // Check email notifications preference
+            if (!($quote->client->user->preferences['email_notifications'] ?? true)) {
+                Log::info('Quote email not sent: email notifications disabled', [
+                    'quote_id' => $quote->id,
+                    'client_id' => $quote->client_id,
+                ]);
+                return;
+            }
+
+            // Generate PDF for the quote
+            $reportsDir = storage_path('app/reports');
+            if (!file_exists($reportsDir)) {
+                mkdir($reportsDir, 0777, true);
+            }
+
+            $adminSignatureBase64 = null;
+            $clientSignatureBase64 = null;
+            if ($quote->adminSignature()) {
+                $adminSignatureBase64 = $this->getImageBase64($quote->adminSignature()->path);
+            } else {
+                $adminSignatureBase64 = $this->getDefaultAdminSignatureBase64();
+            }
+            if ($quote->clientSignature()) {
+                $clientSignatureBase64 = $this->getImageBase64($quote->clientSignature()->path);
+            }
+
+            $quote->load('quoteServices', 'services', 'files');
+
+            // Calculate totals for PDF
+            $totalHT = 0;
+            $totalTVA = 0;
+            $totalTTC = 0;
+
+            foreach ($quote->quoteServices ?? [] as $line) {
+                $ttc = (float) ($line->individual_total ?? 0);
+                $rate = ((float) ($line->tax ?? 0)) / 100;
+
+                $ht = $rate > 0 ? $ttc / (1 + $rate) : $ttc;
+                $tva = $ttc - $ht;
+
+                $totalHT += $ht;
+                $totalTVA += $tva;
+                $totalTTC += $ttc;
+            }
+
+            $currency = $quote->client->currency ?? 'MAD';
+
+            $pdf = PDF::loadView('pdf.document', [
+                'quote' => $quote,
+                'type' => 'quote',
+                'totalHT' => $totalHT,
+                'totalTVA' => $totalTVA,
+                'totalTTC' => $totalTTC,
+                'currency' => $currency,
+                'adminSignatureBase64' => $adminSignatureBase64,
+                'clientSignatureBase64' => $clientSignatureBase64,
+            ]);
+
+            $fullPdfPath = $reportsDir . '/' . uniqid() . '_quote_' . $quote->id . '.pdf';
+            $pdf->save($fullPdfPath);
+
+            if (!file_exists($fullPdfPath)) {
+                Log::error('PDF generation failed for quote email', [
+                    'quote_id' => $quote->id,
+                ]);
+                return;
+            }
+
+            // Queue email with PDF attachment
+            Mail::to($clientEmail)->queue(new QuoteCreatedMail($quote, $fullPdfPath));
+
+            Log::info('Quote created email queued successfully', [
+                'quote_id' => $quote->id,
+                'client_id' => $quote->client_id,
+                'email' => $clientEmail,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to queue quote created email', [
+                'quote_id' => $quote->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Get image as base64 data URI
+     */
+    private function getImageBase64($path)
+    {
+        try {
+            $fullPath = Storage::disk('public')->path($path);
+            if (file_exists($fullPath)) {
+                $imageData = Storage::disk('public')->get($path);
+                $mimeType = mime_content_type($fullPath) ?: 'image/png';
+                return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error converting image to base64: ' . $e->getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Get default admin signature as base64
+     */
+    private function getDefaultAdminSignatureBase64()
+    {
+        try {
+            $defaultPath = public_path('images/admin_signature.png');
+            if (file_exists($defaultPath)) {
+                $imageData = file_get_contents($defaultPath);
+                $mimeType = mime_content_type($defaultPath);
+                return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error getting default admin signature base64: ' . $e->getMessage());
+        }
+        return null;
+    }
+
+    /**
      * Send invoice created email
      */
     private function sendInvoiceCreatedEmail($quote, $invoice, $paymentResponse)
     {
         try {
             $email = 'mangaka.wir@gmail.com';
+            
+            $invoiceNumber = 'INVOICE-' . str_pad($quote->id, 6, '0', STR_PAD_LEFT);
+            
             $data = [
                 'quote' => $quote,
                 'invoice' => $invoice,
                 'client' => $quote->client,
                 'client_id' => $quote->client_id,
-                'payment_url' => $paymentResponse['payment_url'],
-                'bank_info' => $paymentResponse['bank_info'],
+                'payment_url' => $paymentResponse['payment_url']??null,
+                'bank_info' => $paymentResponse['bank_info']??null,
                 'payment_method' => $paymentResponse['payment_method'],
+                'subject' => 'New Invoice Created - ' . $invoiceNumber,
             ];
-
-            Mail::send('emails.invoice_created', $data, function ($message) use ($email, $invoice, $quote) {
-                $latestInvoice = Invoice::latest('id')->first();
-                $nextNumber = $latestInvoice ? $latestInvoice->id + 1 : 1;
-                $invoiceNumber = 'INVOICE-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
-
-                $message->to($email)
-                    ->subject('New Invoice Created - ' . $invoiceNumber);
-
-                // Add custom header for client_id
-                $message->getSymfonyMessage()->getHeaders()
-                    ->addTextHeader('X-Client-Id', (string)$quote->client_id);
-            });
-
-            Log::info('Invoice email sent successfully', [
-                'invoice_id' => $invoice->id,
-                'quote_id' => $quote->id
-            ]);
-        } catch (\Exception $e) {
+    if($quote->client->user->preferences['email_notifications'] ){
+            Mail::to($email)->send(new InvoiceCreatedMail($data));
+    }
+        } 
+        catch (\Exception $e) {
             Log::error('Failed to send invoice email', [
                 'invoice_id' => $invoice->id,
                 'quote_id' => $quote->id,
                 'error' => $e->getMessage()
-            ]);
-        }
+            ]);   
+    }
     }
 
     /**

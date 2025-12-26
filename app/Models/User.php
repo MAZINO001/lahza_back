@@ -7,25 +7,31 @@ use Illuminate\Foundation\Auth\User as Authenticatable; // important for auth
 use Illuminate\Notifications\Notifiable;
 use App\Traits\LogsActivity;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Auth\Passwords\CanResetPassword;
+use App\Notifications\ResetPasswordNotification;
 
 class User extends Authenticatable
 {
     use HasApiTokens ,HasFactory, Notifiable;
     use LogsActivity;
-    public function client()
-    {
-        return $this->hasOne(Client::class);
-    }
-
-    // Fields you allow to be mass-assigned
+    
     protected $fillable = [
         'name',
         'email',
         'password',
         'role',
         'user_type',
+        'preferences',
+        'remember_token',
+        'email_verified_at',
 
     ];
+    public function client()
+    {
+        return $this->hasOne(Client::class);
+    }
+
+    // Fields you allow to be mass-assigned
 
     // Hide sensitive fields when returning JSON
     protected $hidden = [
@@ -36,6 +42,7 @@ class User extends Authenticatable
     // Cast fields if needed
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'preferences' => 'array',  
     ];
 
     public function permissions()
@@ -83,5 +90,16 @@ class User extends Authenticatable
     public function certifications()
     {
         return $this->morphMany(Certification::class, 'owner');
+    }
+
+    /**
+     * Send the password reset notification.
+     *
+     * @param  string  $token
+     * @return void
+     */
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }
