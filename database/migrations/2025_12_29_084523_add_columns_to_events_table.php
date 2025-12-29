@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::table('events', function (Blueprint $table) {
-            $table->string('color')->default('#000000');
+            $table->string('color')->default('#10b981');
             $table->boolean('all_day')->default(false);
             $table->json('guests')->nullable();
         });
