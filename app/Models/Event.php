@@ -22,7 +22,10 @@ class Event extends Model
         'status',
         'url',
         'type',
-        'repeatedly'
+        'repeatedly',
+        'color',
+        'all_day',
+        'guests',
     ];
 
     /**
@@ -44,6 +47,6 @@ class Event extends Model
   public function guests()
     {
         return $this->belongsToMany(User::class, 'event_guests', 'event_id', 'user_id')
-                    ->withTimestamps();
+        ->withTimestamps();
     }
 }

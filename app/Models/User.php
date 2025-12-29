@@ -105,6 +105,14 @@ class User extends Authenticatable
     public function events()
     {
         return $this->belongsToMany(Event::class, 'event_guests', 'user_id', 'event_id')
-                    ->withTimestamps();
+        ->withTimestamps();
     }
+    // App\Models\User.php
+
+    public function allowsMail(string $type): bool
+    {
+    return data_get($this->preferences,"mail.$type",true );
+    }
+
+    
 }

@@ -42,14 +42,19 @@ class EventController extends Controller
         'url' => 'nullable|url',
         'type' => 'nullable|string',
         'repeatedly' => 'nullable|in:none,daily,weekly,monthly,yearly',
+        'color' => 'nullable|string',
+        'all_day' => 'nullable|boolean',
         'guests' => 'nullable|array',
-        'guests.*' => 'required|integer|exists:users,id',
+        'guests.*' => 'required|integer',
     ]);
+
+    $guests = $data['guests'] ?? null;
+    unset($data['guests']);
 
     $event = Event::create($data);
 
-    if (!empty($data['guests'])) {
-        $event->guests()->sync($data['guests']);
+    if (!empty($guests)) {
+        $event->guests()->sync($guests);
     }
 
     return response()->json($event->load('guests'), 201);
@@ -73,15 +78,20 @@ class EventController extends Controller
         'url' => 'nullable|url',
         'type' => 'nullable|string',
         'repeatedly' => 'nullable|in:none,daily,weekly,monthly,yearly',
+        'color' => 'nullable|string',
+        'all_day' => 'nullable|boolean',
         'guests' => 'nullable|array',
-        'guests.*' => 'required|integer|exists:users,id',
+        'guests.*' => 'required|integer',
     ]);
+
+    $guests = $data['guests'] ?? null;
+    unset($data['guests']);
 
     $event->update($data);
 
- if (array_key_exists('guests', $data)) {
-            $event->guests()->sync($data['guests']);
-        }
+    if (!is_null($guests)) {
+        $event->guests()->sync($guests);
+    }
 
     return response()->json($event->load('guests'));
 }

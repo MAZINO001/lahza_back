@@ -59,14 +59,14 @@ Route::middleware('auth:sanctum')->group(function () {
         ];
     });
 
-    // User preferences
-    Route::put('/user/preferences', [UserController::class, 'updatePreferences']);
-
     // -------------------------------------------------
     // SHARED READ ROUTES (admin + client)
     // -------------------------------------------------
     Route::middleware('role:admin,client')->group(function () {
-
+        
+        // User preferences
+        
+        Route::put('/user/preferences', [UserController::class, 'updatePreferences']);
         // Clients
         Route::get('clients/{id}', [ClientController::class, 'show']);
 

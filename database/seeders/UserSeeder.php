@@ -38,11 +38,26 @@ class UserSeeder extends Seeder
             'user_type' => 'client',
             'remember_token' => Str::random(10),
             'preferences' => [
-                'language' => 'en',
-                'dark_mode' => false,
-                'email_notifications' => true,
-                'browser_notifications' => true,
-            ],
+                    'ui' => [
+                        'language' => 'en',
+                        'dark_mode' => true,
+                    ],
+                    'mail' => [
+                        'payments' => true,
+                        'invoices' => true,
+                        'quotes' => true,
+                        'offers' => true,
+                        'project' => true,
+                    ],
+                    'browser' => [
+                        'payments' => true,
+                        'invoices' => false,
+                        'quotes' => true,
+                        'offers' => true,
+                        'project' => true,
+                    ],
+                ],
+                
         ]);
 
         // Create client record for Moroccan client
@@ -72,12 +87,24 @@ class UserSeeder extends Seeder
             'role' => 'client',
             'user_type' => 'client',
             'remember_token' => Str::random(10),
-             'preferences' => [
-                'language' => 'en',
-                'dark_mode' => false,
-                'email_notifications' => true,
-                'browser_notifications' => true,
-            ],
+            'preferences' => [
+                    'ui' => [
+                        'language' => 'en',
+                        'dark_mode' => true,
+                    ],
+                    'mail' => [
+                        'payments' => true,
+                        'invoices' => true,
+                        'quotes' => true,
+                        'offers' => true,
+                    ],
+                    'browser' => [
+                        'payments' => true,
+                        'invoices' => false,
+                        'quotes' => true,
+                        'offers' => true,
+                    ],
+                ],
         ]);
 
         // Create client record for French client

@@ -430,7 +430,8 @@ class QuotesController extends Controller
             }
 
             // Check email notifications preference
-            if (!($quote->client->user->preferences['email_notifications'] ?? true)) {
+            if (!$quote->client->user->allowsMail('quotes')) {
+
                 Log::info('Quote email not sent: email notifications disabled', [
                     'quote_id' => $quote->id,
                     'client_id' => $quote->client_id,
@@ -570,9 +571,9 @@ class QuotesController extends Controller
                 'payment_method' => $paymentResponse['payment_method'],
                 'subject' => 'New Invoice Created - ' . $invoiceNumber,
             ];
-    if($quote->client->user->preferences['email_notifications'] ){
+        if($quote->client->user->allowsMail('quotes') || $quote->client->allowsMail('invoices')){
             Mail::to($email)->send(new InvoiceCreatedMail($data));
-    }
+        }
         } 
         catch (\Exception $e) {
             Log::error('Failed to send invoice email', [

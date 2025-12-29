@@ -281,7 +281,7 @@ class InvoicesController extends Controller
             }
 
             // Check email notifications preference
-            if (!($invoice->client->user->preferences['email_notifications'] ?? true)) {
+            if (!$invoice->client->user->allowsMail('invoices')) {
                 Log::info('Invoice email not sent: email notifications disabled', [
                     'invoice_id' => $invoice->id,
                     'client_id' => $invoice->client_id,

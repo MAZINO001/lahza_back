@@ -456,7 +456,8 @@ class PaymentService implements PaymentServiceInterface
             }
 
             // Check email notifications preference
-            if (!($invoice->client->user->preferences['email_notifications'] ?? true)) {
+            if (!$invoice->client->user->allowsMail('payments')) {
+
                 Log::info('Payment success email not sent: email notifications disabled', [
                     'payment_id' => $payment->id,
                     'invoice_id' => $invoice->id,

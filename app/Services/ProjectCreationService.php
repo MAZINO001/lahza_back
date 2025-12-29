@@ -679,7 +679,8 @@ class ProjectCreationService
             ? 'New Project Created - #' . $firstProject->id
             : "New Projects Created - {$projectCount} Projects";
 
-        if($source->client->user->preferences['email_notifications'] ?? true){
+        if (!$source->client->user->allowsMail('project')) {
+
             try {
                 Mail::to($email)->send(new ProjectCreatedMail([
                     'projects' => $projectsWithRelations,
