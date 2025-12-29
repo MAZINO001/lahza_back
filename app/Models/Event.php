@@ -28,7 +28,7 @@ class Event extends Model
     /**
      * The teams that belong to the event.
      */
- public function teamUser()
+    public function teamUser()
     {
         return $this->belongsToMany(
             TeamUser::class,
@@ -36,5 +36,14 @@ class Event extends Model
             'event_id',
             'team_id'
         );
+    }
+
+    /**
+     * Get all guests (polymorphic) for the event (team, client, intern, or others).
+     */
+  public function guests()
+    {
+        return $this->belongsToMany(User::class, 'event_guests', 'event_id', 'user_id')
+                    ->withTimestamps();
     }
 }
