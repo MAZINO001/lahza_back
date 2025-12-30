@@ -5,22 +5,46 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Event;
 use App\Models\User;
-
+use Illuminate\Support\Facades\Auth;
 class EventController extends Controller
 {
     // Show all events
-    public function index()
-    {
-        $events = Event::with('guests.guestable')->get();
-        return response()->json($events);
+  public function index()
+{
+    $user = Auth::user();
+
+    if ($user->role === 'admin') {
+        // Admin sees all events
+        $events = Event::with('guests')->get();
+    } else {
+        // Non-admin sees only assigned events via event_guests
+        $events = Event::whereHas('guests', function ($query) use ($user) {
+            $query->where('users.id', $user->id);
+        })->with('guests')->get();
     }
 
+    return response()->json($events);
+}
+
+
     // Show a single event
-    public function show($id)
-    {
-        $event = Event::with('guests.guestable')->findOrFail($id);
-        return response()->json($event);
+public function show($id)
+{
+    $user = Auth::user();
+
+    $event = Event::with('guests')->findOrFail($id);
+
+    if ($user->role !== 'admin') {
+        if (! $event->guests->contains($user->id)) {
+            return response()->json([
+                'message' => 'Unauthorized'
+            ], 403);
+        }
     }
+
+    return response()->json($event);
+}
+  
 
     // Create a new event
   public function store(Request $request)
