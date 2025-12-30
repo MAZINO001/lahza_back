@@ -9,7 +9,6 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\LogsActivityController;
 use App\Http\Controllers\InvoicesController;
 use Illuminate\Support\Facades\Route;
-use App\Models\User;
 use App\Http\Controllers\QuotesController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\ServicesController;
@@ -18,7 +17,6 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\csvController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\PaymentController;
-use App\Traits\LogsActivity;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\ProjectAdditionalDataController;
@@ -32,7 +30,7 @@ use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ObjectiveController;
 use App\Http\Controllers\TeamAdditionalDataController;
 use App\Http\Controllers\UserController;
-
+use App\Http\Controllers\PdfController;
 // Public Auth Routes
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
@@ -63,7 +61,18 @@ Route::middleware('auth:sanctum')->group(function () {
     // SHARED READ ROUTES (admin + client)
     // -------------------------------------------------
     Route::middleware('role:admin,client')->group(function () {
-        
+
+
+        Route::prefix('pdf')->controller(PdfController::class)->group(function () {
+        Route::get('/invoice/{id}', 'invoice');
+        Route::get('/quote/{id}', 'quote');
+    });
+
+        Route::get('signatures/{file}', function ($file) {
+            $path = storage_path('app/' . $file);
+            if (!file_exists($path)) abort(404);
+            return response()->file($path);
+    });
         // User preferences
         
         Route::put('/user/preferences', [UserController::class, 'updatePreferences']);
@@ -174,6 +183,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/{task}', 'update');
             Route::delete('/{task}', 'destroy');
         });
+        Route::post('/projects/{project}/complete', [ProjectController::class, 'completeProject']);
         Route::put('/task/{task}', [TaskController::class, 'updateStatus']);
 
         // Project assignments

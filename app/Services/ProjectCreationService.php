@@ -89,6 +89,7 @@ class ProjectCreationService
      */
     public function createDraftProjectFromQuote($quote)
     {
+        
         Log::info('Creating draft project from quote', [
             'quote_id' => $quote->id
         ]);
@@ -352,6 +353,15 @@ class ProjectCreationService
      */
     public function deleteProject($projectId)
     {
+        if (Project::find($projectId)->status === 'completed') {
+    Log::info('Action denied: Project is completed');
+    
+    return [
+        'success' => false,
+        'error_type' => 'PROJECT_LOCKED',
+        'message' => "This project is marked as 'Completed'. You must re-open it before making any changes."
+    ];
+}
         Log::info('Deleting project and related data', [
             'project_id' => $projectId
         ]);
@@ -704,6 +714,59 @@ class ProjectCreationService
                 ]);
             }
         }
+    }
+    /**
+     * Toggle project completion status
+     */
+    public function toggleProjectCompletion($project)
+    {
+
+        // Check 1: Status Check
+        if ($project->status !== 'completed' && $project->status !== 'pending') {
+            Log::info('Action denied: Invalid status', ['id' => $project->id, 'status' => $project->status]);
+            
+            // Throwing instead of returning array
+            throw new \Exception("INVALID_STATUS: Only projects with status 'Pending' or 'Completed' can be toggled.");
+        }
+
+        // Check 2: Progress Check 
+        // Logic: Only block if we are trying to mark it as 'completed'
+        if ($project->status === 'in_progress' && $project->progress->accumlated_percentage !== 100) {
+            Log::info('Project not done yet', ['project_id' => $project->id]);
+            
+            throw new \Exception("PROJECT_INCOMPLETE: This project is only {$project->progress->accumlated_percentage}% done and cannot be closed.");
+        }
+        return DB::transaction(function () use ($project) {
+            
+            // Determine new status: if already completed, go back to pending; otherwise, complete it.
+            $newStatus = ($project->status === 'completed') ? 'pending' : 'completed';
+            $oldStatus = $project->status;
+
+            $project->update([
+                'status' => $newStatus,
+            ]);
+
+            Log::info('Project status toggled', [
+                'project_id' => $project->id,
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus
+            ]);
+
+            // Log activity if logger is available
+            if (isset($this->activityLogger)) {
+                $this->activityLogger->log(
+                    'projects',
+                    'status_update',
+                    $project->id,
+                    request()->ip(),
+                    request()->userAgent(),
+                    ['old_status' => $oldStatus, 'new_status' => $newStatus],
+                    "Project #{$project->id} status changed to {$newStatus}"
+                );
+            }
+
+            return $project;
+        });
     }
 
 }
