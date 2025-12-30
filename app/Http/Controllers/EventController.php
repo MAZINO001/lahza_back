@@ -4,11 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Event;
-use App\Models\Team;
-use App\Models\TeamUser;
-use App\Models\Client;
-use App\Models\Intern;
-use App\Models\Other;
+use App\Models\User;
 
 class EventController extends Controller
 {
@@ -52,9 +48,14 @@ class EventController extends Controller
     unset($data['guests']);
 
     $event = Event::create($data);
+      if (!empty($guests)) {
+        $validGuestIds = User::whereIn('id', $guests)
+            ->pluck('id')
+            ->toArray();
 
-    if (!empty($guests)) {
-        $event->guests()->sync($guests);
+        if (!empty($validGuestIds)) {
+            $event->guests()->attach($validGuestIds);
+        }
     }
 
     return response()->json($event->load('guests'), 201);
@@ -84,13 +85,19 @@ class EventController extends Controller
         'guests.*' => 'required|integer',
     ]);
 
-    $guests = $data['guests'] ?? null;
+      $guests = $data['guests'] ?? [];
     unset($data['guests']);
 
     $event->update($data);
 
-    if (!is_null($guests)) {
-        $event->guests()->sync($guests);
+    if (!empty($guests)) {
+        $validGuestIds = User::whereIn('id', $guests)
+            ->pluck('id')
+            ->toArray();
+
+        if (!empty($validGuestIds)) {
+            $event->guests()->syncWithoutDetaching($validGuestIds);
+        }
     }
 
     return response()->json($event->load('guests'));
