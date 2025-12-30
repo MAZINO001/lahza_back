@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class EventGuest extends Model
 {
-    protected $fillable = ['event_id', 'guestable_type', 'guestable_id'];
+    protected $fillable = ['event_id', 'event_id', 'user_id'];
 
     public $timestamps = true;
 
