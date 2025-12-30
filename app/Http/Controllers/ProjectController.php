@@ -6,12 +6,20 @@ use Illuminate\Http\Request;
 use App\Models\Invoice;
 use App\Models\Project;
 use Illuminate\Support\Facades\Auth;
+use App\Services\ProjectCreationService;
+
 
 class ProjectController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
+    protected $projectCreationService;
+
+    public function __construct(ProjectCreationService $projectCreationService)
+    {
+        $this->projectCreationService = $projectCreationService;
+    }
     public function index()
     {
         $this->authorize('viewAny', Project::class);
@@ -123,5 +131,23 @@ public function assignProjectToInvoice(Request $request)
         'message' => 'Invoice and project linked successfully.'
     ]);
 }
+public function completeProject( Project $project)
+{
+    
+   
+    try {
+        $this->projectCreationService->toggleProjectCompletion($project);
+        return back()->with('success', 'Project updated successfully!');
+    } catch (\Exception $e) {
+        // Check if our specific lock message is in the exception
+        $isLocked = str_contains($e->getMessage(), 'PROJECT_LOCKED');
+
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage()
+        ], $isLocked ? 403 : 422); // 403 is "Forbidden"
+    }
+}
+
 }
 

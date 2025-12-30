@@ -127,6 +127,17 @@ class TaskController extends Controller
         ]);
     }
     public function updateStatus(Task $task){
+        if($task->project->status === 'completed'){
+            return response()->json([
+                'error' => 'Cannot update task status. The project is marked as completed.'
+            ], 403);
+        }
+        if($task->project->status === 'cancelled'){
+            return response()->json([
+                'error' => 'Cannot update task status. The project is marked as cancelled.'
+            ], 403);
+        }
+        
         if($task->status == 'pending'){
             $task->update([
                 'status' => 'done',
@@ -141,7 +152,11 @@ class TaskController extends Controller
         
         // Update percentages for all tasks in the project
         $this->updateTaskPercentages($task->project);
-        
+        if($task->project->status === 'pending'|| $task->project->status == 'draft'){
+            $task->project->update([
+                'status' => 'in_progress'
+            ]);
+        }
         return response()->json([
             'success' => true,
             'message' => 'Task status updated',
@@ -181,8 +196,7 @@ class TaskController extends Controller
     ],
     [
         'accumlated_percentage' => $donePercentage,
-        // 'team_id'=>Auth::user()->id,
-        'team_id'=>'1',
+        'team_id'=>Auth::user()->id,
     ]
     );
     
