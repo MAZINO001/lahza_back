@@ -8,12 +8,25 @@ use App\Models\Quotes;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-
+use Illuminate\Support\Facades\Auth;
 class PdfController extends Controller
 {
     public function invoice($id)
     {
+        $user = Auth::user();
+
         $invoice = Invoice::with(['client', 'invoiceServices.service', 'files'])->findOrFail($id);
+     // 🔐 AUTHORIZATION CHECK
+        if ($user->role !== 'admin') {
+            // must be client AND owner of this invoice
+            if (
+                $user->role !== 'client' ||
+                !$user->client ||
+                $invoice->client_id !== $user->client->id
+            ) {
+                abort(403, 'You are not allowed to view this invoice.');
+            }
+        }
         $type = 'invoice';
 
         // totals
@@ -62,7 +75,21 @@ class PdfController extends Controller
 
     public function quote($id)
     {
+        $user = Auth::user();
         $quote = Quotes::with(['client', 'files', 'services'])->findOrFail($id);
+            $quote = Quotes::with(['client', 'files', 'services'])
+        ->findOrFail($id);
+
+    // 🔐 AUTHORIZATION CHECK
+    if ($user->role !== 'admin') {
+        if (
+            $user->role !== 'client' ||
+            !$user->client ||
+            $quote->client_id !== $user->client->id
+        ) {
+            abort(403, 'You are not allowed to view this quote.');
+        }
+    }
         $type = 'quote';
 
         $totalHT = 0;

@@ -12,15 +12,3 @@ Route::get('/', function () {
 require __DIR__ . '/auth.php';
 
 
-
-Route::prefix('pdf')->controller(PdfController::class)->group(function () {
-    Route::get('/invoice/{id}', 'invoice');
-    Route::get('/quote/{id}', 'quote');
-});
-
-
-Route::get('signatures/{file}', function ($file) {
-    $path = storage_path('app/' . $file);
-    if (!file_exists($path)) abort(404);
-    return response()->file($path);
-});
