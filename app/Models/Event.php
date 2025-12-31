@@ -31,15 +31,7 @@ class Event extends Model
     /**
      * The teams that belong to the event.
      */
-    public function teamUser()
-    {
-        return $this->belongsToMany(
-            TeamUser::class,
-            'event_team',
-            'event_id',
-            'team_id'
-        );
-    }
+
 
     /**
      * Get all guests (polymorphic) for the event (team, client, intern, or others).

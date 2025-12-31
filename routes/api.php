@@ -31,6 +31,7 @@ use App\Http\Controllers\ObjectiveController;
 use App\Http\Controllers\TeamAdditionalDataController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PdfController;
+use App\Http\Controllers\AiController;
 // Public Auth Routes
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
@@ -39,7 +40,7 @@ Route::post('/reset-password', [NewPasswordController::class, 'store'])->middlew
 
 // Stripe webhook endpoint (no auth middleware)
 Route::post('/stripe/webhook', [PaymentController::class, 'handleWebhook']);
-
+Route::get('/event/summary', [AiController::class,'calendarSummary']);
 // -----------------------------
 // Authenticated routes
 // -----------------------------

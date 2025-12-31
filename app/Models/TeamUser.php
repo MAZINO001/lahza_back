@@ -48,10 +48,10 @@ public function comments()
 /**
  * Get the events associated with the team user.
  */
-public function events()
-{
-    return $this->belongsToMany(Event::class, 'event_team', 'team_id', 'event_id');
-}
+// public function events()
+// {
+//     return $this->belongsToMany(Event::class, 'event_team', 'team_id', 'event_id');
+// }
 public function teamAdditionalData()
 {
     return $this->hasOne(TeamAdditionalData::class);
