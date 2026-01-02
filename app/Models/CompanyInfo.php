@@ -37,6 +37,7 @@ class CompanyInfo extends Model
         'bank_name',
         'rib',
         'account_name',
+        'terms_and_conditions', 
     ];
 
     // If you want, you can add accessors for files to get default paths

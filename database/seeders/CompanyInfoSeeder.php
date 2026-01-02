@@ -43,6 +43,7 @@ class CompanyInfoSeeder extends Seeder
                 'bank_name'      => 'AWB - Attijari Wafa Bank',
                 'rib'            => '007640001433200000026029',
                 'account_name'   => 'LAHZA HM',
+                'terms_and_conditions' => 'test terms and conditions',
             ]
         );
     }

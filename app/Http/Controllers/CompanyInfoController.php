@@ -47,6 +47,7 @@ class CompanyInfoController extends Controller
             'bank_name' => 'required|string|max:255',
             'rib' => 'required|string|max:24',
             'account_name' => 'nullable|string|max:255',
+            'terms_and_conditions' => 'nullable|string',
         ]);
 
         // Define fixed file paths
@@ -110,6 +111,8 @@ class CompanyInfoController extends Controller
             'bank_name' => 'sometimes|required|string|max:255',
             'rib' => 'nullable|string|max:24',
             'account_name' => 'nullable|string|max:255',
+            
+            'terms_and_conditions' => 'nullable|string',
         ]);
 
     
