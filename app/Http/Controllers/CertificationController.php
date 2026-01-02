@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Certification;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
 class CertificationController extends Controller
@@ -14,9 +15,10 @@ class CertificationController extends Controller
 
     public function store(Request $request)
     {
+        $user = Auth::user();
         $data = $request->validate([
-            'owner_type'   => 'required|string',
-            'owner_id'     => 'required|integer',
+            // 'owner_type'   => 'required|string',
+            // 'owner_id'     => 'required|integer',
             'title'        => 'required|string',
             'description'  => 'nullable|string',
             'source_type'  => 'required|in:file,url',
@@ -28,6 +30,8 @@ class CertificationController extends Controller
             'expires_at'   => 'nullable|date',
             'status'       => 'nullable|in:active,expired,pending,revoked',
         ]);
+        $data['owner_type'] = $user->user_type;
+        $data['owner_id'] = $user->id;
 
         return Certification::create($data);
     }
