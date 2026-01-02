@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             ServicesSeeder::class,
             OffersSeeder::class,
             UserSeeder::class,
+            CompanyInfoSeeder::class,
         ]);
     }
 }

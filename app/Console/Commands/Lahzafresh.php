@@ -33,7 +33,12 @@ class Lahzafresh extends Command
         $this->info('Seeding the database...');
         $this->call('db:seed');
         $this->info('Database seeded successfully!');
-        
-        $this->info('Database refreshed and seeded successfully!');
+        $this->call('cache:clear');
+        $this->call('config:clear');
+        $this->call('route:clear');
+        $this->call('view:clear');
+        $this->call('config:cache');
+
+        $this->info('Database refreshed , cleared and seeded successfully!');
     }
 }
