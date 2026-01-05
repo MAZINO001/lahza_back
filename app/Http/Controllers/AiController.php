@@ -8,215 +8,279 @@ use App\Models\User;
 use Carbon\Carbon;
 use App\Models\Event;
 use Illuminate\Support\Facades\Log;
+
 class AiController extends Controller
 {
-public function calendarSummary()
+   public function calendarSummary(Request $request)
 {
     $todayDate = Carbon::today()->toDateString();
 
-    // Eager load users and their teamUser relationship
-    $events = Event::where('start_date', $todayDate)
-        ->with(['guests.teamUser']) // This is correct - guests are Users
-        ->orderBy('start_hour', 'asc')
+    // 1. Get all users and their events first
+    $teamUsersWithEvents = User::whereHas('teamUser')
+        ->with(['teamUser', 'events' => function($query) use ($todayDate) {
+            $query->where('start_date', $todayDate)->orderBy('start_hour', 'asc');
+        }])
+        ->whereHas('events', function($query) use ($todayDate) {
+            $query->where('start_date', $todayDate);
+        })
         ->get();
-    
-    Log::info('Events found:', ['count' => $events->count()]);
 
-    if ($events->isEmpty()) {
+    if ($teamUsersWithEvents->isEmpty()) {
         return response()->json([
             'status' => 'success',
-            'date' => $todayDate,
             'summaries' => ['message' => 'No events scheduled for today.']
         ]);
     }
 
-    $teamUserEvents = [];
+    // 2. Build one large string containing ALL users
+    $megaPromptData = "";
+    foreach ($teamUsersWithEvents as $user) {
+        $analysis = $this->analyzeEvents($user->events);
+        $userContext = $this->buildEventPrompt($todayDate, $user->events, $user->teamUser, $user, $analysis);
+        
+        $megaPromptData .= "--- START USER: {$user->id} ({$user->name}) ---\n";
+        $megaPromptData .= $userContext . "\n";
+        $megaPromptData .= "--- END USER: {$user->id} ---\n\n";
+    }
 
-    foreach ($events as $event) {
-        // Explicitly load guests via the relation query to avoid
-        // attribute/relationship name conflicts (there is a JSON
-        // `guests` column on the `events` table).
-        $guests = $event->guests()->with('teamUser')->get();
+    // 3. One single AI call
+    try {
+        $response = Gemini::generativeModel(model: 'gemini-2.5-flash')
+            ->generateContent($this->getBatchAIPrompt($megaPromptData));
 
-        if ($guests->isEmpty()) {
-            Log::info('Event has no guests', ['event_id' => $event->id]);
-            continue;
-        }
+        $cleanJson = $this->cleanAiJson($response->text());
+        $summaries = json_decode($cleanJson, true);
 
-        Log::info('Event guests:', [
-            'event_id' => $event->id,
-            'guests_count' => $guests->count()
+        return response()->json([
+            'status' => 'success',
+            'date' => $todayDate,
+            'summaries' => $summaries
         ]);
+    } catch (\Exception $e) {
+        Log::error('Batch AI Failed', ['error' => $e->getMessage()]);
+        return response()->json(['status' => 'error', 'message' => 'AI failed to process batch'], 500);
+    }
+}
+    /**
+     * Analyze events to extract meaningful patterns and priorities
+     */
+    private function analyzeEvents($events)
+    {
+        $analysis = [
+            'has_urgent' => false,
+            'urgent_count' => 0,
+            'high_priority_events' => [],
+            'categories' => [],
+            'total_minutes' => 0,
+            'longest_gap_minutes' => 0,
+            'back_to_back' => false,
+            'types' => [],
+            'work_categories' => ['Work', 'Finance', 'Meeting'],
+            'personal_categories' => ['Health & Fitness', 'Health', 'Social', 'Leisure'],
+            'work_event_count' => 0,
+            'personal_event_count' => 0,
+            'metrics' => []
+        ];
 
-        // Iterate explicit relation results
-        foreach ($guests as $user) {
-            Log::info('Guest details:', [
-                'user_id' => $user->id,
-                'user_type' => $user->user_type ?? 'not set',
-                'has_teamUser' => !is_null($user->teamUser)
-            ]);
+        $totalMinutes = 0;
+        $previousEnd = null;
+        $maxGap = 0;
 
-            // Skip if user doesn't have a teamUser relationship
-            if (!$user->teamUser) {
-                Log::info('Skipping user - no teamUser', ['user_id' => $user->id]);
-                continue;
+        foreach ($events as $event) {
+            // Categorize as work or personal
+            if (in_array($event->category, $analysis['work_categories']) || 
+                $event->category === 'Work') {
+                $analysis['work_event_count']++;
+            } else if (in_array($event->category, $analysis['personal_categories'])) {
+                $analysis['personal_event_count']++;
             }
 
-            $teamUserId = $user->teamUser->id;
-
-            // Initialize array if this is the first time we see this team user
-            if (!isset($teamUserEvents[$teamUserId])) {
-                $teamUserEvents[$teamUserId] = [
-                    'team_user' => $user->teamUser,
-                    'user' => $user,
-                    'events' => []
-                ];
+            // Track urgency (normalize different urgency values)
+            $urgency = strtolower($event->urgency ?? '');
+            if (in_array($urgency, ['high', 'urgent'])) {
+                $analysis['has_urgent'] = true;
+                $analysis['urgent_count']++;
+                $analysis['high_priority_events'][] = $event;
             }
 
-            // Add event to this team user's list
-            $teamUserEvents[$teamUserId]['events'][] = $event;
-        }
-    }
+            // Track categories
+            if ($event->category) {
+                $analysis['categories'][] = $event->category;
+            }
 
-    Log::info('Team users found:', ['count' => count($teamUserEvents)]);
+            // Track types
+            if ($event->type) {
+                $analysis['types'][] = $event->type;
+            }
 
-    $summaries = [];
+            // Calculate duration
+            $start = Carbon::parse($event->start_hour);
+            $end = Carbon::parse($event->end_hour);
+            $duration = $start->diffInMinutes($end);
+            $totalMinutes += $duration;
 
-    foreach ($teamUserEvents as $data) {
-        $teamUser = $data['team_user'];
-        $user = $data['user'];
-        $userEvents = collect($data['events'])->unique('id');
-
-        Log::info('Generating summary for team user', [
-            'team_user_id' => $teamUser->id,
-            'user_name' => $user->name,
-            'events_count' => $userEvents->count()
-        ]);
-
-        $content = $this->buildEventPrompt(
-            $todayDate,
-            $userEvents,
-            $teamUser
-        );
-
-        try {
-            $response = Gemini::generativeModel(model: 'gemini-2.5-flash-lite')
-                ->generateContent($this->getAIPrompt($content));
-
-            $summaries[] = [
-                'team_user_id' => $teamUser->id,
-                'name' => $user->name,
-                'role' => $teamUser->poste ?? 'Team Member',
-                'summary' => $response->text()
-            ];
-        } catch (\Exception $e) {
-            Log::error('AI Summary Failed', [
-                'team_user_id' => $teamUser->id,
-                'error' => $e->getMessage()
-            ]);
-
-            $summaries[] = [
-                'team_user_id' => $teamUser->id,
-                'name' => $user->name,
-                'role' => $teamUser->poste ?? 'Team Member',
-                'summary' => null,
-                'error' => 'Failed to generate summary'
-            ];
-        }
-    }
-
-    return response()->json([
-        'status' => 'success',
-        'date' => $todayDate,
-        'summaries' => $summaries
-    ]);
-}
-
-/**
- * Build the prompt content from events
- */
-private function buildEventPrompt($date, $events, $teamUser)
-{
-    $content = "Date: {$date}\n";
-    $content .= "Team Member Role: {$teamUser->poste}\n\n";
-
-    foreach ($events as $event) {
-        $content .= "Event Context:\n";
-        $content .= "- Description: {$event->description}\n";
-
-        if ($event->title) {
-            $content .= "- Nature: {$event->title}\n";
+            // Detect gaps and back-to-back meetings
+            if ($previousEnd) {
+                $gap = $previousEnd->diffInMinutes($start);
+                $maxGap = max($maxGap, $gap);
+                
+                if ($gap <= 5) {
+                    $analysis['back_to_back'] = true;
+                }
+            }
+            $previousEnd = $end;
         }
 
-        $content .= "\n";
+        $analysis['total_minutes'] = $totalMinutes;
+        $analysis['longest_gap_minutes'] = $maxGap;
+        $analysis['categories'] = array_unique($analysis['categories']);
+        $analysis['types'] = array_unique($analysis['types']);
+
+        // Create metrics summary
+        $analysis['metrics'] = [
+            'total_hours' => round($totalMinutes / 60, 1),
+            'event_count' => $events->count(),
+            'work_events' => $analysis['work_event_count'],
+            'personal_events' => $analysis['personal_event_count'],
+            'urgent_count' => $analysis['urgent_count'],
+            'has_back_to_back' => $analysis['back_to_back'],
+            'max_break_minutes' => $maxGap
+        ];
+
+        return $analysis;
     }
 
-    return $content;
-}
+    /**
+     * Build enriched event prompt with full context
+     */
+    private function buildEventPrompt($date, $events, $teamUser, $user, $analysis)
+    {
+        $dayOfWeek = Carbon::parse($date)->format('l');
+        $eventCount = $events->count();
+        $totalHours = round($analysis['total_minutes'] / 60, 1);
 
-/**
- * Get the AI prompt template
- */
-private function getAIPrompt($content)
-{
-    return <<<PROMPT
-You are an AI executive assistant generating a DAILY PRIORITY BRIEF.
+        $content = "CONTEXT:\n";
+        $content .= "Date: {$dayOfWeek}, {$date}\n";
+        $content .= "Person: {$user->name} ({$teamUser->poste})\n";
+        $content .= "Schedule: {$eventCount} events, {$totalHours}h total\n";
+        
+        if ($analysis['work_event_count'] > 0) {
+            $content .= "Work Events: {$analysis['work_event_count']} | Personal: {$analysis['personal_event_count']}\n";
+        }
+        
+        if ($analysis['has_urgent']) {
+            $content .= "⚠️ URGENT ITEMS: {$analysis['urgent_count']} high-priority event(s)\n";
+        }
+        
+        if ($analysis['back_to_back']) {
+            $content .= "⚠️ Back-to-back meetings detected\n";
+        }
 
-Your task is to interpret events, not list them.
+        if (!empty($analysis['categories'])) {
+            $content .= "Categories: " . implode(', ', $analysis['categories']) . "\n";
+        }
 
-STRICT RULES:
-- Do NOT include event titles or times unless absolutely necessary
-- Do NOT format the response like a schedule
-- Do NOT say "None identified" — always evaluate risk
-- Do NOT treat routine or daily meetings as priorities
+        $content .= "\nSCHEDULED EVENTS:\n";
+        
+        foreach ($events as $index => $event) {
+            $startTime = Carbon::parse($event->start_hour)->format('H:i');
+            $endTime = Carbon::parse($event->end_hour)->format('H:i');
+            $duration = Carbon::parse($event->start_hour)->diffInMinutes(Carbon::parse($event->end_hour));
+            
+            // Priority indicator
+            $urgencyFlag = '';
+            $urgency = strtolower($event->urgency ?? '');
+            if (in_array($urgency, ['high', 'urgent'])) {
+                $urgencyFlag = ' [URGENT]';
+            } elseif ($urgency === 'medium') {
+                $urgencyFlag = ' [Important]';
+            }
+            
+            // $content .= "\n" . ($index + 1) . ". {$startTime}-{$endTime} ({$duration}min){$urgencyFlag}\n";
+            $content .= "\n" . ($index + 1) . ". Event Duration: {$duration} minutes{$urgencyFlag}\n";
 
-Assumptions:
-- All events have MEDIUM urgency unless stated otherwise
-- Deployment, client feedback, or decision-making work implies risk by default
 
-Your response MUST include:
+            // Event type/title
+            if ($event->title) {
+                $content .= "   Title: {$event->title}\n";
+            }
+            
+            // Category
+            if ($event->category) {
+                $content .= "   Category: {$event->category}\n";
+            }
+            
+            // Type
+            if ($event->type) {
+                $content .= "   Type: {$event->type}\n";
+            }
+            
+            // Description
+            $content .= "   Description: {$event->description}\n";
+            
+            // Additional notes
+            if ($event->other_notes) {
+                $content .= "   Notes: {$event->other_notes}\n";
+            }
+            
+            // Status
+            if ($event->status) {
+                $content .= "   Status: {$event->status}\n";
+            }
+            
+            // URL (for virtual meetings)
+            if ($event->url) {
+                $content .= "   Meeting Link: Available\n";
+            }
+            
+            // Other attendees
+            $otherGuests = $event->guests()
+                ->where('users.id', '!=', $user->id)
+                ->with('teamUser')
+                ->get();
+            
+            if ($otherGuests->isNotEmpty()) {
+                $attendeesList = $otherGuests->map(function($guest) {
+                    $role = $guest->teamUser ? " ({$guest->teamUser->poste})" : '';
+                    return $guest->name . $role;
+                })->implode(', ');
+                $content .= "   Attendees: {$attendeesList}\n";
+            }
+        }
 
-1. Today's Priority Focus (1–2 sentences)
-   - Rank what matters most
+        // Add schedule gaps analysis
+        if ($analysis['longest_gap_minutes'] > 60) {
+            $gapHours = round($analysis['longest_gap_minutes'] / 60, 1);
+            $content .= "\nSCHEDULE NOTE: Longest break is {$gapHours}h - potential focus time\n";
+        }
 
-2. Actions That Need Attention
-   - Only actions that could impact delivery, quality, or timelines
+        return $content;
+    }
 
-3. Risks & Watchpoints
-   - Even moderate risks must be mentioned
+    /**
+     * Improved AI prompt with urgency awareness
+     */
+    private function getBatchAIPrompt($allUsersData)
+    {
+        return <<<PROMPT
+You are an executive assistant. I will provide schedule data for MULTIPLE team members. 
+Your task is to generate a brief for EACH person separately.
 
-4. Day Load Assessment
-   - Light / Normal / Busy + one reason
+STRICT OUTPUT RULES:
+1. Return ONLY a valid JSON array.
+2. Each object in the array must have these keys: "team_user_id", "name", "summary_text".
+3. "summary_text" should follow the format: **Priority Focus**, **Key Actions**, **Watch For**, and **Day Intensity**.
+4. Max 80 words per person.
 
-Constraints:
-- Max 120 words
-- No greetings
-- No bullet points unless necessary
-- Professional, judgment-based tone
+DATA TO PROCESS:
+{$allUsersData}
 
-DATA:
-{$content}
-
-Generate the priority brief now.
+Return the JSON array now:
 PROMPT;
-}
-
-
-/**
- * Optional: Store the daily summary in the database
- */
-private function storeDailySummary($date, $summary)
-{
-    // You would need to create a DailySummary model and migration
-    // Example:
-    /*
-    DailySummary::updateOrCreate(
-        ['date' => $date],
-        [
-            'summary' => $summary,
-            'generated_at' => now()
-        ]
-    );
-    */
-}
     }
+    private function cleanAiJson($text) 
+{
+    // Removes potential markdown code blocks (```json ... ```) that AI often adds
+    return preg_replace('/^```json|```$/m', '', $text);
+}
+}
