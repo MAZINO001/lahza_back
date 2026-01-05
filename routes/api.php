@@ -32,6 +32,19 @@ use App\Http\Controllers\TeamAdditionalDataController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PdfController;
 use App\Http\Controllers\AiController;
+use Gemini\Laravel\Facades\Gemini;
+
+Route::get('/check-models', function () {
+    $response = Gemini::models()->list();
+    
+    return collect($response->models)->map(function ($model) {
+        return [
+            'name' => $model->name,
+            'displayName' => $model->displayName,
+            'supportedMethods' => $model->supportedGenerationMethods,
+        ];
+    });
+});
 // Public Auth Routes
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
