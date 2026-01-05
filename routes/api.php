@@ -33,6 +33,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\PdfController;
 use App\Http\Controllers\Ai\CalanderSummaryController;
 use Gemini\Laravel\Facades\Gemini;
+use \App\Http\Controllers\Ai\TaskUpdateController;
 
 Route::get('/check-models', function () {
     $response = Gemini::models()->list();
@@ -53,7 +54,10 @@ Route::post('/reset-password', [NewPasswordController::class, 'store'])->middlew
 
 // Stripe webhook endpoint (no auth middleware)
 Route::post('/stripe/webhook', [PaymentController::class, 'handleWebhook']);
-Route::get('/event/summary', [CalanderSummaryController::class,'calendarSummary']);
+Route::get('/ai-summaries', [CalanderSummaryController::class, 'getDailyAiSummaries']);
+Route::get('/project/tasks/ai-update/{project}', [TaskUpdateController::class, 'generate']);
+Route::get('/users-all', [UserController::class, 'getAll']);
+Route::get('/get-team-users', [UserController::class, 'getTeamUsers']);
 // -----------------------------
 // Authenticated routes
 // -----------------------------
