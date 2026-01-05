@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\ai;
 
+use App\Http\Controllers\Controller;
 use Gemini\Laravel\Facades\Gemini;
 use Illuminate\Http\Request;
 use App\Models\User;
@@ -9,9 +10,9 @@ use Carbon\Carbon;
 use App\Models\Event;
 use Illuminate\Support\Facades\Log;
 
-class AiController extends Controller
+class CalanderSummaryController extends Controller
 {
-   public function calendarSummary(Request $request)
+   public function calendarSummary()
 {
     $todayDate = Carbon::today()->toDateString();
 

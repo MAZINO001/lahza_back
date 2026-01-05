@@ -31,7 +31,7 @@ use App\Http\Controllers\ObjectiveController;
 use App\Http\Controllers\TeamAdditionalDataController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PdfController;
-use App\Http\Controllers\AiController;
+use App\Http\Controllers\Ai\CalanderSummaryController;
 use Gemini\Laravel\Facades\Gemini;
 
 Route::get('/check-models', function () {
@@ -53,7 +53,7 @@ Route::post('/reset-password', [NewPasswordController::class, 'store'])->middlew
 
 // Stripe webhook endpoint (no auth middleware)
 Route::post('/stripe/webhook', [PaymentController::class, 'handleWebhook']);
-Route::get('/event/summary', [AiController::class,'calendarSummary']);
+Route::get('/event/summary', [CalanderSummaryController::class,'calendarSummary']);
 // -----------------------------
 // Authenticated routes
 // -----------------------------
