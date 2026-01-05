@@ -98,4 +98,12 @@ class UserController extends Controller
 
         return response()->json(['message' => 'Team user converted successfully']);
     }
+    public function getAll()
+    {
+        return User::paginate(10);
+    }
+    public function getTeamUsers()
+    {
+        return TeamUser::with('user')->paginate(10);
+    }
 }
