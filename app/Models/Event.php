@@ -26,6 +26,7 @@ class Event extends Model
         'color',
         'all_day',
         'guests',
+        'urgency',
     ];
 
     /**

@@ -66,6 +66,7 @@ public function show($id)
         'all_day' => 'nullable|boolean',
         'guests' => 'nullable|array',
         'guests.*' => 'required|integer',
+        'urgency' => 'nullable|in:low,medium,high,urgent',
     ]);
 
     $guests = $data['guests'] ?? null;
@@ -107,6 +108,7 @@ public function show($id)
         'all_day' => 'nullable|boolean',
         'guests' => 'nullable|array',
         'guests.*' => 'required|integer',
+        'urgency' => 'nullable|in:low,medium,high,urgent',
     ]);
 
       $guests = $data['guests'] ?? [];
