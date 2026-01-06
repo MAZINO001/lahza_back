@@ -200,7 +200,12 @@ Route::get('/get-team-users', [UserController::class, 'getTeamUsers']);
 
         // Projects & tasks (WRITE)
         Route::post('/projects', [ProjectController::class, 'store']);
+
+        
         Route::post('project/invoice/assign', [ProjectController::class, 'assignProjectToInvoice']);
+        Route::post('project/service/assign', [ProjectController::class, 'assignServiceToproject']);
+
+
         Route::prefix('projects/tasks/{project}')->controller(TaskController::class)->group(function () {
             Route::post('/', 'store');
             Route::put('/{task}', 'update');

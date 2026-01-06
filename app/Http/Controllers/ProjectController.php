@@ -115,7 +115,7 @@ class ProjectController extends Controller
 
 public function assignProjectToInvoice(Request $request)
 {
-    $this->authorize('create');
+    $this->authorize('create', Project::class);
 
     $invoiceId = $request->input('invoice_id');
     $projectId = $request->input('project_id');
@@ -131,10 +131,27 @@ public function assignProjectToInvoice(Request $request)
         'message' => 'Invoice and project linked successfully.'
     ]);
 }
+public function assignServiceToproject(Request $request)
+{
+$this->authorize('create', Project::class);
+
+    $projectId = $request->input('project_id');
+    $serviceId = $request->input('service_id');
+
+    // Get project model (you need the model to call the relation)
+    $project = Project::findOrFail($projectId);
+
+    // This line checks if the row exists; if not, it creates it
+    $project->services()->syncWithoutDetaching([$serviceId]);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'project and service linked successfully.'
+    ]);
+}
 public function completeProject( Project $project)
 {
     
-   
     try {
         $this->projectCreationService->toggleProjectCompletion($project);
         return back()->with('success', 'Project updated successfully!');
