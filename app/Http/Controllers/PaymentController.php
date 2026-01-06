@@ -10,12 +10,14 @@ use Illuminate\Support\Facades\Log;
 use App\Services\ProjectCreationService; 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
-use App\Mail\PaymentSuccessfulMail;
- 
+use App\Models\Project;
+
 class PaymentController extends Controller
 {
     protected $paymentService;
     protected $projectCreationService;
+
+
 
     public function __construct(PaymentServiceInterface $paymentService ,ProjectCreationService $projectCreationService)
     {
@@ -198,5 +200,16 @@ return response()->json([
     'success' => true,
     'message' => 'Payment date updated successfully',
 ],205);
+}
+
+    public function getProjectPayments(Project $project)
+{
+    $payments = Payment::whereHas('invoice', function ($q) use ($project) {
+        $q->whereHas('projects', function ($q2) use ($project) {
+            $q2->where('projects.id', $project->id);
+        });
+    })->get();
+
+    return response()->json($payments);
 }
 }

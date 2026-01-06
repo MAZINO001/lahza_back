@@ -5,15 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\ProjectAssignment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-
+use App\Models\Project;
 class ProjectAssignmentController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function getProjectTeamMembers(Project  $project)
     {
-        //
+          $teamusers = $project->assignments()->get();
+          return response()->json($teamusers, 200);  
     }
 
     /**
@@ -26,15 +27,15 @@ class ProjectAssignmentController extends Controller
             'project_id'=>'required|exists:projects,id',
         ]);
        
-$exists = ProjectAssignment::where('project_id', $request->project_id)
-            ->where('team_id', $request->team_id)
-            ->exists();
+        $exists = ProjectAssignment::where('project_id', $request->project_id)
+                    ->where('team_id', $request->team_id)
+                    ->exists();
 
-if ($exists) {
-    return response()->json([
-        'message' => 'Project already assigned to this team user'
-    ], 400);
-}
+        if ($exists) {
+            return response()->json([
+                'message' => 'Project already assigned to this team user'
+            ], 400);
+        }
         ProjectAssignment::create([
             'project_id'=>$request->project_id,
             'team_id'=>$request->team_id,
@@ -42,7 +43,7 @@ if ($exists) {
             // 'assigned_by'=>Auth::user()->id
         ]);
         return response()->json([
-            'message'=>'good boy'
+            'message'=>'project is assigned to this team user successfully'
         ],201);
     }
 

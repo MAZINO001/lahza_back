@@ -153,6 +153,9 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/{id}', 'update');
             Route::delete('/{id}', 'destroy');
         });
+
+        Route::get('/project/team/{project}', [ProjectAssignmentController::class, 'getProjectTeamMembers']);
+        Route::get('/payments/project/{project}', [PaymentController::class, 'getProjectPayments']);
     });
 
     // -------------------------------------------------
@@ -200,7 +203,8 @@ Route::get('/get-team-users', [UserController::class, 'getTeamUsers']);
 
         // Projects & tasks (WRITE)
         Route::post('/projects', [ProjectController::class, 'store']);
-
+        Route::put('/project/{project}', [ProjectController::class, 'update']);
+        Route::delete('/project/{project}', [ProjectController::class, 'destroy']);
         
         Route::post('project/invoice/assign', [ProjectController::class, 'assignProjectToInvoice']);
         Route::post('project/service/assign', [ProjectController::class, 'assignServiceToproject']);
@@ -235,7 +239,6 @@ Route::get('/get-team-users', [UserController::class, 'getTeamUsers']);
 
         Route::post('/company-info', [CompanyInfoController::class, 'store']);
         Route::put('/company-info/{companyinfo}', [CompanyInfoController::class, 'update']);
-
 
         Route::post('/certifications', [CertificationController::class, 'store']);
         Route::put('/certifications/{certification}', [CertificationController::class, 'update']);
