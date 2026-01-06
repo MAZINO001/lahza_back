@@ -11,11 +11,16 @@ class ProjectAssignmentController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function getProjectTeamMembers(Project  $project)
-    {
-          $teamusers = $project->assignments()->get();
-          return response()->json($teamusers, 200);  
-    }
+public function getProjectTeamMembers(Project $project)
+{
+    $teamUsers = $project->assignments()
+        ->with('teamUser.user') // load the nested relation
+        ->get();
+
+    return response()->json($teamUsers, 200);
+}
+
+
 
     /**
      * Store a newly created resource in storage.
