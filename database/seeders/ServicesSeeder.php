@@ -21,6 +21,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/vitrine5/600/400',
+                'category'    => 'dev',
+                'time'        => 10,
             ],
             [
                 'name'        => 'Création Site web Vitrine - 9 Pages',
@@ -29,6 +31,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/vitrine9/600/400',
+                'category'    => 'dev',
+                'time'        => 15,
             ],
             [
                 'name'        => 'Création Site Web OnePage',
@@ -37,6 +41,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/onepage/600/400',
+                'category'    => 'dev',
+                'time'        => 5,
             ],
             [
                 'name'        => 'Création Site web Ecommerce',
@@ -45,6 +51,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/ecommerce/600/400',
+                'category'    => 'dev',
+                'time'        => 20,
             ],
             [
                 'name'        => 'Création Site web Ecommerce Shopify',
@@ -53,6 +61,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/shopify/600/400',
+                'category'    => 'dev',
+                'time'        => 15,
             ],
             [
                 'name'        => 'Développement d\'une Application WEB',
@@ -61,6 +71,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/webapp/600/400',
+                'category'    => 'dev',
+                'time'        => 60,
             ],
             [
                 'name'        => 'Serveur d\'hébergement WEB - Full Pack',
@@ -69,6 +81,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/hosting/600/400',
+                'category'    => 'management',
+                'time'        => 1,
             ],
             [
                 'name'        => 'Maintenance et Sécurité web Annuelle',
@@ -77,6 +91,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/maintenance/600/400',
+                'category'    => 'management',
+                'time'        => 365,
             ],
             [
                 'name'        => 'Récurrence Annuel des Sites web',
@@ -85,6 +101,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/recurrence/600/400',
+                'category'    => 'management',
+                'time'        => 365,
             ],
             [
                 'name'        => 'Référencement Naturel SEO - Phase d\'indexation',
@@ -93,6 +111,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/seoindex/600/400',
+                'category'    => 'marketing',
+                'time'        => 30,
             ],
             [
                 'name'        => 'Référencement Naturel SEO - Suivi Mensuel',
@@ -101,6 +121,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/seomonthly/600/400',
+                'category'    => 'marketing',
+                'time'        => 30,
             ],
             [
                 'name'        => 'Intégration Multilingue sur Site',
@@ -109,6 +131,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/multilang/600/400',
+                'category'    => 'dev',
+                'time'        => 7,
             ],
             [
                 'name'        => 'Ads Management - Installation Infrastructure',
@@ -117,6 +141,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/adsinfra/600/400',
+                'category'    => 'marketing',
+                'time'        => 3,
             ],
             [
                 'name'        => 'Ads Management - Gestion des Campagnes Publicitaires',
@@ -125,6 +151,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 0.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/adscampaign/600/400',
+                'category'    => 'marketing',
+                'time'        => 30,
             ],
             [
                 'name'        => 'Social Media Management - Mensuel',
@@ -133,6 +161,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/smm/600/400',
+                'category'    => 'marketing',
+                'time'        => 30,
             ],
             [
                 'name'        => 'Conception LOGO',
@@ -141,6 +171,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/logo/600/400',
+                'category'    => 'branding',
+                'time'        => 5,
             ],
             [
                 'name'        => 'Création d\'une nouvelle BRAND - Full Pack',
@@ -149,6 +181,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 0.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/fullbrand/600/400',
+                'category'    => 'branding',
+                'time'        => 20,
             ],
             [
                 'name'        => 'Création document Charte Graphique',
@@ -157,6 +191,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/charte/600/400',
+                'category'    => 'branding',
+                'time'        => 10,
             ],
             [
                 'name'        => 'Conception Graphique - Flyers',
@@ -165,6 +201,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/flyers/600/400',
+                'category'    => 'branding',
+                'time'        => 3,
             ],
             [
                 'name'        => 'Conception Pancarte / Flyers / Affiche',
@@ -173,6 +211,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/pancarte/600/400',
+                'category'    => 'branding',
+                'time'        => 3,
             ],
             [
                 'name'        => 'Conception Packaging Produit',
@@ -181,6 +221,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/packaging/600/400',
+                'category'    => 'branding',
+                'time'        => 7,
             ],
             [
                 'name'        => 'Montage Vidéo & Vidéo Ads',
@@ -189,6 +231,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/videoads/600/400',
+                'category'    => 'branding',
+                'time'        => 5,
             ],
             [
                 'name'        => 'Filming & vidéographie du local ou Service',
@@ -197,6 +241,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 0.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/filming/600/400',
+                'category'    => 'branding',
+                'time'        => 7,
             ],
             [
                 'name'        => 'Impression Carte Visite',
@@ -205,6 +251,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/cartevisite/600/400',
+                'category'    => 'none',
+                'time'        => 3,
             ],
             [
                 'name'        => 'Impression Flyers A5',
@@ -213,6 +261,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/flyersa5/600/400',
+                'category'    => 'none',
+                'time'        => 3,
             ],
             [
                 'name'        => 'Impressions Papier en tete Standard',
@@ -221,6 +271,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/entete/600/400',
+                'category'    => 'none',
+                'time'        => 3,
             ],
             [
                 'name'        => 'Pancarte externe Professionnel - Plexiglas',
@@ -229,6 +281,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 0.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/plexiglas/600/400',
+                'category'    => 'none',
+                'time'        => 5,
             ],
             [
                 'name'        => 'Pancarte Interne / Externe - Vinyle OneWay',
@@ -237,6 +291,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 0.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/vinyle/600/400',
+                'category'    => 'none',
+                'time'        => 5,
             ],
             [
                 'name'        => 'Service EXTRA',
@@ -245,6 +301,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 20.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/extra/600/400',
+                'category'    => 'dev',
+                'time'        => 2,
             ],
             [
                 'name'        => 'SAV',
@@ -253,6 +311,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 0.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/sav/600/400',
+                'category'    => 'management',
+                'time'        => 30,
             ],
             [
                 'name'        => 'Copie / Clone Site web existant',
@@ -261,6 +321,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => 0.00,
                 'status'      => 'active',
                 'image'       => 'https://picsum.photos/seed/clone/600/400',
+                'category'    => 'dev',
+                'time'        => 4,
             ],
         ];
 
@@ -272,6 +334,8 @@ class ServicesSeeder extends Seeder
                 'tax_rate'    => $service['tax_rate'],
                 'status'      => $service['status'],
                 'image'       => $service['image'],
+                'category'    => $service['category'],
+                'time'        => $service['time'],
                 'created_at'  => Carbon::now(),
                 'updated_at'  => Carbon::now(),
             ]);
