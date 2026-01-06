@@ -131,6 +131,9 @@ class ProjectCreationService
                         $projects[] = $project;
                     }
                 }
+               // Attach services to created project(s)
+                $this->assignServicesToProjects($projects, $quote->services);
+
                 if(!empty($projects)){
                     $this->sendProjectsCreationEmail($projects, $quote);
                 }
@@ -194,9 +197,10 @@ class ProjectCreationService
                         $projects[] = $project;
                     }
                 }
+            // Attach services to created project(s)
+            $this->assignServicesToProjects($projects, $invoice->services);
+
                 if(!empty($projects)){
-                    $this->sendProjectsCreationEmail($projects, $invoice);
-                }else{
                     $this->sendProjectsCreationEmail($projects, $invoice);
                 }
                 return count($projects) === 1 ? $projects[0] : $projects;
@@ -768,5 +772,60 @@ class ProjectCreationService
             return $project;
         });
     }
+private function assignServicesToProjects($projects, $sourceServices)
+{
+    if ($sourceServices->isEmpty()) {
+        return;
+    }
 
+    $projectCount = count($projects);
+
+    if ($projectCount === 1) {
+        // Assign ALL services to single project
+        $this->attachServicesToProject($projects[0], $sourceServices);
+        return;
+    }
+
+    // Separate dev and non-dev services
+    $devServices = $sourceServices->filter(fn($s) => strtolower(trim($s->category ?? '')) === 'dev');
+    $nonDevServices = $sourceServices->filter(fn($s) => strtolower(trim($s->category ?? '')) !== 'dev');
+
+    if ($devServices->isNotEmpty()) {
+        // Assign dev services to first project
+        $this->attachServicesToProject($projects[0], $devServices);
+        
+        // Distribute remaining services across remaining projects
+        $remainingProjects = array_slice($projects, 1);
+        $this->distributeServicesEvenly($remainingProjects, $nonDevServices);
+    } else {
+        // No dev services: distribute all services evenly
+        $this->distributeServicesEvenly($projects, $sourceServices);
+    }
+}
+private function attachServicesToProject($project, $services)
+{
+    foreach ($services as $s) {
+        $pivot = $s->pivot ?? null;
+        $project->services()->attach($s->id, [
+            'quantity' => $pivot->quantity ?? 1,
+            'tax' => $pivot->tax ?? 0,
+            'individual_total' => $pivot->individual_total ?? ($s->base_price ?? 0),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+}
+
+private function distributeServicesEvenly($projects, $services)
+{
+    $servicesArray = $services->values()->all();
+    $projectCount = count($projects);
+    $servicesPerProject = ceil(count($servicesArray) / $projectCount);
+
+    foreach ($projects as $index => $project) {
+        $offset = $index * $servicesPerProject;
+        $chunk = array_slice($servicesArray, $offset, $servicesPerProject);
+        $this->attachServicesToProject($project, collect($chunk));
+    }
+}
 }

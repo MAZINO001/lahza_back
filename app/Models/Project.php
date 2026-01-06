@@ -43,6 +43,12 @@ class Project extends Model
     {
         return $this->belongsToMany(Invoice::class,'invoice_project')->withTimestamps();
     }
+    public function services()
+    {
+        return $this->belongsToMany(Service::class, 'project_services')
+            ->withPivot(['quantity', 'tax', 'individual_total'])
+            ->withTimestamps();
+    }
        public function comments()
     {
         return $this->morphMany(Comment::class, 'commentable');
