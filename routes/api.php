@@ -56,8 +56,7 @@ Route::post('/reset-password', [NewPasswordController::class, 'store'])->middlew
 Route::post('/stripe/webhook', [PaymentController::class, 'handleWebhook']);
 Route::get('/ai-summaries', [CalanderSummaryController::class, 'getDailyAiSummaries']);
 Route::get('/project/tasks/ai-update/{project}', [TaskUpdateController::class, 'generate']);
-Route::get('/users-all', [UserController::class, 'getAll']);
-Route::get('/get-team-users', [UserController::class, 'getTeamUsers']);
+
 // -----------------------------
 // Authenticated routes
 // -----------------------------
@@ -156,7 +155,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Admin-only routes
     // -------------------------------------------------
     Route::middleware('role:admin')->group(function () {
-
+        // get users
+Route::get('/users-all', [UserController::class, 'getAll']);
+Route::get('/get-team-users', [UserController::class, 'getTeamUsers']);
         // Clients (FULL)
         Route::get('clients', [ClientController::class, 'index']);
         Route::put('clients/{id}', [ClientController::class, 'update']);
