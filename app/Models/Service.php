@@ -14,7 +14,8 @@ class Service extends Model
         'base_price',
         'tax_rate',
         "status",
-        'time'
+        'time',
+        'category',
     ];
 
 
@@ -42,5 +43,16 @@ public function quotes()
     )->withPivot(['quantity', 'tax', 'individual_total'])
      ->withTimestamps();
 }
+
+    public function projects()
+    {
+        return $this->belongsToMany(
+            Project::class,
+            'project_services',
+            'service_id',
+            'project_id'
+        )->withPivot(['quantity', 'tax', 'individual_total'])
+         ->withTimestamps();
+    }
 
 }
