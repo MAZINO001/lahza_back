@@ -12,12 +12,10 @@ class ProjectAdditionalDataController extends Controller
      public function showByProject($project_id)
     {
         $data = ProjectAdditionalData::where('project_id', $project_id)->first();
-        $this->authorize('view',$data);
-
         if (!$data) {
             return response()->json(['message' => 'Additional data not found'], 404);
         }
-
+        $this->authorize('view', $data);
         return response()->json($data);
     }
 
