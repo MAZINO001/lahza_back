@@ -79,6 +79,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // -------------------------------------------------
     Route::middleware('role:admin,client')->group(function () {
 
+        Route::get('/company-info', [CompanyInfoController::class, 'index']);
 
         Route::prefix('pdf')->controller(PdfController::class)->group(function () {
         Route::get('/invoice/{id}', 'invoice');
@@ -224,7 +225,6 @@ Route::get('/get-team-users', [UserController::class, 'getTeamUsers']);
             Route::delete('/{id}', [EventController::class, 'destroy']);
         });
 
-        Route::get('/company-info', [CompanyInfoController::class, 'index']);
         Route::post('/company-info', [CompanyInfoController::class, 'store']);
         Route::put('/company-info/{companyinfo}', [CompanyInfoController::class, 'update']);
 
