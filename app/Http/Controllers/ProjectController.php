@@ -131,22 +131,27 @@ public function assignProjectToInvoice(Request $request)
         'message' => 'Invoice and project linked successfully.'
     ]);
 }
-public function assignServiceToproject(Request $request)
+public function assignServiceToproject(Request $request, ProjectCreationService $projectService)
 {
 $this->authorize('create', Project::class);
 
     $projectId = $request->input('project_id');
     $serviceId = $request->input('service_id');
 
-    // Get project model (you need the model to call the relation)
     $project = Project::findOrFail($projectId);
 
-    // This line checks if the row exists; if not, it creates it
+    // Attach service if not already linked
     $project->services()->syncWithoutDetaching([$serviceId]);
+
+    // Fetch newly attached service to pass to task creator
+    $service = \App\Models\Service::find($serviceId);
+
+    // Create task(s) for this service
+    $projectService->createTasksForExistingProject($project, collect([$service]));
 
     return response()->json([
         'success' => true,
-        'message' => 'project and service linked successfully.'
+        'message' => 'Project and service linked successfully, tasks created.',
     ]);
 }
 public function completeProject( Project $project)

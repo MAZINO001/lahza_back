@@ -12,6 +12,7 @@ use App\Services\ActivityLoggerService;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ProjectCreatedMail;
 use App\Mail\SendReportMail;
+use Carbon\Carbon;
 
 class ProjectCreationService
 {
@@ -828,4 +829,85 @@ private function distributeServicesEvenly($projects, $services)
         $this->attachServicesToProject($project, collect($chunk));
     }
 }
+    /**
+     * Create tasks for an existing project based on its services
+     */
+public function createTasksForExistingProject(Project $project, $services = null)
+{
+    // Use provided services or fall back to project's attached services
+    $services = $services ?? $project->services;
+
+    if ($services->isEmpty()) {
+        Log::warning('No services found for project when creating tasks', [
+            'project_id' => $project->id
+        ]);
+        return false;
+    }
+
+    // Calculate total service days
+    $totalServiceDays = $services->sum(fn($s) => (float)($s->time ?? 1));
+    $totalServiceDays = max(1, $totalServiceDays); // at least 1 day
+
+    // Ensure start_date is a Carbon instance
+    $startDate = $project->start_date ? Carbon::parse($project->start_date) : now()->startOfDay();
+    $currentStart = $startDate->copy();
+
+    // Total tasks count (for percentage distribution)
+    $totalTasks = 0;
+    foreach ($services as $s) {
+        $serviceId = (string)($s->service_id ?? $s->id ?? null);
+        if (!empty($this->defaultTasklist[$serviceId])) {
+            $totalTasks += count($this->defaultTasklist[$serviceId]);
+        } else {
+            $totalTasks += 1;
+        }
+    }
+    $taskPercentage = $totalTasks > 0 ? round(100 / $totalTasks, 2) : 0;
+
+    foreach ($services as $service) {
+        $serviceId = (string)($service->service_id ?? $service->id ?? null);
+
+        // Use default tasklist if exists
+        if (!empty($this->defaultTasklist[$serviceId]) && is_array($this->defaultTasklist[$serviceId])) {
+            foreach ($this->defaultTasklist[$serviceId] as $taskData) {
+                $taskEnd = $currentStart->copy()->addDay();
+
+                Task::create([
+                    'title' => $taskData['title'],
+                    'description' => $taskData['description'] ?? '',
+                    'project_id' => $project->id,
+                    'status' => 'pending',
+                    'start_date' => $currentStart,
+                    'end_date' => $taskEnd,
+                    'percentage' => $taskPercentage,
+                ]);
+
+                $currentStart = $taskEnd;
+            }
+        } else {
+            // No default task: create a generic task based on service
+            $taskEnd = $currentStart->copy()->addDay();
+
+            Task::create([
+                'title' => $service->service->name ?? 'Service Task',
+                'description' => $service->service->description ?? 'Task for service',
+                'project_id' => $project->id,
+                'status' => 'pending',
+                'start_date' => $currentStart,
+                'end_date' => $taskEnd,
+                'percentage' => $taskPercentage,
+            ]);
+
+            $currentStart = $taskEnd;
+        }
+    }
+
+    Log::info('Tasks created for existing project', [
+        'project_id' => $project->id,
+        'total_tasks' => $totalTasks
+    ]);
+
+    return true;
+}
+
 }
