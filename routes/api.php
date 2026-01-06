@@ -71,6 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
             'name' => $request->user()->name,
             'email' => $request->user()->email,
             'role' => $request->user()->role,
+            'preferences' => $request->user()->preferences,
         ];
     });
 
