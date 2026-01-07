@@ -178,7 +178,7 @@ class PaymentService implements PaymentServiceInterface
 
         if ($payment_type === 'stripe') {
             // Handle Stripe payment
-            Stripe::setApiKey(env('STRIPE_SECRET'));
+Stripe::setApiKey(config('services.stripe.secret'));
 
             $session = Session::create([
                 'payment_method_types' => ['card'],
@@ -311,7 +311,7 @@ class PaymentService implements PaymentServiceInterface
             $payment->stripe_payment_intent_id = null;
 
             // Create new Stripe session
-            Stripe::setApiKey(env('STRIPE_SECRET'));
+Stripe::setApiKey(config('services.stripe.secret'));
 
             $session = Session::create([
                 'payment_method_types' => ['card'],
@@ -576,7 +576,7 @@ class PaymentService implements PaymentServiceInterface
 
         if ($payment_type === 'stripe') {
             // Stripe payment
-            Stripe::setApiKey(env('STRIPE_SECRET'));
+Stripe::setApiKey(config('services.stripe.secret'));
 
             $session = Session::create([
                 'mode' => 'payment',
