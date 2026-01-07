@@ -56,10 +56,11 @@ public function getPayment(){
         $this->authorize('update', $payment);
         $request->validate([
             'percentage' => 'required|numeric|min:0.01|max:100',
+            'payment_method' => 'required|string|in:stripe,bank,cash,cheque',
         ]);
 
         try {
-            $result = $this->paymentService->updatePendingPayment($payment, $request->percentage);
+            $result = $this->paymentService->updatePendingPayment($payment, $request->percentage, $request->payment_method);
             return response()->json([
                 'success' => true,
                 'data' => $result
