@@ -11,7 +11,6 @@
             Facture {{ 'QUOTES-' . str_pad($quote->id ?? 0, 5, '0', STR_PAD_LEFT) }}
         @endif
     </title>
-    <link rel="stylesheet" href="{{ public_path('fonts/roboto.css') }}">
 
     <style>
         * {
@@ -21,7 +20,7 @@
         }
 
         body {
-            font-family: "Roboto", sans-serif;
+            font-family: "PlusJakartaSans", sans-serif;
             /* padding: 40px; */
             background: #f5f5f5;
             letter-spacing: 1.5px;
@@ -514,14 +513,14 @@
                         </tr>
                     </thead>
                     @if ($type === 'quote')
-                    <div class="conditions">
-                        <strong>objectif :</strong><br>
-                    @if($quote->description)
-                    {{ $quote->description }}
-                    @else 
-                    null
-                    @endif
-                    </div>
+                        <div class="conditions">
+                            <strong>objectif :</strong><br>
+                            @if ($quote->description)
+                                {{ $quote->description }}
+                            @else
+                                null
+                            @endif
+                        </div>
                     @endif
                     <tbody>
                         <tr>
