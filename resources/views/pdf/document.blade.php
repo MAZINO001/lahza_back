@@ -240,7 +240,7 @@
 
         .item-description {
             margin-top: 8px;
-            color: #444;
+            color: #555;
             font-weight: 300;
             line-height: 1.6;
         }
@@ -441,7 +441,14 @@
             float: right;
             text-transform: capitalize;
         }
+
+        .service_title {
+            color: #051630;
+            font-size: 14px;
+            font-weight: 500;
+        }
     </style>
+
 </head>
 
 <body>
@@ -451,16 +458,17 @@
                 <div class="company-logo">
                     <img src="{{ public_path('logo.png') }}" alt="lahza logo">
                 </div>
-
                 <div class="data">
-                    <h1>LAHZA HM SARL</h1>
+                    <h1>
+                        {{ $companyInfo?->company_name ?? 'LAHZA HM SARL' }}
+                    </h1>
                     <p>
-                        Rue Sayed Kotb, Rés. Assedk,<br>
-                        Etg 1 Bureau 12, 90000 Tanger<br>
-                        Morocco<br>
-                        +2126 27 34 08 75<br>
-                        contact@lahza.ma<br>
-                        www.lahza.ma
+                        {{ $companyInfo?->address_line1 ?? 'Rue Sayed Kotb, Rés. Assedk,' }}<br>
+                        {{ $companyInfo?->address_line2 ?? 'Etg 1 Bureau 12, 90000 Tanger' }}<br>
+                        {{ $companyInfo?->country ?? 'Morocco' }}<br>
+                        {{ $companyInfo?->phone ?? '+2126 27 34 08 75' }}<br>
+                        {{ $companyInfo?->email ?? 'contact@lahza.ma' }}<br>
+                        {{ $companyInfo?->website ?? 'www.lahza.ma' }}<br>
                     </p>
                 </div>
             </div>
@@ -557,15 +565,16 @@
                         @php($service = $line->service ?? null)
                         <tr>
                             <td>
-                                <strong>{{ $service->name ?? '' }}</strong>
+                                <p class="service_title">{{ $service->name ?? '' }}</p>
                                 @if (!empty($service->description))
-                                    <div class="item-description">{!! nl2br(e($service->description)) !!}</div>
+                                    <div class="item-description">
+                                        {!! \App\Helpers\FormatHelper::descriptionToBullets($service->description) !!}
+                                    </div>
                                 @endif
                             </td>
                             <td>{{ number_format((float) ($line->quantity ?? 0), 2, '.', ' ') }}</td>
                             <td>{{ number_format((float) ($line->tax ?? 0), 2, '.', ' ') }}</td>
-                            <td>
-                                {{ number_format(($line->individual_total ?? 0) / (1 + ($line->tax ?? 0) / 100), 2, '.', ' ') }}
+                            <td>{{ number_format(($line->individual_total ?? 0) / (1 + ($line->tax ?? 0) / 100), 2, '.', ' ') }}
                             </td>
                             <td>{{ number_format((float) ($line->individual_total ?? 0), 2, '.', ' ') }}</td>
                         </tr>
@@ -575,15 +584,16 @@
                         @php($service = $line->service ?? null)
                         <tr>
                             <td>
-                                <strong>{{ $service->name ?? '' }}</strong>
+                                <p class="service_title">{{ $service->name ?? '' }}</p>
                                 @if (!empty($service->description))
-                                    <div class="item-description">{!! nl2br(e($service->description)) !!}</div>
+                                    <div class="item-description">
+                                        {!! \App\Helpers\FormatHelper::descriptionToBullets($service->description) !!}
+                                    </div>
                                 @endif
                             </td>
                             <td>{{ number_format((float) ($line->quantity ?? 0), 2, '.', ' ') }}</td>
                             <td>{{ number_format((float) ($line->tax ?? 0), 2, '.', ' ') }}</td>
-                            <td>
-                                {{ number_format(($line->individual_total ?? 0) / (1 + ($line->tax ?? 0) / 100), 2, '.', ' ') }}
+                            <td>{{ number_format(($line->individual_total ?? 0) / (1 + ($line->tax ?? 0) / 100), 2, '.', ' ') }}
                             </td>
                             <td>{{ number_format((float) ($line->individual_total ?? 0), 2, '.', ' ') }}</td>
                         </tr>
@@ -638,12 +648,12 @@
                 <div class="bank-details">
                     <p><b><strong class="mode">Mode de paiement :</strong></b> Par virement ou Chèque</p>
                     <div class="bank-info">
-                        <p><strong>Banque :</strong> ATTIJARI WAFABANK</p>
-                        <p><strong>Nom du compte :</strong> LAHZA HM</p>
-                        <p><strong>R.I.B :</strong> 007640001433200000026029</p>
-                        <p><strong>SWIFT :</strong> BCMAMAMC</p>
-                        <p><strong>ICE :</strong> 002 056 959 000 039</p>
-                        <p><strong>RC :</strong> 88049</p>
+                        <p><strong>Banque :</strong>{{ $companyInfo?->bank_name ?? 'ATTIJARI WAFABANK' }} </p>
+                        <p><strong>Nom du compte :</strong>{{ $companyInfo?->account_name ?? 'LAHZA HM' }}</p>
+                        <p><strong>R.I.B :</strong>{{ $companyInfo?->rib ?? '007640001433200000026029' }}</p>
+                        <p><strong>SWIFT :</strong>{{ $companyInfo?->swift ?? 'BCMAMAMC' }}</p>
+                        <p><strong>ICE :</strong>{{ $companyInfo?->ma_ice ?? '002 056 959 000 039' }} </p>
+                        <p><strong>RC :</strong>{{ $companyInfo?->ma_rc ?? '88049' }} </p>
                     </div>
                 </div>
             </div>
@@ -651,8 +661,9 @@
             <div class="footer">
                 <div class="conditions">
                     <strong>Conditions d'utilisation</strong><br>
-                    En signant la facture, le client accepte sans réserves nos conditions. Pour plus d'informations,
-                    consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/
+                    {{ $companyInfo?->terms_and_conditions ??
+                        "En signant la facture, le client accepte sans réserves nos conditions. Pour plus d'informations,
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/" }}
                 </div>
             </div>
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Invoice;
 use App\Models\Quotes;
+use App\Models\CompanyInfo;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -54,18 +55,21 @@ class PdfController extends Controller
             $clientSignatureBase64 = $this->getImageBase64($invoice->clientSignature()->path);
         }
 
-        $pdf = PDF::loadView(
-            'pdf.document',
-            compact(
-                'invoice',
-                'type',
-                'totalHT',
-                'totalTVA',
-                'totalTTC',
-                'currency',
-                'clientSignatureBase64'
-            )
-        );
+     $companyInfo = CompanyInfo::first();
+
+    $pdf = PDF::loadView(
+        'pdf.document',
+        compact(
+            'invoice',
+            'type',
+            'totalHT',
+            'totalTVA',
+            'totalTTC',
+            'currency',
+            'clientSignatureBase64',
+            'companyInfo'  // ← ADD THIS
+        )
+    );
 
         return response($pdf->output(), 200)
             ->header('Content-Type', 'application/pdf')
@@ -115,23 +119,27 @@ class PdfController extends Controller
             $clientSignatureBase64 = $this->getImageBase64($quote->clientSignature()->path);
         }
 
-        $pdf = PDF::loadView(
-            'pdf.document',
-            compact(
-                'quote',
-                'type',
-                'totalHT',
-                'totalTVA',
-                'totalTTC',
-                'currency',
-                'clientSignatureBase64'
-            )
-        );
+$companyInfo = CompanyInfo::first();
+
+    $pdf = PDF::loadView(
+        'pdf.document',
+        compact(
+            'quote',
+            'type',
+            'totalHT',
+            'totalTVA',
+            'totalTTC',
+            'currency',
+            'clientSignatureBase64',
+            'companyInfo'
+        )
+    );
 
         return response($pdf->output(), 200)
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'inline; filename="quote-' . $quote->id . '.pdf"');
     }
+
 
 
     private function getImageBase64($path)
