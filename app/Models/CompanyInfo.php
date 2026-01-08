@@ -37,10 +37,9 @@ class CompanyInfo extends Model
         'bank_name',
         'rib',
         'account_name',
-        'terms_and_conditions', 
+        'terms_and_conditions',
     ];
 
-    // If you want, you can add accessors for files to get default paths
     public function getFiles()
     {
         return [
@@ -49,5 +48,7 @@ class CompanyInfo extends Model
             'signature' => asset('images/admin_signature.png'),
             'stamp' => asset('images/stamp.png'),
         ];
-    }   
+    }
+
+
 }
