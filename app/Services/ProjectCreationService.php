@@ -545,6 +545,9 @@ class ProjectCreationService
     /**
      * Create tasks for a project based on services
      */
+   /**
+     * Create tasks for a project based on services with proportional time distribution
+     */
     private function createTasksForProject($project, $source)
     {
         $source_services = $source->services;
@@ -557,60 +560,78 @@ class ProjectCreationService
             return;
         }
 
-        // Calculate total tasks
-        $totalTasks = 0;
+        // 1. Calculate Total Service Time (Project Duration)
+        $totalServiceDays = (float) $source_services->sum(fn($s) => $s->time ?? 0);
+        $totalServiceDays = max(1, $totalServiceDays); // Ensure at least 1 day
+
+        // 2. Collect all task definitions first
+        $allTaskDefinitions = [];
         foreach ($source_services as $sourceService) {
             $serviceId = (string)($sourceService->service_id ?? $sourceService->id ?? null);
 
-            if (!empty($this->defaultTasklist) && isset($this->defaultTasklist[$serviceId]) && is_array($this->defaultTasklist[$serviceId])) {
-                $totalTasks += count($this->defaultTasklist[$serviceId]);
-            } else {
-                $totalTasks += 1;
-            }
-        }
-
-        $taskPercentage = $totalTasks > 0 ? round(100 / $totalTasks, 2) : 0;
-        $currentStart = $project->start_date->copy();
-
-        foreach ($source_services as $sourceService) {
-            $serviceId = (string)($sourceService->service_id ?? $sourceService->id ?? null);
-
-            if (!empty($this->defaultTasklist) && isset($this->defaultTasklist[$serviceId]) && is_array($this->defaultTasklist[$serviceId])) {
+            if (!empty($this->defaultTasklist) && isset($this->defaultTasklist[$serviceId])) {
                 foreach ($this->defaultTasklist[$serviceId] as $taskData) {
-                    $taskEnd = $currentStart->copy()->addDay();
-
-                    Task::create([
-                        'title' => $taskData['title'],
-                        'project_id' => $project->id,
-                        'description' => $taskData['description'],
-                        'status' => 'pending',
-                        'start_date' => $currentStart,
-                        'end_date' => $taskEnd,
-                        'percentage' => $taskPercentage,
-                    ]);
-
-                    $currentStart = $taskEnd;
+                    $allTaskDefinitions[] = $taskData;
                 }
             } else {
-                $taskEnd = $currentStart->copy()->addDay();
-
-                Task::create([
+                $allTaskDefinitions[] = [
                     'title' => $sourceService->service->name ?? 'Service Task',
-                    'project_id' => $project->id,
                     'description' => $sourceService->service->description ?? 'Task for service',
-                    'status' => 'pending',
-                    'start_date' => $currentStart,
-                    'end_date' => $taskEnd,
-                    'percentage' => $taskPercentage,
-                ]);
-
-                $currentStart = $taskEnd;
+                ];
             }
         }
 
-        Log::info('Successfully created tasks for project', [
+        $totalTaskCount = count($allTaskDefinitions);
+        if ($totalTaskCount === 0) return;
+
+        // 3. Calculate Time per Task
+        // Example: 10 days / 4 tasks = 2.5. Ceil(2.5) = 3 days per task.
+        $daysPerTask = (int) ceil($totalServiceDays / $totalTaskCount);
+        $taskPercentage = round(100 / $totalTaskCount, 2);
+        
+        $currentStart = Carbon::parse($project->start_date);
+        $remainingDays = $totalServiceDays;
+
+        // 4. Create Tasks
+        foreach ($allTaskDefinitions as $index => $taskData) {
+            $isLastTask = ($index === $totalTaskCount - 1);
+            
+            // Logic: Take $daysPerTask until we hit the last one, then take whatever is left
+            $durationForThisTask = $isLastTask ? $remainingDays : min($daysPerTask, $remainingDays);
+            
+            // Avoid 0 day tasks if math results in a remainder of 0
+            $durationForThisTask = max(1, $durationForThisTask);
+
+            $taskEnd = $currentStart->copy();
+            
+            // Add weekdays to respect your project timeline
+            $added = 0;
+            while ($added < $durationForThisTask) {
+                $taskEnd->addDay();
+                if ($taskEnd->isWeekday()) {
+                    $added++;
+                }
+            }
+
+            Task::create([
+                'title' => $taskData['title'],
+                'project_id' => $project->id,
+                'description' => $taskData['description'] ?? '',
+                'status' => 'pending',
+                'start_date' => $currentStart,
+                'end_date' => $taskEnd,
+                'percentage' => $taskPercentage,
+            ]);
+
+            // Update trackers for next iteration
+            $currentStart = $taskEnd->copy();
+            $remainingDays -= $durationForThisTask;
+        }
+
+        Log::info('Successfully created tasks with distributed time', [
             'project_id' => $project->id,
-            'total_tasks' => $totalTasks
+            'total_days' => $totalServiceDays,
+            'tasks_count' => $totalTaskCount
         ]);
     }
 
