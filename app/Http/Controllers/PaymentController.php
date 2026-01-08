@@ -119,7 +119,7 @@ public function getRemaining(Request $request, Invoice $invoice){
         $validated['payment_status']
     );
 }
-public function handleManualPayment(Payment $payment, bool $cancel = false)
+public function handleManualPayment(Payment $payment)
 {
     $this->authorize('update', $payment);
 
