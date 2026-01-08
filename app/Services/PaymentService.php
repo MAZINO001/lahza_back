@@ -221,7 +221,7 @@ class PaymentService implements PaymentServiceInterface
             ];
         }
 
-        $payment = $this->paymentRepository->create($paymentData);
+$payment = $this->paymentRepository->create($paymentData);
          $this->activityLogger->log(
                 'clients_details',
                 'payments',

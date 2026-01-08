@@ -23,7 +23,8 @@ class Payment extends Model
         'status',
         'payment_method',
         'payment_url',
-        'updated_at'
+        'updated_at',
+        'percentage'
     ];
 
     // Relationships

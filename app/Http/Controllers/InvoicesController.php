@@ -131,7 +131,7 @@ class InvoicesController extends Controller
             $invoice->has_admin_signature = $invoice->adminSignature() !== null;
 
             // Create payment link
-            $paymentPercentage = $validate['payment_percentage'] ?? 0;
+            $paymentPercentage = $validate['payment_percentage'] ?? 50;
             $paymentStatus = $validate['payment_status'] ?? 'unpaid';
             $paymentType = $validate['payment_type'] ?? 'bank';
 
