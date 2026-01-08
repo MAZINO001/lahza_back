@@ -15,4 +15,5 @@ interface PaymentServiceInterface
     public function createAdditionalPayment(Invoice $invoice, float $percentage);
     public function updateInvoiceStatus(Invoice $invoice);
     public function sendPaymentSuccessEmail(Payment $payment);
+    public function autoGenerateRemainingPayment(Invoice $invoice, Payment $payment): void;
 }
