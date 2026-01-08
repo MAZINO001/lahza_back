@@ -432,20 +432,23 @@
             /* width: 100%; */
         }
 
-        .status {
-            border: 1px solid #8a7d7d;
-            padding: 4px;
-            border-radius: 5px;
-            text-align: center;
-            width: 100px;
-            float: right;
-            text-transform: capitalize;
-        }
 
         .service_title {
             color: #051630;
             font-size: 14px;
             font-weight: 500;
+        }
+
+        .doc_status {
+            border: 1px solid #051630;
+            padding: 6px 10px;
+            border-radius: 6px;
+            text-align: center;
+            display: inline-block;
+            text-transform: capitalize;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
         }
     </style>
 
@@ -499,11 +502,11 @@
                     @if ($type === 'invoice')
                         <p>N° de facture</p>
                         <h3>{{ sprintf('INV-%05d', $invoice->id ?? 0) }}</h3>
-                        <h3>{{ $invoice->status }}</h3>
+                        <h3 class="doc_status">{{ $invoice->status }}</h3>
                     @else
                         <p>N° de devis</p>
                         <h3>{{ sprintf('Q-%05d', $quote->id ?? 0) }}</h3>
-                        <h3 class="status">{{ $quote->status }}</h3>
+                        <h3 class="doc_status">{{ $quote->status }}</h3>
                     @endif
                 </div>
             </div>
@@ -663,7 +666,7 @@
                     <strong>Conditions d'utilisation</strong><br>
                     {{ $companyInfo?->terms_and_conditions ??
                         "En signant la facture, le client accepte sans réserves nos conditions. Pour plus d'informations,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/" }}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/" }}
                 </div>
             </div>
 

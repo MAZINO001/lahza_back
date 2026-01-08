@@ -1,32 +1,22 @@
 <?php
 
-// Add this to: app/Helpers/FormatHelper.php (create the file if it doesn't exist)
-
 namespace App\Helpers;
 
 class FormatHelper
 {
-    /**
-     * Convert comma-separated or line-separated text into HTML bullet list
-     *
-     * @param string $text
-     * @return string HTML formatted list
-     */
     public static function descriptionToBullets($text)
     {
         if (empty($text)) {
             return '';
         }
 
-        // Split by comma or newline
         $items = preg_split('/[,\n]/', $text);
         $items = array_map('trim', $items);
-        $items = array_filter($items); // Remove empty items
+        $items = array_filter($items);
 
         if (empty($items)) {
             return '';
         }
-        // Build HTML bullet list
         $html = '<ul style="margin: 0; list-style-type: none; font-size: 12px; line-height: 1.5; color: #555;">';
 
         foreach ($items as $item) {
