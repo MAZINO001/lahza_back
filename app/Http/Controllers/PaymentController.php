@@ -161,14 +161,14 @@ public function handleManualPayment(Payment $payment)
 public function cancelPayment(Payment $payment) {
     $this->authorize('update', $payment);
 
-
-if ($payment->payment_method === 'stripe') {
+    if ($payment->payment_method === 'stripe') {
         return response()->json([
             'error' => true,
             'message' => 'Stripe method is not allowed',
         ]);
     }
-if ($payment->status !== 'paid') {
+    
+    if ($payment->status !== 'paid') {
         return response()->json([
             'error' => true,
             'message' => "Only paid payments can be cancelled"
@@ -176,10 +176,23 @@ if ($payment->status !== 'paid') {
     }
 
     DB::transaction(function() use ($payment) {
+        $invoice = $payment->invoice;
+        
+        // Delete any pending payment that was auto-generated after this payment
+        // (created after this payment was marked as paid)
+        $invoice->payments()
+            ->where('status', 'pending')
+            ->where('created_at', '>=', $payment->updated_at) // Created after this payment was paid
+            ->delete();
+        
+        // Mark the payment as pending
         $payment->update(['status' => 'pending']);
-        $this->paymentService->updateInvoiceStatus($payment->invoice);
-        $paymentData = $payment->invoice->payments()->latest()->first()?->toArray() ?? [];
-        $this->projectCreationService->cancelProjectUpdate($payment->invoice);
+        
+        // Update invoice status
+        $this->paymentService->updateInvoiceStatus($invoice);
+        
+        // Cancel project update
+        $this->projectCreationService->cancelProjectUpdate($invoice);
     });
 
     return response()->json([
