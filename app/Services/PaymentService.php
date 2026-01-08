@@ -201,8 +201,8 @@ class PaymentService implements PaymentServiceInterface
                     'payment_amount' => $amount,
                     'percentage' => $payment_percentage,
                 ],
-                'success_url' => env('FRONTEND_URL') . '/client/projects/',
-                'cancel_url' => env('FRONTEND_URL') . '/client/invoices',
+                'success_url' => config('app.frontend_url') . '/client/projects',
+                'cancel_url' => config('app.frontend_url') . '/client/invoices',
             ]);
 
             $paymentData['stripe_session_id'] = $session->id;
@@ -327,8 +327,8 @@ public function updatePendingPayment(Payment $payment, float $percentage, string
                 'client_id' => $payment->client_id,
                 'updated_payment' => true
             ],
-            'success_url' => env('FRONTEND_URL') . '/client/projects',
-            'cancel_url' => env('FRONTEND_URL') . '/client/invoices',
+            'success_url' => config('app.frontend_url') . '/client/projects',
+            'cancel_url' => config('app.frontend_url') . '/client/invoices',
         ]);
 
         $payment->stripe_session_id = $session->id;
@@ -571,8 +571,8 @@ Stripe::setApiKey(config('services.stripe.secret'));
                     ],
                     'quantity' => 1,
                 ]],
-                'success_url' => env('FRONTEND_URL') . '/client/projects',
-                'cancel_url' => env('FRONTEND_URL') .'/client/invoices',
+                'success_url' => config('app.frontend_url') . '/client/projects',
+                'cancel_url' => config('app.frontend_url') . '/client/invoices',
                 'metadata' => [
                     'invoice_id' => $invoice->id,
                     'type' => 'additional_payment',
