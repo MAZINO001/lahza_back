@@ -141,6 +141,7 @@ public function handleManualPayment(Payment $payment)
     DB::transaction(function () use ($payment) {
         $payment->update(['status' => 'paid']);
         $this->paymentService->updateInvoiceStatus($payment->invoice);
+        $this->paymentService->autoGenerateRemainingPayment($payment->invoice, $payment);
 
         $paymentData = $payment->invoice
             ->payments()
@@ -148,7 +149,6 @@ public function handleManualPayment(Payment $payment)
             ->first()?->toArray() ?? [];
 
         $this->projectCreationService->updateProjectAfterPayment($payment->invoice, $paymentData);
-
         // Send payment success email
         $this->paymentService->sendPaymentSuccessEmail($payment);
     });

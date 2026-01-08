@@ -178,7 +178,7 @@ class PaymentService implements PaymentServiceInterface
 
         if ($payment_type === 'stripe') {
             // Handle Stripe payment
-Stripe::setApiKey(config('services.stripe.secret'));
+        Stripe::setApiKey(config('services.stripe.secret'));
 
             $session = Session::create([
                 'payment_method_types' => ['card'],
@@ -240,6 +240,8 @@ Stripe::setApiKey(config('services.stripe.secret'));
         // If status is 'paid', update the invoice immediately
         if ($payment_status === 'paid') {
             $this->updateInvoiceStatus($invoice);
+            $this->autoGenerateRemainingPayment($invoice, $payment);
+
         }
         
         $response['payment_url'] = $response['payment_url'] ?? null;
@@ -391,40 +393,20 @@ public function updatePendingPayment(Payment $payment, float $percentage, string
 
             $invoice = $payment->invoice;
             $totalAmount = $invoice->total_amount;
+            $this->updateInvoiceStatus($invoice);
+            $this->autoGenerateRemainingPayment($invoice, $payment);
 
             // Update invoice status
-            $this->updateInvoiceStatus($invoice);
-            
             // Refresh invoice to get updated values
             $invoice->refresh();
 
-            // // Create a project for the invoice
-            // try {
-            //     $this->projectCreationService->createProjectForInvoice($invoice);
-            // } catch (\Exception $e) {
-            //     Log::error('Failed to create project for invoice #'.$invoice->id.': '.$e->getMessage());
-            // }
 
             // Calculate total paid for logging and checking 50% threshold
             $totalPaid = $invoice->payments()->where('status', 'paid')->sum('amount');
             $balanceDue = $invoice->balance_due;
 
             // Generate a new payment link if exactly 50% was paid and there's still balance due
-            if (abs($totalPaid - $totalAmount * 0.5) < 0.01 && $balanceDue > 0) {
-                try {
-                    // Use the same payment method as the current payment
-                    $newPaymentLink = $this->createPaymentLink($invoice, 50,  // payment percentage (50% for the remaining amount)
-                            'pending',  // payment status
-                            $payment->payment_method  // payment type (e.g., 'stripe')
-                            );
-                            
-                    Log::info("50% of invoice #{$invoice->id} paid. New payment link created.", $newPaymentLink);
-                } catch (\Exception $e) {
-                    Log::warning("Failed to create new payment link after 50% payment for invoice #{$invoice->id}: " . $e->getMessage());
-                }
-            } else {
-                Log::info("Payment received for invoice #{$invoice->id}. Total paid: {$totalPaid}, balance due: {$balanceDue}, status: {$invoice->status}");
-            }
+           
             $paymentData = $invoice->payments()->latest()->first()?->toArray() ?? [];
             $this->projectCreationService->updateProjectAfterPayment($invoice ,$paymentData);
 
@@ -628,4 +610,43 @@ Stripe::setApiKey(config('services.stripe.secret'));
 
         return $response;
     }
+   public function autoGenerateRemainingPayment(Invoice $invoice, Payment $paidPayment): void
+{
+    // Refresh invoice state AFTER the payment status was updated
+    // But BEFORE calling this method, ensure updateInvoiceStatus was called first
+    $invoice->refresh();
+
+    // If invoice is fully paid → nothing to do
+    if ($invoice->balance_due <= 0) {
+        return;
+    }
+
+    // Prevent duplicates (VERY IMPORTANT)
+    $existingPending = $invoice->payments()
+        ->where('status', 'pending')
+        ->first();
+
+    if ($existingPending) {
+        return;
+    }
+
+    // Calculate remaining percentage based on ACTUAL balance, not just the paid payment percentage
+    $remainingPercentage = ($invoice->balance_due / $invoice->total_amount) * 100;
+    
+    // Round to 2 decimal places to avoid floating point issues
+    $remainingPercentage = round($remainingPercentage, 2);
+
+    // Only create if there's actually something remaining
+    if ($remainingPercentage <= 0) {
+        return;
+    }
+
+    // Create remaining payment
+    $this->createPaymentLink(
+        $invoice,
+        $remainingPercentage,
+        'pending',
+        $paidPayment->payment_method
+    );
+}
 }
