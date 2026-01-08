@@ -56,10 +56,11 @@ public function getPayment(){
         $this->authorize('update', $payment);
         $request->validate([
             'percentage' => 'required|numeric|min:0.01|max:100',
+            'payment_method' => 'required|string|in:stripe,bank,cash,cheque',
         ]);
 
         try {
-            $result = $this->paymentService->updatePendingPayment($payment, $request->percentage);
+            $result = $this->paymentService->updatePendingPayment($payment, $request->percentage, $request->payment_method);
             return response()->json([
                 'success' => true,
                 'data' => $result
@@ -118,7 +119,7 @@ public function getRemaining(Request $request, Invoice $invoice){
         $validated['payment_status']
     );
 }
-public function handleManualPayment(Payment $payment, bool $cancel = false)
+public function handleManualPayment(Payment $payment)
 {
     $this->authorize('update', $payment);
 
@@ -140,6 +141,7 @@ public function handleManualPayment(Payment $payment, bool $cancel = false)
     DB::transaction(function () use ($payment) {
         $payment->update(['status' => 'paid']);
         $this->paymentService->updateInvoiceStatus($payment->invoice);
+        $this->paymentService->autoGenerateRemainingPayment($payment->invoice, $payment);
 
         $paymentData = $payment->invoice
             ->payments()
@@ -147,7 +149,6 @@ public function handleManualPayment(Payment $payment, bool $cancel = false)
             ->first()?->toArray() ?? [];
 
         $this->projectCreationService->updateProjectAfterPayment($payment->invoice, $paymentData);
-
         // Send payment success email
         $this->paymentService->sendPaymentSuccessEmail($payment);
     });

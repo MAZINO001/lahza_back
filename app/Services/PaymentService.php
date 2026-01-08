@@ -178,7 +178,7 @@ class PaymentService implements PaymentServiceInterface
 
         if ($payment_type === 'stripe') {
             // Handle Stripe payment
-            Stripe::setApiKey(env('STRIPE_SECRET'));
+        Stripe::setApiKey(config('services.stripe.secret'));
 
             $session = Session::create([
                 'payment_method_types' => ['card'],
@@ -240,6 +240,8 @@ class PaymentService implements PaymentServiceInterface
         // If status is 'paid', update the invoice immediately
         if ($payment_status === 'paid') {
             $this->updateInvoiceStatus($invoice);
+            $this->autoGenerateRemainingPayment($invoice, $payment);
+
         }
         
         $response['payment_url'] = $response['payment_url'] ?? null;
@@ -248,111 +250,108 @@ class PaymentService implements PaymentServiceInterface
         return $response;
     }
 
-    public function updatePendingPayment(Payment $payment, float $percentage)
-    {
-        // Ensure payment is editable
-        if ($payment->status !== 'pending') {
-            throw new \Illuminate\Http\Exceptions\HttpResponseException(
-                response()->json([
-                    'status' => 'error',
-                    'message' => "Cannot update payment: Only pending payments can be updated. Payment ID {$payment->id} has status '{$payment->status}'."
-                ], 400)
-            );
-        }
-
-        // Load invoice relationship
-        $invoice = $payment->invoice;
-        if (!$invoice) {
-            throw new \Illuminate\Http\Exceptions\HttpResponseException(
-                response()->json([
-                    'status' => 'error',
-                    'message' => "Cannot update payment: Invoice not found for payment ID {$payment->id}."
-                ], 400)
-            );
-        }
-
-        // Validate invoice status
-        $this->validateInvoiceForPayment($invoice);
-
-        // Get current balance due from invoice (excluding this pending payment)
-        $currentBalanceDue = $invoice->balance_due;
-        
-        // Calculate new amount based on percentage of total
-        $newAmount = ($payment->total * $percentage) / 100;
-        
-        // Validate new amount is positive
-        if ($newAmount <= 0) {
-            throw new \Illuminate\Http\Exceptions\HttpResponseException(
-                response()->json([
-                    'status' => 'error',
-                    'message' => "Cannot update payment: The calculated payment amount ($" . number_format($newAmount, 2) . ") must be greater than zero."
-                ], 400)
-            );
-        }
-
-        // Get current balance due (excluding this pending payment)
-        $currentBalanceDue = $invoice->balance_due;
-        
-        // Validate that new amount doesn't exceed balance due
-        if ($newAmount > $currentBalanceDue) {
-            throw new \Illuminate\Http\Exceptions\HttpResponseException(
-                response()->json([
-                    'status' => 'error',
-                    'message' => "Cannot update payment: The requested payment amount ($" . number_format($newAmount, 2) . ") exceeds the remaining balance due ($" . number_format($currentBalanceDue, 2) . ") for invoice #{$invoice->id}."
-                ], 400)
-            );
-        }
-
-        $paymentUrl = null;
-
-        if ($payment->payment_method === 'stripe') {
-            // Delete old Stripe session data
-            $payment->stripe_session_id = null;
-            $payment->stripe_payment_intent_id = null;
-
-            // Create new Stripe session
-            Stripe::setApiKey(env('STRIPE_SECRET'));
-
-            $session = Session::create([
-                'payment_method_types' => ['card'],
-                'line_items' => [[
-                    'price_data' => [
-                        'currency' => 'usd',
-                        'unit_amount' => $newAmount * 100,
-                        'product_data' => [
-                            'name' => "Updated payment for invoice #{$payment->invoice_id}"
-                        ]
-                    ],
-                    'quantity' => 1
-                ]],
-                'mode' => 'payment',
-                'metadata' => [
-                    'invoice_id' => $payment->invoice_id,
-                    'client_id' => $payment->client_id,
-                    'updated_payment' => true
-                ],
-                'success_url' => env('FRONTEND_URL') . '/client/projects',
-                'cancel_url' => env('FRONTEND_URL') .'/client/invoices',
-            ]);
-
-            $payment->stripe_session_id = $session->id;
-            $payment->stripe_payment_intent_id = $session->payment_intent;
-            $payment->payment_url = $session->url;
-            $paymentUrl = $session->url;
-        }
-        // For non-stripe payments, paymentUrl remains null
-
-        $payment->amount = $newAmount;
-        $payment->percentage = $percentage;
-        $payment->save();
-
-        return [
-            'status' => 'updated',
-            'payment_method' => $payment->payment_method,
-            'new_amount' => $payment->amount,
-            'payment_url' => $paymentUrl,
-        ];
+public function updatePendingPayment(Payment $payment, float $percentage, string $payment_method)
+{
+    // 1. Ensure payment is editable
+    if ($payment->status !== 'pending') {
+        throw new \Illuminate\Http\Exceptions\HttpResponseException(
+            response()->json([
+                'status' => 'error',
+                'message' => "Cannot update payment: Only pending payments can be updated. Payment ID {$payment->id} has status '{$payment->status}'."
+            ], 400)
+        );
     }
+
+    // 2. Load invoice and validate
+    $invoice = $payment->invoice;
+    if (!$invoice) {
+        throw new \Illuminate\Http\Exceptions\HttpResponseException(
+            response()->json([
+                'status' => 'error',
+                'message' => "Cannot update payment: Invoice not found for payment ID {$payment->id}."
+            ], 400)
+        );
+    }
+    $this->validateInvoiceForPayment($invoice);
+
+    // 3. Calculate and Validate Amount
+    // Assuming $payment->total refers to the invoice total or the base amount for percentage
+    $newAmount = ($payment->total * $percentage) / 100;
+    
+    if ($newAmount <= 0) {
+        throw new \Illuminate\Http\Exceptions\HttpResponseException(
+            response()->json([
+                'status' => 'error',
+                'message' => "Cannot update payment: The calculated amount ($" . number_format($newAmount, 2) . ") must be greater than zero."
+            ], 400)
+        );
+    }
+
+    $currentBalanceDue = $invoice->balance_due;
+    if ($newAmount > $currentBalanceDue) {
+        throw new \Illuminate\Http\Exceptions\HttpResponseException(
+            response()->json([
+                'status' => 'error',
+                'message' => "Cannot update payment: The requested amount ($" . number_format($newAmount, 2) . ") exceeds the remaining balance ($" . number_format($currentBalanceDue, 2) . ")."
+            ], 400)
+        );
+    }
+
+    // 4. Update the payment method on the model BEFORE logic check
+    $payment->payment_method = $payment_method;
+    $paymentUrl = null;
+
+    // 5. Handle Stripe specific logic
+    if ($payment->payment_method === 'stripe') {
+        // Reset old session data
+        $payment->stripe_session_id = null;
+        $payment->stripe_payment_intent_id = null;
+
+        \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
+
+        $session = \Stripe\Checkout\Session::create([
+            'payment_method_types' => ['card'],
+            'line_items' => [[
+                'price_data' => [
+                    'currency' => 'usd',
+                    'unit_amount' => (int)($newAmount * 100), // Ensure it is an integer for Stripe
+                    'product_data' => [
+                        'name' => "Updated payment for invoice #{$payment->invoice_id}"
+                    ]
+                ],
+                'quantity' => 1
+            ]],
+            'mode' => 'payment',
+            'metadata' => [
+                'invoice_id' => $payment->invoice_id,
+                'client_id' => $payment->client_id,
+                'updated_payment' => true
+            ],
+            'success_url' => env('FRONTEND_URL') . '/client/projects',
+            'cancel_url' => env('FRONTEND_URL') . '/client/invoices',
+        ]);
+
+        $payment->stripe_session_id = $session->id;
+        $payment->stripe_payment_intent_id = $session->payment_intent;
+        $payment->payment_url = $session->url;
+        $paymentUrl = $session->url;
+    } else {
+        // If switching away from stripe, clear the URL
+        $payment->payment_url = null;
+    }
+
+    // 6. Finalize Save
+    $payment->amount = $newAmount;
+    $payment->percentage = $percentage;
+    $payment->save();
+
+    return [
+        'status' => 'updated',
+        'payment_method' => $payment->payment_method,
+        'new_amount' => $payment->amount,
+        'payment_url' => $paymentUrl,
+    ];
+}
 
     public function handleStripeWebhook(string $payload, string $sigHeader)
     {
@@ -394,40 +393,20 @@ class PaymentService implements PaymentServiceInterface
 
             $invoice = $payment->invoice;
             $totalAmount = $invoice->total_amount;
+            $this->updateInvoiceStatus($invoice);
+            $this->autoGenerateRemainingPayment($invoice, $payment);
 
             // Update invoice status
-            $this->updateInvoiceStatus($invoice);
-            
             // Refresh invoice to get updated values
             $invoice->refresh();
 
-            // // Create a project for the invoice
-            // try {
-            //     $this->projectCreationService->createProjectForInvoice($invoice);
-            // } catch (\Exception $e) {
-            //     Log::error('Failed to create project for invoice #'.$invoice->id.': '.$e->getMessage());
-            // }
 
             // Calculate total paid for logging and checking 50% threshold
             $totalPaid = $invoice->payments()->where('status', 'paid')->sum('amount');
             $balanceDue = $invoice->balance_due;
 
             // Generate a new payment link if exactly 50% was paid and there's still balance due
-            if (abs($totalPaid - $totalAmount * 0.5) < 0.01 && $balanceDue > 0) {
-                try {
-                    // Use the same payment method as the current payment
-                    $newPaymentLink = $this->createPaymentLink($invoice, 50,  // payment percentage (50% for the remaining amount)
-                            'pending',  // payment status
-                            $payment->payment_method  // payment type (e.g., 'stripe')
-                            );
-                            
-                    Log::info("50% of invoice #{$invoice->id} paid. New payment link created.", $newPaymentLink);
-                } catch (\Exception $e) {
-                    Log::warning("Failed to create new payment link after 50% payment for invoice #{$invoice->id}: " . $e->getMessage());
-                }
-            } else {
-                Log::info("Payment received for invoice #{$invoice->id}. Total paid: {$totalPaid}, balance due: {$balanceDue}, status: {$invoice->status}");
-            }
+           
             $paymentData = $invoice->payments()->latest()->first()?->toArray() ?? [];
             $this->projectCreationService->updateProjectAfterPayment($invoice ,$paymentData);
 
@@ -576,7 +555,7 @@ class PaymentService implements PaymentServiceInterface
 
         if ($payment_type === 'stripe') {
             // Stripe payment
-            Stripe::setApiKey(env('STRIPE_SECRET'));
+Stripe::setApiKey(config('services.stripe.secret'));
 
             $session = Session::create([
                 'mode' => 'payment',
@@ -631,4 +610,43 @@ class PaymentService implements PaymentServiceInterface
 
         return $response;
     }
+   public function autoGenerateRemainingPayment(Invoice $invoice, Payment $paidPayment): void
+{
+    // Refresh invoice state AFTER the payment status was updated
+    // But BEFORE calling this method, ensure updateInvoiceStatus was called first
+    $invoice->refresh();
+
+    // If invoice is fully paid → nothing to do
+    if ($invoice->balance_due <= 0) {
+        return;
+    }
+
+    // Prevent duplicates (VERY IMPORTANT)
+    $existingPending = $invoice->payments()
+        ->where('status', 'pending')
+        ->first();
+
+    if ($existingPending) {
+        return;
+    }
+
+    // Calculate remaining percentage based on ACTUAL balance, not just the paid payment percentage
+    $remainingPercentage = ($invoice->balance_due / $invoice->total_amount) * 100;
+    
+    // Round to 2 decimal places to avoid floating point issues
+    $remainingPercentage = round($remainingPercentage, 2);
+
+    // Only create if there's actually something remaining
+    if ($remainingPercentage <= 0) {
+        return;
+    }
+
+    // Create remaining payment
+    $this->createPaymentLink(
+        $invoice,
+        $remainingPercentage,
+        'pending',
+        $paidPayment->payment_method
+    );
+}
 }

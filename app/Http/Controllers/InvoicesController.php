@@ -73,7 +73,7 @@ class InvoicesController extends Controller
             'notes' => 'nullable|string',
             'total_amount' => 'required|numeric',
             'balance_due' => 'required|numeric',
-            'payment_percentage' => 'numeric',
+            'payment_percentage' => 'nullable|numeric',
             'payment_status' => 'string',
             'payment_type' => 'string',
             'services' => 'array',
