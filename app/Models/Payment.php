@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Quotes;
 use App\Models\User;
-use App\Models\Invoice; 
+use App\Models\Invoice;
 use App\Traits\LogsActivity;
 class Payment extends Model
 {
@@ -33,9 +33,14 @@ class Payment extends Model
         return $this->belongsTo(Quotes::class);
     }
 
-    public function user()
+    // public function user()
+    // {
+    //     return $this->belongsTo(User::class);
+    // }
+
+     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'client_id');
     }
 
    public function invoice()
