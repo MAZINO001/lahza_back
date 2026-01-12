@@ -66,3 +66,4 @@ Thumbs.db
 # -----------------------
 .auth.json
 lahza_back.rar
+.env-prod
