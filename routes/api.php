@@ -31,13 +31,14 @@ use App\Http\Controllers\ObjectiveController;
 use App\Http\Controllers\TeamAdditionalDataController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PdfController;
+use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\Ai\CalanderSummaryController;
 use Gemini\Laravel\Facades\Gemini;
 use \App\Http\Controllers\Ai\TaskUpdateController;
 
 Route::get('/check-models', function () {
     $response = Gemini::models()->list();
-    
+
     return collect($response->models)->map(function ($model) {
         return [
             'name' => $model->name,
@@ -85,8 +86,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/certifications/{certification}', [CertificationController::class, 'show']);
 
         Route::prefix('pdf')->controller(PdfController::class)->group(function () {
-        Route::get('/invoice/{id}', 'invoice');
-        Route::get('/quote/{id}', 'quote');
+            Route::get('/invoice/{id}', 'invoice');
+            Route::get('/quote/{id}', 'quote');
+        });
+        Route::prefix('pdf')->controller(ReceiptController::class)->group(function () {
+            Route::get('/receipt/{id}', 'receipt');
     });
 
         Route::get('signatures/{file}', function ($file) {
@@ -95,7 +99,7 @@ Route::middleware('auth:sanctum')->group(function () {
             return response()->file($path);
     });
         // User preferences
-        
+
         Route::put('/user/preferences', [UserController::class, 'updatePreferences']);
         // Clients
         Route::get('clients/{id}', [ClientController::class, 'show']);
@@ -126,7 +130,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('comments', [CommentController::class, 'getAllComments']);
         Route::post('comments/{type}/{id}', [CommentController::class, 'store']);
 
-        
+
         // Signature routes for both admin and client
         Route::post('/{model}/{id}/signature', [SignatureController::class, 'upload'])
             ->where('model', 'invoices|quotes');
@@ -138,15 +142,15 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/', [EventController::class, 'index']);
             Route::get('/{id}', [EventController::class, 'show']);
         });
-        
+
         // payments
         Route::get('/payments', [PaymentController::class, 'getPayment']);
         Route::get('getInvoicePayments/{invoice}', [PaymentController::class, 'getInvoicePayments']);
-        
+
         // Quotes → invoice conversion
         Route::post('quotes/{quote}/create-invoice', [QuotesController::class, 'createInvoiceFromQuote']);
-        
-        // Project additional data 
+
+        // Project additional data
         Route::prefix('additional-data')->controller(ProjectAdditionalDataController::class)->group(function () {
             Route::get('/project/{project_id}', 'showByProject');
             Route::post('/', 'store');
@@ -193,11 +197,12 @@ Route::get('/get-team-users', [UserController::class, 'getTeamUsers']);
         // Payments
         Route::post('/quotes/{quote}/pay', [PaymentController::class, 'createPaymentLink']);
         Route::put('/payments/{payment}', [PaymentController::class, 'updatePayment']);
-        
+        Route::get('/payments/{payment}', [PaymentController::class, 'show']);
+
         Route::put('/validatePayments/{payment}', [PaymentController::class, 'handleManualPayment']);
         Route::put('/cancelPayment/{payment}', [PaymentController::class, 'cancelPayment']);
         Route::get('getRemaining/{invoice}', [PaymentController::class, 'getRemaining']);
-        
+
         Route::post('/invoices/pay/{invoice}/{percentage}', [PaymentController::class, 'createAdditionalPayment']);
         Route::put('/payment/date/{payment}', [PaymentController::class, 'updatePaymentDate']);
 
@@ -205,7 +210,7 @@ Route::get('/get-team-users', [UserController::class, 'getTeamUsers']);
         Route::post('/projects', [ProjectController::class, 'store']);
         Route::put('/project/{project}', [ProjectController::class, 'update']);
         Route::delete('/project/{project}', [ProjectController::class, 'destroy']);
-        
+
         Route::post('project/invoice/assign', [ProjectController::class, 'assignProjectToInvoice']);
         Route::post('project/service/assign', [ProjectController::class, 'assignServiceToproject']);
 
