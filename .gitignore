@@ -66,3 +66,6 @@ Thumbs.db
 # -----------------------
 .auth.json
 lahza_back.rar
+config/cors.php
+config/telescope.php
+bootstrap/app.php
