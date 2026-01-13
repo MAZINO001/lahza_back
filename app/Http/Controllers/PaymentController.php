@@ -7,7 +7,7 @@ use App\Models\Invoice;
 use App\Services\PaymentServiceInterface;
 use App\Models\Payment;
 use Illuminate\Support\Facades\Log;
-use App\Services\ProjectCreationService; 
+use App\Services\ProjectCreationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use App\Models\Project;
@@ -65,7 +65,7 @@ public function getPayment(){
                 'success' => true,
                 'data' => $result
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -167,7 +167,7 @@ public function cancelPayment(Payment $payment) {
             'message' => 'Stripe method is not allowed',
         ]);
     }
-    
+
     if ($payment->status !== 'paid') {
         return response()->json([
             'error' => true,
@@ -177,20 +177,20 @@ public function cancelPayment(Payment $payment) {
 
     DB::transaction(function() use ($payment) {
         $invoice = $payment->invoice;
-        
+
         // Delete any pending payment that was auto-generated after this payment
         // (created after this payment was marked as paid)
         $invoice->payments()
             ->where('status', 'pending')
             ->where('created_at', '>=', $payment->updated_at) // Created after this payment was paid
             ->delete();
-        
+
         // Mark the payment as pending
         $payment->update(['status' => 'pending']);
-        
+
         // Update invoice status
         $this->paymentService->updateInvoiceStatus($invoice);
-        
+
         // Cancel project update
         $this->projectCreationService->cancelProjectUpdate($invoice);
     });
@@ -203,7 +203,7 @@ public function cancelPayment(Payment $payment) {
 public function updatePaymentDate(Request $request ,Payment $payment){
     $this->authorize('update', $payment);
 
-    
+
     $request->validate([
         'updated_at' => 'required|date',
     ]);
@@ -226,4 +226,11 @@ return response()->json([
 
     return response()->json($payments);
 }
+
+public function show(Payment $payment)
+{
+    $this->authorize('view', $payment);
+    return response()->json($payment->load('invoice', 'user'));
+}
+
 }

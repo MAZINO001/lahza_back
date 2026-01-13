@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ProjectAssignment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\ProjectAssignment;
+use App\Models\User;
 use App\Models\Project;
 class ProjectAssignmentController extends Controller
 {
@@ -20,8 +21,24 @@ public function getProjectTeamMembers(Project $project)
     return response()->json($teamUsers, 200);
 }
 
+public function DeleteProjectTeamMember(Project $project, User $user)
+{
+    $teamUser = $user->teamUser;
 
+    if (!$teamUser) {
+        return response()->json(['message' => 'Team user not found'], 404);
+    }
 
+    $deleted = $project->assignments()
+        ->where('team_id', $teamUser->id)
+        ->delete();
+
+    if ($deleted) {
+        return response()->json(['message' => 'Team member removed from project'], 200);
+    }
+
+    return response()->json(['message' => 'Team member assignment not found'], 404);
+}
     /**
      * Store a newly created resource in storage.
      */
@@ -31,7 +48,7 @@ public function getProjectTeamMembers(Project $project)
             'team_id'=>'required|exists:team_users,id',
             'project_id'=>'required|exists:projects,id',
         ]);
-       
+
         $exists = ProjectAssignment::where('project_id', $request->project_id)
                     ->where('team_id', $request->team_id)
                     ->exists();

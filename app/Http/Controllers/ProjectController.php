@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Invoice;
 use App\Models\Project;
+use App\Models\Service;
 use Illuminate\Support\Facades\Auth;
 use App\Services\ProjectCreationService;
 
@@ -49,7 +50,7 @@ class ProjectController extends Controller
         ]);
 
         $project = Project::create($validated);
-        
+
         if (isset($validated['invoice_ids']) && !empty($validated['invoice_ids'])) {
             $project->invoices()->sync($validated['invoice_ids']);
         }
@@ -85,7 +86,7 @@ class ProjectController extends Controller
         ]);
 
         $project->update($validated);
-        
+
         if (array_key_exists('invoice_ids', $validated)) {
             $project->invoices()->sync($validated['invoice_ids']);
         }
@@ -101,10 +102,10 @@ class ProjectController extends Controller
         $this->authorize('delete');
         // Detach all invoices before deleting the project
         $project->invoices()->detach();
-        
+
         // Delete the project
         $project->delete();
-        
+
         return response()->json(null, 204);
     }
     public function getProjectInvoices(){
@@ -156,7 +157,7 @@ $this->authorize('create', Project::class);
 }
 public function completeProject( Project $project)
 {
-    
+
     try {
         $this->projectCreationService->toggleProjectCompletion($project);
         return back()->with('success', 'Project updated successfully!');
@@ -169,6 +170,58 @@ public function completeProject( Project $project)
             'message' => $e->getMessage()
         ], $isLocked ? 403 : 422); // 403 is "Forbidden"
     }
+}
+
+public function getProjectServices(Project $project)
+{
+    $this->authorize('view', $project);
+
+    return response()->json($project->services()->get());
+}
+
+public function getALLProjectInvoices(Project $project)
+{
+    $this->authorize('view', $project);
+
+    return response()->json($project->invoices()->get());
+}
+
+public function deleteProjectInvoices(Project $project, Invoice $invoice)
+{
+    $this->authorize('delete', $project);
+
+    if (!$project->invoices()->where('invoices.id', $invoice->id)->exists()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Invoice not found in this project'
+        ], 404);
+    }
+
+    $project->invoices()->detach($invoice->id);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Invoice removed from project successfully'
+    ]);
+}
+
+public function deleteProjectServices(Project $project, Service $service)
+{
+    $this->authorize('delete', $project);
+
+    if (!$project->services()->where('services.id', $service->id)->exists()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Service not found in this project'
+        ], 404);
+    }
+
+    $project->services()->detach($service->id);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Service removed from project successfully'
+    ]);
 }
 
 }
