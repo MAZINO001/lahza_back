@@ -11,6 +11,7 @@ class File extends Model
 {
     use LogsActivity;
     protected $fillable = ['path', 'type', 'user_id', 'fileable_id', 'fileable_type'];
+
     protected $appends = ['url'];
 
     public function user()

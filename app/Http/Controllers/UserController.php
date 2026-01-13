@@ -76,7 +76,7 @@ class UserController extends Controller
     {
         $intern = Intern::findOrFail($internId);
 
-        
+
         $team = TeamUser::create([
             'user_id' => $intern->user_id,
             'department' => $intern->department,
@@ -106,4 +106,6 @@ class UserController extends Controller
     {
         return TeamUser::with('user')->paginate(10);
     }
+
+    
 }
