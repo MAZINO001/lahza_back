@@ -14,7 +14,7 @@ class User extends Authenticatable
 {
     use HasApiTokens ,HasFactory, Notifiable;
     use LogsActivity;
-    
+
     protected $fillable = [
         'name',
         'email',
@@ -24,6 +24,7 @@ class User extends Authenticatable
         'preferences',
         'remember_token',
         'email_verified_at',
+        'profile_image',
 
     ];
     public function client()
@@ -42,7 +43,7 @@ class User extends Authenticatable
     // Cast fields if needed
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'preferences' => 'array',  
+        'preferences' => 'array',
     ];
 
     public function permissions()
@@ -114,5 +115,5 @@ class User extends Authenticatable
     return data_get($this->preferences,"mail.$type",true );
     }
 
-    
+
 }

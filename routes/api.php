@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\LogsActivityController;
 use App\Http\Controllers\InvoicesController;
 use Illuminate\Support\Facades\Route;
@@ -32,6 +33,7 @@ use App\Http\Controllers\TeamAdditionalDataController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PdfController;
 use App\Http\Controllers\ReceiptController;
+use App\Http\Controllers\TicketController;
 use App\Http\Controllers\Ai\CalanderSummaryController;
 use Gemini\Laravel\Facades\Gemini;
 use \App\Http\Controllers\Ai\TaskUpdateController;
@@ -69,13 +71,18 @@ Route::middleware('auth:sanctum')->group(function () {
     // Logged-in user info (both admin & client)
     Route::get('/user', function (Request $request) {
         return [
+            'id' => $request->user()->id,
             'name' => $request->user()->name,
             'email' => $request->user()->email,
             'role' => $request->user()->role,
+            'user_type' => $request->user()->user_type,
+            'profile_image'=> $request->user()->profile_image,
             'preferences' => $request->user()->preferences,
         ];
     });
 
+    Route::get('/user/profile', [ProfileController::class, 'show']);
+    Route::put('/user/profile', [ProfileController::class, 'uploadProfile']);
     // -------------------------------------------------
     // SHARED READ ROUTES (admin + client)
     // -------------------------------------------------
@@ -120,7 +127,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/tasks', [TaskController::class, 'allTasks']);
         Route::get('getProgress/{project}', [ProjectProgressController::class, 'index']);
         Route::get('getproject/invoices', [ProjectController::class, 'getProjectInvoices']);
+        Route::get('/projects/{project}/invoices', [ProjectController::class, 'getALLProjectInvoices']);
+        Route::get('/projects/{project}/services', [ProjectController::class, 'getProjectServices']);
 
+        Route::delete('/projects/{project}/invoices/{invoice}', [ProjectController::class, 'deleteProjectInvoices']);
+        Route::delete('/projects/{project}/services/{service}', [ProjectController::class, 'deleteProjectServices']);
         // CSV export (read)
         Route::get('/export', [ClientImportExportController::class, 'export']);
 
@@ -159,9 +170,12 @@ Route::middleware('auth:sanctum')->group(function () {
         });
 
         Route::get('/project/team/{project}', [ProjectAssignmentController::class, 'getProjectTeamMembers']);
+        Route::delete('/project/team/{project}/{user}', [ProjectAssignmentController::class, 'DeleteProjectTeamMember']);
         Route::get('/payments/project/{project}', [PaymentController::class, 'getProjectPayments']);
     });
 
+        Route::apiResource('tickets', TicketController::class);
+        Route::get('/tickets/{ticketId}/download/{fileId}', [TicketController::class, 'downloadAttachment']);
     // -------------------------------------------------
     // Admin-only routes
     // -------------------------------------------------

@@ -20,9 +20,8 @@ class ReceiptController extends Controller
             ->findOrFail($id);
 
         // 🔐 AUTHORIZATION CHECK
-        $this->authorizeReceiptAccess($user, $payment);
+        // $this->authorizeReceiptAccess($user, $payment);
 
-        // ✅ FIXED: Remove the incorrect $payment->payments() call
         // The $payment model instance already contains the payment data
         if (!$payment) {
             abort(404, 'No payment found for this invoice.');
