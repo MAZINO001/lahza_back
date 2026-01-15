@@ -20,7 +20,7 @@ class ReceiptController extends Controller
             ->findOrFail($id);
 
         // 🔐 AUTHORIZATION CHECK
-        // $this->authorizeReceiptAccess($user, $payment);
+        $this->authorizeReceiptAccess($user, $payment);
 
         // The $payment model instance already contains the payment data
         if (!$payment) {
@@ -69,8 +69,7 @@ class ReceiptController extends Controller
             return;
         }
 
-        // ✅ FIXED: Check against invoice's client relationship
-        if ($user->role !== 'client' || !$payment->invoice || $payment->invoice->client_id !== $user->id) {
+        if ($user->role !== 'client' ||  $payment->client_id != $user->id) {
             abort(403, 'You are not allowed to download this receipt.');
         }
     }
