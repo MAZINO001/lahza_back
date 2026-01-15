@@ -162,4 +162,21 @@ public function updateUserEmail(Request $request)
         'email' => $user->email,
     ]);
 }
+
+public function updateUserPassword(Request $request)
+{
+    $validated = $request->validate([
+        'current_password' => ['required', 'current_password'],
+        'password' => ['required', 'confirmed', 'min:8'],
+        'password_confirmation' => ['required'],
+    ]);
+
+    $request->user()->update([
+        'password' => Hash::make($validated['password']),
+    ]);
+
+    return response()->json([
+        'message' => 'Password updated successfully!',
+    ], 200);
+}
 }
