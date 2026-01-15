@@ -50,6 +50,7 @@ Route::get('/check-models', function () {
     });
 });
 // Public Auth Routes
+
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->middleware('guest')->name('password.email');
@@ -81,6 +82,7 @@ Route::middleware('auth:sanctum')->group(function () {
         ];
     });
 
+    Route::put('/user/email_update', [UserController::class, 'updateUserEmail']);
     Route::get('/user/profile', [ProfileController::class, 'show']);
     Route::put('/user/profile', [ProfileController::class, 'uploadProfile']);
     // -------------------------------------------------
