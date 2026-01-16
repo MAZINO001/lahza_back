@@ -14,10 +14,10 @@
         }
 
         body {
-            font-family: 'plusJakartaSans', sans-serif;
-            background: #f8f9fa;
-            color: #1a1a1a;
-            line-height: 1.45;
+            font-family: "PlusJakartaSans", sans-serif;
+            background: #f5f5f5;
+            letter-spacing: 1.5px;
+            line-height: 1.8;
         }
 
         .receipt-container {
