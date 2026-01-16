@@ -8,9 +8,20 @@ use App\Models\ActivityLog;
 use App\Models\TeamUser;
 use App\Models\Intern;
 use App\Models\TeamAdditionalData;
+use Illuminate\Support\Facades\Hash;
+use App\Services\ActivityLoggerService;
 use Illuminate\Support\Facades\Storage;
 class UserController extends Controller
 {
+
+    protected $activityLogger;
+
+    public function __construct(
+        ActivityLoggerService $activityLogger
+    ) {
+        $this->activityLogger = $activityLogger;
+    }
+
     public function index()
     {
         return User::all();
@@ -49,6 +60,7 @@ class UserController extends Controller
     $validated = $request->validate([
         'ui.language' => 'sometimes|string|in:en,fr,ar,es',
         'ui.dark_mode' => 'sometimes|boolean',
+        'ui.currency' => 'sometimes|string|in:eur,mad,usd',
 
         'mail' => 'sometimes|array',
         'browser' => 'sometimes|array',
@@ -107,5 +119,64 @@ class UserController extends Controller
         return TeamUser::with('user')->paginate(10);
     }
 
-    
+public function updateUserEmail(Request $request)
+{
+    $validated = $request->validate([
+        'email' => 'required|email|unique:users,email,' . auth()->id(),
+        'password' => 'required|string',
+    ]);
+
+    $user = auth()->user();
+
+    // Verify the current password
+    if (!Hash::check($validated['password'], $user->password)) {
+        return response()->json([
+            'message' => 'The provided password is incorrect.',
+        ], 422);
+    }
+
+    $oldEmail = $user->email;
+
+    $user->update([
+        'email' => $validated['email'],
+    ]);
+
+    // Log activity
+    $this->activityLogger->log(
+        'user_profile',
+        'email_update',
+        $user->id,
+        request()->ip(),
+        request()->userAgent(),
+        [
+            'user_id' => $user->id,
+            'old_email' => $oldEmail,
+            'new_email' => $validated['email'],
+            'url' => request()->fullUrl()
+        ],
+        "Email updated for user #{$user->id} from {$oldEmail} to {$validated['email']}"
+    );
+
+    return response()->json([
+        'message' => 'Email updated successfully',
+        'email' => $user->email,
+    ]);
+}
+
+public function updateUserPassword(Request $request)
+{
+    $validated = $request->validate([
+        'current_password' => ['required', 'current_password'],
+        'password' => ['required', 'confirmed', 'min:8'],
+        'password_confirmation' => ['required'],
+    ]);
+
+    $request->user()->update([
+        'password' => Hash::make($validated['password']),
+    ]);
+
+    return response()->json([
+        'message' => 'Password updated successfully!',
+    ], 200);
+}
 }

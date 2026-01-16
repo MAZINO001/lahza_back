@@ -14,10 +14,10 @@
         }
 
         body {
-            font-family: 'plusJakartaSans', sans-serif;
-            background: #f8f9fa;
-            color: #1a1a1a;
-            line-height: 1.45;
+            font-family: "PlusJakartaSans", sans-serif;
+            background: #f5f5f5;
+            letter-spacing: 1.5px;
+            line-height: 1.8;
         }
 
         .receipt-container {
@@ -28,23 +28,23 @@
         }
 
         .header-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 20px;
             width: 100%;
             margin-bottom: 16px;
+            position: relative;
         }
 
         .header-top .logo-square {
             flex: 0 0 auto;
             min-width: 170px;
+            width: 50%;
+
         }
 
         .header-top .logo-square img {
             width: 170px;
             height: auto;
             display: block;
+
         }
 
         .header-top .contact-block {
@@ -53,6 +53,10 @@
             color: #051630;
             line-height: 1.6;
             text-align: right;
+            width: 50%;
+            float: right;
+            top: 0;
+            position: absolute;
         }
 
         .header-top .contact-block a {
@@ -267,8 +271,10 @@
 
         <div class="payment-info">
             <div><strong>Mode de paiement :</strong> {{ $receipt['payment_method'] }}</div>
-            <div><strong>ID de transaction :</strong> {{ $receipt['transaction_id'] }}</div>
-            <div><strong>Numéro de facture :</strong> #{{ $receipt['invoice']->id ?? 'N/A' }}</div>
+            <div><strong>ID de transaction :</strong>
+                {{ str_pad($receipt['transaction_id'] ?? 0, 5, '0', STR_PAD_LEFT) }}</div>
+            <div><strong>Numéro de facture :</strong> {{ str_pad($receipt['invoice']->id ?? 0, 5, '0', STR_PAD_LEFT) }}
+            </div>
         </div>
 
         <div class="thank-you">
