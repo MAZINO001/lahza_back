@@ -11,53 +11,51 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class ReceiptController extends Controller
 {
     /**
-     * Download receipt as PDF
+     * Download receipt as PDF for a specific payment
      */
     public function receipt($id)
     {
         $user = Auth::user();
-        $payment = Payment::with(['user', 'invoice', 'files'])
+        $payment = Payment::with(['user', 'invoice', 'invoice.invoiceServices', 'invoice.client', 'files'])
             ->findOrFail($id);
 
         // 🔐 AUTHORIZATION CHECK
         $this->authorizeReceiptAccess($user, $payment);
 
-        // The $payment model instance already contains the payment data
-        if (!$payment) {
-            abort(404, 'No payment found for this invoice.');
-        }
-
         $companyInfo = CompanyInfo::first();
-
-        // Get invoice with its services
         $invoice = $payment->invoice;
+
         if (!$invoice) {
             abort(404, 'No invoice found for this payment.');
         }
 
+        // Calculate items based on the PAYMENT PERCENTAGE, not the full invoice
+        $paymentPercentage = $payment->percentage ?? 100;
+
         $receipt = [
             'invoice' => $invoice,
             'payment' => $payment,
-            'client' => $invoice->client ?? $payment->user, // ✅ FIXED: Use correct client relationship
+            'client' => $invoice->client ?? $payment->user,
             'date' => $payment->updated_at?->format('F d, Y') ?? now()->format('F d, Y'),
             'customer_name' => $payment->user->name ?? 'unknown',
             'customer_email' => $payment->user->email ?? 'unknown',
-            'items' => $this->formatInvoiceItems($invoice),
-            'subtotal' => $this->calculateSubtotal($invoice),
-            'tax' => $this->calculateTax($invoice),
+            'items' => $this->formatInvoiceItemsForPayment($invoice, $paymentPercentage),
+            'subtotal' => $this->calculatePaymentSubtotal($invoice, $paymentPercentage),
+            'tax' => $this->calculatePaymentTax($invoice, $paymentPercentage),
             'tax_rate' => $this->getAverageTaxRate($invoice),
-            'total' => $payment->total ?? $this->calculateTotal($invoice),
+            'total' => $payment->amount ?? $payment->total, // Use the actual payment amount
             'payment_method' => $this->formatPaymentMethod($payment),
             'transaction_id' => $payment->stripe_payment_intent_id ?? $payment->id ?? 'N/A',
             'currency' => $payment->currency ?? $invoice->currency ?? 'MAD',
             'companyInfo' => $companyInfo,
+            'payment_percentage' => $paymentPercentage, // Pass percentage to view
         ];
 
         $pdf = PDF::loadView('pdf.receipt', compact('receipt'));
 
         return response($pdf->output(), 200)
             ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="receipt-' . $payment->id . '.pdf"');
+            ->header('Content-Disposition', 'inline; filename="receipt-payment-' . $payment->id . '.pdf"');
     }
 
     /**
@@ -69,59 +67,62 @@ class ReceiptController extends Controller
             return;
         }
 
-        if ($user->role !== 'client' ||  $payment->client_id != $user->id) {
+        if ($user->role !== 'client' || $payment->client_id != $user->id) {
             abort(403, 'You are not allowed to download this receipt.');
         }
     }
 
     /**
-     * Calculate subtotal (HT - Before Tax)
+     * Calculate subtotal for the payment portion (HT - Before Tax)
      */
-    protected function calculateSubtotal($invoice): float
+    protected function calculatePaymentSubtotal($invoice, $percentage): float
     {
-        return collect($invoice->invoiceServices ?? [])->reduce(function ($total, $line) {
+        $fullSubtotal = collect($invoice->invoiceServices ?? [])->reduce(function ($total, $line) {
             $ttc = (float) ($line->individual_total ?? 0);
             $rate = ((float) ($line->tax ?? 0)) / 100;
             $ht = $rate > 0 ? $ttc / (1 + $rate) : $ttc;
             return $total + $ht;
         }, 0);
+
+        return round($fullSubtotal * ($percentage / 100), 2);
     }
 
     /**
-     * Calculate total tax amount (TVA) - Total money that goes to taxes
+     * Calculate tax for the payment portion (TVA)
      */
-    protected function calculateTax($invoice): float
+    protected function calculatePaymentTax($invoice, $percentage): float
     {
-        $subtotal = $this->calculateSubtotal($invoice);
-        $total = $this->calculateTotal($invoice);
+        $subtotal = $this->calculatePaymentSubtotal($invoice, $percentage);
+        $total = $this->calculatePaymentTotal($invoice, $percentage);
 
-        // Tax amount = Total TTC - Total HT (before tax)
         return round($total - $subtotal, 2);
     }
 
     /**
-     * Calculate total amount (TTC - After Tax)
+     * Calculate total for the payment portion (TTC - After Tax)
      */
-    protected function calculateTotal($invoice): float
+    protected function calculatePaymentTotal($invoice, $percentage): float
     {
-        return collect($invoice->invoiceServices ?? [])->sum(function ($line) {
+        $fullTotal = collect($invoice->invoiceServices ?? [])->sum(function ($line) {
             return (float) ($line->individual_total ?? 0);
         });
+
+        return round($fullTotal * ($percentage / 100), 2);
     }
 
     /**
-     * Format invoice items for display
-     * ✅ FIXED: Use individual_total directly instead of calculating from unit_price
+     * Format invoice items for the payment percentage
      */
-    protected function formatInvoiceItems($invoice): array
+    protected function formatInvoiceItemsForPayment($invoice, $percentage): array
     {
-        return collect($invoice->invoiceServices ?? [])->map(function ($line) {
+        return collect($invoice->invoiceServices ?? [])->map(function ($line) use ($percentage) {
             $quantity = (int) ($line->quantity ?? 1);
             $totalTTC = (float) ($line->individual_total ?? 0);
             $taxRate = (float) ($line->tax ?? 0);
 
-            // Calculate HT from TTC and tax rate
-            $totalHT = $taxRate > 0 ? $totalTTC / (1 + $taxRate / 100) : $totalTTC;
+            // Apply percentage to the TTC amount
+            $paymentTTC = $totalTTC * ($percentage / 100);
+            $totalHT = $taxRate > 0 ? $paymentTTC / (1 + $taxRate / 100) : $paymentTTC;
             $unitPrice = $quantity > 0 ? $totalHT / $quantity : 0;
 
             return [
@@ -129,8 +130,8 @@ class ReceiptController extends Controller
                 'quantity' => $quantity,
                 'unit_price' => $unitPrice,
                 'tax_rate' => $taxRate,
-                'total_price_ht' => $totalHT,
-                'total_price_ttc' => $totalTTC,
+                'total_price_ht' => round($totalHT, 2),
+                'total_price_ttc' => round($paymentTTC, 2),
             ];
         })->toArray();
     }
