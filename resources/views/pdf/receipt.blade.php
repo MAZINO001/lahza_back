@@ -4,8 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-
+    <title>Receipt</title>
     <style>
         * {
             margin: 0;
@@ -14,123 +13,101 @@
         }
 
         body {
-            font-family: "PlusJakartaSans", sans-serif;
+            font-family: Arial, sans-serif;
             background: #f5f5f5;
-            letter-spacing: 1.5px;
-            line-height: 1.8;
         }
 
         .receipt-container {
             background: white;
             max-width: 800px;
-            padding: 20px;
-            border-radius: 8px;
+            padding: 40px;
+            margin: 0 auto;
         }
 
         .header-top {
-            width: 100%;
-            margin-bottom: 16px;
+            border-bottom: 1px solid #777;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
             position: relative;
         }
 
-        .header-top .logo-square {
-            flex: 0 0 auto;
-            min-width: 170px;
+        .logo-section {
             width: 50%;
-
+            display: inline-block;
+            vertical-align: top;
         }
 
-        .header-top .logo-square img {
-            width: 170px;
+        .logo-section img {
+            width: 150px;
             height: auto;
-            display: block;
-
         }
 
-        .header-top .contact-block {
-            flex: 1;
-            font-size: 15px;
-            color: #051630;
-            line-height: 1.6;
-            text-align: right;
+        .contact-section {
             width: 50%;
-            float: right;
-            top: 0;
+            display: inline-block;
+            vertical-align: top;
+            text-align: right;
+            font-size: 12px;
+            line-height: 1.8;
             position: absolute;
+            right: 0;
+            top: 0;
         }
 
-        .header-top .contact-block a {
-            color: #051630;
-            text-decoration: none;
-        }
-
-        .header-top .contact-block h3 {
-            margin: 0 0 5px 0;
-            font-size: 15px;
-            font-weight: normal;
+        .contact-section p {
+            margin: 0;
         }
 
         .main-title {
             text-align: center;
             font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 6px;
-            letter-spacing: -0.3px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            margin-top: 20px;
         }
 
         .receipt-date {
             text-align: center;
-            color: #051630;
-            font-size: 14.5px;
-            margin-bottom: 40px;
-        }
-
-        .from-block {
-            margin-bottom: 40px;
-        }
-
-        .from-title {
             font-size: 15px;
-            font-weight: 600;
+            margin-bottom: 20px;
+            color: #555;
+        }
+
+        .from-section {
+            margin-bottom: 20px;
+        }
+
+        .section-label {
+            font-size: 13px;
+            font-weight: bold;
             margin-bottom: 8px;
-            color: #222;
         }
 
-        .from-name {
-            font-weight: 600;
-            font-size: 15px;
-            margin-bottom: 4px;
-        }
-
-        .from-email {
-            color: #051630;
-            font-size: 14.5px;
+        .section-content {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #333;
         }
 
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 32px;
-        }
-
-        .items-table thead {
-            background: #f1f3f5;
-        }
-
-        .items-table th,
-        .items-table td {
-            padding: 14px 12px;
-            text-align: left;
-            border-bottom: 1px solid #e9ecef;
-            font-size: 14px;
+            margin-bottom: 30px;
+            font-size: 13px;
         }
 
         .items-table th {
-            font-weight: 600;
-            color: #333;
-            text-transform: uppercase;
-            font-size: 12.5px;
-            letter-spacing: 0.4px;
+            background: #f0f0f0;
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: bold;
+            border-bottom: 1px solid #ddd;
+            font-size: 12px;
+        }
+
+        .items-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #eee;
         }
 
         .items-table .qty,
@@ -140,97 +117,115 @@
         }
 
         .items-table .description {
-            font-weight: 500;
+            font-weight: bold;
         }
 
-        .totals-block {
-            width: 320px;
-            margin-bottom: 40px;
+        .totals-section {
+            width: 50%;
+            margin-bottom: 20px;
         }
 
         .total-line {
             display: flex;
             justify-content: space-between;
-            padding: 9px 0;
-            font-size: 14.5px;
+            padding: 8px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #eee;
         }
 
-        .total-line strong {
-            font-weight: 600;
+        .total-line.label {
+            border-bottom: none;
         }
 
         .grand-total {
             border-top: 1px solid #333;
-            padding-top: 14px;
-            margin-top: 10px;
-            font-size: 17px;
-            font-weight: 700;
+            border-bottom: none;
+            padding-top: 10px;
+            font-weight: bold;
+            font-size: 15px;
+            margin-top: 5px;
         }
 
-        .payment-info {
-            font-size: 14px;
-            color: #333;
-            margin-bottom: 40px;
+        .payment-section {
+            margin-bottom: 20px;
+            font-size: 13px;
+            line-height: 1.8;
         }
 
-        .payment-info strong {
-            font-weight: 600;
-            min-width: 140px;
+        .payment-line {
+            margin-bottom: 5px;
+        }
+
+        .payment-line strong {
+            font-weight: bold;
             display: inline-block;
+            width: 140px;
         }
 
         .thank-you {
             text-align: center;
-            color: #051630;
-            font-size: 14px;
-            line-height: 1.6;
+            font-size: 13px;
+            line-height: 1.8;
+            color: #555;
         }
 
         .thank-you strong {
-            color: #222;
+            color: #333;
+            font-weight: bold;
         }
     </style>
 </head>
 
 <body>
-
     <div class="receipt-container">
-
         <div class="header-top">
-            <div class="logo-square">
-                <img src="{{ public_path('logo.png') }}" alt="Logo" />
+            <div class="logo-section">
+                <img src="{{ public_path('logo.png') }}" alt="lahza logo">
             </div>
-            <div class="contact-block">
-                <h3>{{ $receipt['companyInfo']->company_name ?? 'Lahza Agency' }}</h3>
-                <h3>{{ $receipt['companyInfo']->email ?? 'contact@company.com' }}</h3>
-                <h3>{{ $receipt['companyInfo']->phone ?? 'Téléphone' }}</h3>
+            <div class="contact-section">
+                <p><strong>{{ $receipt['companyInfo']->company_name ?? 'Lahza Agency' }}</strong></p>
+                <p>{{ $receipt['companyInfo']->email ?? 'contact@company.com' }}</p>
+                <p>{{ $receipt['companyInfo']->phone ?? 'Phone' }}</p>
             </div>
         </div>
 
-        <h1 class="main-title">Reçu</h1>
 
+        <!-- Title -->
+        <h1 class="main-title">Receipt</h1>
+
+
+        <!-- Date -->
         <div class="receipt-date">
-            Date : {{ $receipt['date'] }}
+            Date: {{ $receipt['date'] }}
         </div>
 
-        <div class="from-block">
-            <div class="from-title">Reçu de : {{ $receipt['customer_name'] }}</div>
-            <div class="from-email">E-mail : {{ $receipt['customer_email'] }}</div>
+
+        <!-- From Section -->
+        <div class="from-section">
+            <div class="section-label">Received From:</div>
+            <div class="section-content">
+                <strong>{{ $receipt['customer_name'] }}</strong><br>
+                Email: {{ $receipt['customer_email'] }}
+            </div>
         </div>
 
-        <div style="margin-bottom: 16px;">
-            <div class="from-title">Description des services ou produits :</div>
+
+        <!-- Description Section -->
+        <div class="from-section">
+            <div class="section-label">Description of Services or Products:</div>
         </div>
 
+
+        <!-- Items Table -->
         <table class="items-table">
             <thead>
                 <tr>
-                    <th>Description</th>
-                    <th class="qty">Quantité</th>
-                    <th class="price">Prix unitaire</th>
-                    <th class="price">Taxe (%)</th>
-                    <th class="total">Montant HT</th>
-                    <th class="total">Montant TTC</th>
+                    <th>Item Description</th>
+                    <th class="qty">Quantity</th>
+                    <th class="price">Unit Price</th>
+                    <th class="price">Tax (%)</th>
+                    <th class="total">Total (HT)</th>
+                    <th class="total">Total (TTC)</th>
                 </tr>
             </thead>
             <tbody>
@@ -238,54 +233,60 @@
                     <tr>
                         <td class="description">{{ $item['description'] }}</td>
                         <td class="qty">{{ $item['quantity'] }}</td>
-                        <td class="price">{{ number_format($item['unit_price'], 2) }} <span class="currency"></span>
-                        </td>
-                        <td class="tax">{{ number_format($item['tax_rate'], 2) }}%</td>
-                        <td class="total">{{ number_format($item['total_price_ht'], 2) }} <span
-                                class="currency"></span></td>
-                        <td class="total">{{ number_format($item['total_price_ttc'], 2) }} <span
-                                class="currency"></span></td>
+                        <td class="price">${{ number_format($item['unit_price'], 2) }}</td>
+                        <td class="price">{{ number_format($item['tax_rate'], 2) }}%</td>
+                        <td class="total">${{ number_format($item['total_price_ht'], 2) }}</td>
+                        <td class="total"><strong>${{ number_format($item['total_price_ttc'], 2) }}</strong></td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="empty-state">Aucun article trouvé</td>
+                        <td colspan="6">No items found</td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
 
-        <div class="totals-block">
-            <div class="total-line">
-                <div>Sous-total (HT) :</div>
-                <div>{{ number_format($receipt['subtotal'], 2) }} </div>
+
+        <!-- Totals -->
+        <div class="totals-section">
+            <div class="total-line label">
+                <div>Subtotal:</div>
+                <div>${{ number_format($receipt['subtotal'], 2) }}</div>
             </div>
-            <div class="total-line">
-                <div>Total Taxe :</div>
-                <div>{{ number_format($receipt['tax'], 2) }} </div>
+            <div class="total-line label">
+                <div>Tax :</div>
+                <div>${{ number_format($receipt['tax'], 2) }}</div>
             </div>
             <div class="total-line grand-total">
-                <strong>Montant total TTC :</strong>
-                <strong>{{ number_format($receipt['total'], 2) }} </strong>
+                <div><strong>Total Amount:</strong></div>
+                <div><strong>${{ number_format($receipt['total'], 2) }}</strong></div>
             </div>
         </div>
 
-        <div class="payment-info">
-            <div><strong>Mode de paiement :</strong> {{ $receipt['payment_method'] }}</div>
-            <div><strong>ID de transaction :</strong>
-                {{ str_pad($receipt['transaction_id'] ?? 0, 5, '0', STR_PAD_LEFT) }}</div>
-            <div><strong>Numéro de facture :</strong> {{ str_pad($receipt['invoice']->id ?? 0, 5, '0', STR_PAD_LEFT) }}
+
+        <!-- Payment Info -->
+        <div class="payment-section">
+            <div class="payment-line">
+                <strong>Payment Method:</strong> {{ $receipt['payment_method'] }}
+            </div>
+            <div class="payment-line">
+                <strong>Transaction ID:</strong> {{ str_pad($receipt['transaction_id'] ?? 0, 5, '0', STR_PAD_LEFT) }}
+            </div>
+            <div class="payment-line">
+                <strong>Invoice Number:</strong> {{ str_pad($receipt['invoice']->id ?? 0, 5, '0', STR_PAD_LEFT) }}
             </div>
         </div>
 
+
+        <!-- Thank You -->
         <div class="thank-you">
-            Merci pour votre achat !<br>
-            Si vous avez des questions ou besoin d'aide,<br>
-            contactez-nous à
-            <strong>{{ config('app.contact_email') ?? ($receipt['companyInfo']->email ?? 'votre@email.com') }}</strong>.
+            Thank you for your purchase!<br>
+            If you have any questions or need assistance,<br>
+            feel free to contact us at
+            <strong>{{ config('app.contact_email') ?? ($receipt['companyInfo']->email ?? 'your@email.com') }}</strong>.
         </div>
 
     </div>
-
 </body>
 
 </html>
