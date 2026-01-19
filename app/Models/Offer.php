@@ -15,6 +15,10 @@ class Offer extends Model
         "start_date",
         "end_date",
         "status",
+"placement",
+    ];
+    protected $casts = [
+    'placement' => 'array',
     ];
 
     public function service()

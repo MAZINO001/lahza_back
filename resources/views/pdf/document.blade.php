@@ -21,17 +21,12 @@
 
         body {
             font-family: "PlusJakartaSans", sans-serif;
-            /* padding: 40px; */
             background: #f5f5f5;
             letter-spacing: 1.5px;
-            line-height: 1.8;
+            line-height: 1.5;
         }
 
         .invoice-container {
-            /* max-width: 800px; */
-            /* margin: 0 auto; */
-            /* padding: 30px; */
-            /* box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); */
             background: white;
             height: 100%;
         }
@@ -40,13 +35,6 @@
             display: flex;
             justify-content: space-between;
         }
-
-        /* .company-info {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            width: 100%;
-        } */
 
         .company-info {
             display: table;
@@ -89,7 +77,7 @@
         .invoice-title {
             position: relative;
             text-align: center;
-            margin: 15px 0px;
+            margin: 10px 0px;
         }
 
         .invoice-title h2 {
@@ -118,7 +106,7 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
         /* .client-info {
@@ -126,7 +114,7 @@
             align-items: start;
             justify-content: space-between;
             width: 100%;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         } */
 
 
@@ -202,7 +190,7 @@
             border: 1px solid #ebe6e6;
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
         .items-table thead {
@@ -253,7 +241,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
             margin-left: auto;
             text-align: right;
         } */
@@ -287,7 +275,7 @@
 
         .payment-info {
             width: 100%;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
         .payment-info p {
@@ -327,7 +315,7 @@
 
             font-size: 13px;
             line-height: 1.6;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
         .notes {
@@ -380,7 +368,7 @@
 
         .client-info {
             width: 100%;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
             position: relative;
             height: auto;
         }
@@ -405,7 +393,7 @@
 
         .totals {
             width: 100%;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
             overflow: hidden;
             /* ensures floats stay inside */
         }
@@ -660,13 +648,12 @@
                     </div>
                 </div>
             </div>
-
             <div class="footer">
                 <div class="conditions">
                     <strong>Conditions d'utilisation</strong><br>
                     {{ $companyInfo?->terms_and_conditions ??
                         "En signant la facture, le client accepte sans réserves nos conditions. Pour plus d'informations,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/" }}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/" }}
                 </div>
             </div>
 
