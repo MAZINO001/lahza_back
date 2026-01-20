@@ -748,11 +748,11 @@ class ProjectCreationService
     {
 
         // Check 1: Status Check
-        if ($project->status !== 'completed' && $project->status !== 'in_progress') {
+        if ($project->status !== 'completed' && $project->status !== 'pending') {
             Log::info('Action denied: Invalid status', ['id' => $project->id, 'status' => $project->status]);
             
             // Throwing instead of returning array
-            throw new \Exception("INVALID_STATUS: Only projects with status 'in progress' or 'Completed' can be toggled.");
+            throw new \Exception("INVALID_STATUS: Only projects with status 'Pending' or 'Completed' can be toggled.");
         }
 
         // Check 2: Progress Check 
@@ -765,14 +765,18 @@ class ProjectCreationService
         return DB::transaction(function () use ($project) {
             
             // Determine new status: if already completed, go back to pending; otherwise, complete it.
-            $newStatus = ($project->status === 'completed') ? 'in_progress' : 'completed';
+            $newStatus = ($project->status === 'completed') ? 'pending' : 'completed';
             $oldStatus = $project->status;
 
             $project->update([
                 'status' => $newStatus,
             ]);
 
-           
+            Log::info('Project status toggled', [
+                'project_id' => $project->id,
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus
+            ]);
 
             // Log activity if logger is available
             if (isset($this->activityLogger)) {
