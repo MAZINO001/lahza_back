@@ -155,20 +155,23 @@ $this->authorize('create', Project::class);
         'message' => 'Project and service linked successfully, tasks created.',
     ]);
 }
-public function completeProject( Project $project)
+public function completeProject(Project $project)
 {
-
     try {
         $this->projectCreationService->toggleProjectCompletion($project);
-        return back()->with('success', 'Project updated successfully!');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Project updated successfully'
+        ], 200);
+
     } catch (\Exception $e) {
-        // Check if our specific lock message is in the exception
         $isLocked = str_contains($e->getMessage(), 'PROJECT_LOCKED');
 
         return response()->json([
             'success' => false,
             'message' => $e->getMessage()
-        ], $isLocked ? 403 : 422); // 403 is "Forbidden"
+        ], $isLocked ? 403 : 422);
     }
 }
 
