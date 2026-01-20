@@ -13,9 +13,12 @@
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: "PlusJakartaSans", sans-serif;
             background: #f5f5f5;
+            letter-spacing: 1.5px;
+            line-height: 1.5;
         }
+
 
         .receipt-container {
             background: white;
