@@ -266,7 +266,6 @@
             </div>
         </div>
 
-
         <!-- Payment Info -->
         <div class="payment-section">
             <div class="payment-line">
