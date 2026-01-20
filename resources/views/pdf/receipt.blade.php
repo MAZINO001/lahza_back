@@ -236,10 +236,10 @@
                     <tr>
                         <td class="description">{{ $item['description'] }}</td>
                         <td class="qty">{{ $item['quantity'] }}</td>
-                        <td class="price">${{ number_format($item['unit_price'], 2) }}</td>
+                        <td class="price">{{ number_format($item['unit_price'], 2) }}</td>
                         <td class="price">{{ number_format($item['tax_rate'], 2) }}%</td>
-                        <td class="total">${{ number_format($item['total_price_ht'], 2) }}</td>
-                        <td class="total"><strong>${{ number_format($item['total_price_ttc'], 2) }}</strong></td>
+                        <td class="total">{{ number_format($item['total_price_ht'], 2) }}</td>
+                        <td class="total"><strong>{{ number_format($item['total_price_ttc'], 2) }}</strong></td>
                     </tr>
                 @empty
                     <tr>
@@ -254,15 +254,15 @@
         <div class="totals-section">
             <div class="total-line label">
                 <div>Subtotal:</div>
-                <div>${{ number_format($receipt['subtotal'], 2) }}</div>
+                <div>{{ number_format($receipt['subtotal'], 2) }}</div>
             </div>
             <div class="total-line label">
                 <div>Tax :</div>
-                <div>${{ number_format($receipt['tax'], 2) }}</div>
+                <div>{{ number_format($receipt['tax'], 2) }}</div>
             </div>
             <div class="total-line grand-total">
                 <div><strong>Total Amount:</strong></div>
-                <div><strong>${{ number_format($receipt['total'], 2) }}</strong></div>
+                <div><strong>{{ number_format($receipt['total'], 2) }}</strong></div>
             </div>
         </div>
 
