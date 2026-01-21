@@ -36,8 +36,10 @@ use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\Ai\CalanderSummaryController;
 use Gemini\Laravel\Facades\Gemini;
-use \App\Http\Controllers\Ai\TaskUpdateController;
+use App\Http\Controllers\Ai\TaskUpdateController;
 use App\Http\Controllers\OtpController;
+
+
 Route::get('/check-models', function () {
     $response = Gemini::models()->list();
 
