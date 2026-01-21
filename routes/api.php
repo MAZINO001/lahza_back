@@ -37,7 +37,7 @@ use App\Http\Controllers\TicketController;
 use App\Http\Controllers\Ai\CalanderSummaryController;
 use Gemini\Laravel\Facades\Gemini;
 use \App\Http\Controllers\Ai\TaskUpdateController;
-
+use App\Http\Controllers\OtpController;
 Route::get('/check-models', function () {
     $response = Gemini::models()->list();
 
@@ -53,19 +53,24 @@ Route::get('/check-models', function () {
 
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
-Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->middleware('guest')->name('password.email');
-Route::post('/reset-password', [NewPasswordController::class, 'store'])->middleware('guest')->name('password.store');
+Route::post('/forgot-password', [PasswordResetLinkController::class, 'store']);
+Route::post('/reset-password', [NewPasswordController::class, 'store']);
 
 // Stripe webhook endpoint (no auth middleware)
 Route::post('/stripe/webhook', [PaymentController::class, 'handleWebhook']);
 Route::get('/ai-summaries', [CalanderSummaryController::class, 'getDailyAiSummaries']);
 Route::get('/project/tasks/ai-update/{project}', [TaskUpdateController::class, 'generate']);
 
+// OTP Routes (auth but NO otp middleware - users need these to verify)
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/otp/send',  [OtpController::class, 'sendCode']);
+    Route::post('/otp/verify',[OtpController::class, 'verifyCode']);
+    Route::get('/otp/status', [OtpController::class, 'checkStatus']);
+});
 // -----------------------------
-// Authenticated routes
+// Authenticated routes (with OTP verification requirement)
 // -----------------------------
-Route::middleware('auth:sanctum')->group(function () {
-
+Route::middleware(['auth:sanctum', 'api.otp'])->group(function () {
     // Logout
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy']);
 
@@ -283,5 +288,6 @@ Route::get('/get-team-users', [UserController::class, 'getTeamUsers']);
     // Client-only routes
     // -------------------------------------------------
     Route::middleware('role:client')->group(function () {
+    
     });
 });
