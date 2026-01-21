@@ -517,7 +517,14 @@
                             @if ($quote->description)
                                 {{ $quote->description }}
                             @else
-                                null
+                            @endif
+                        </div>
+                    @else
+                        <div class="conditions">
+                            <strong>objectif :</strong><br>
+                            @if ($invoice->description)
+                                {{$invoice->description }}
+                            @else
                             @endif
                         </div>
                     @endif
@@ -653,7 +660,7 @@
                     <strong>Conditions d'utilisation</strong><br>
                     {{ $companyInfo?->terms_and_conditions ??
                         "En signant la facture, le client accepte sans réserves nos conditions. Pour plus d'informations,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/" }}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/" }}
                 </div>
             </div>
 
