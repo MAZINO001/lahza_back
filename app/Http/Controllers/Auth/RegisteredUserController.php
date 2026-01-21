@@ -118,7 +118,7 @@ class RegisteredUserController extends Controller
                     ]);
 
                     $this->sendClientRegistrationEmail($user, $client);
-                    $clientId = $client->id;
+                    $clientId = $client;
                     break;
 
                 case 'team':
@@ -135,7 +135,7 @@ class RegisteredUserController extends Controller
                     break;
 
                 case 'intern':
-                    
+
     if ($request->hasFile('cv')) {
         $file = $request->file('cv');
         $cvName = $file->getClientOriginalName();
@@ -204,7 +204,7 @@ class RegisteredUserController extends Controller
         ], 500);
     }
 }
-    
+
 
     /**
      * Send client registration email
