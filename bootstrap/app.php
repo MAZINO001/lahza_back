@@ -34,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
             'role' => \App\Http\Middleware\CheckRole::class,
             // 'handle.cors.cookies' => \App\Http\Middleware\HandleCorsCookies::class,
+            'api.otp' => \App\Http\Middleware\EnsureOtpVerified::class,
         ]);
 
         //

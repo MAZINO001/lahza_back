@@ -19,7 +19,11 @@ class AuthenticatedSessionController extends Controller
         // return dd();
     $request->authenticate();
     $user = $request->user();
-    
+      if (is_null($user->last_otp_verified_at)) {
+            $user->update([
+                'last_otp_verified_at' => now()
+            ]);
+        }
     $user->tokens()->delete(); 
 
     $token = $user->createToken('auth-token')->plainTextToken;
