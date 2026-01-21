@@ -120,7 +120,13 @@ class RegisteredUserController extends Controller
                         ]);
 
                     $this->sendClientRegistrationEmail($user, $client);
-                    $clientId = $client;
+                    
+                    $client->load('user');
+                    $clientId = [
+                        'client' => $client,
+                        'totalPaid' => 0,
+                        'balanceDue' => 0,
+                    ];
                     break;
 
                     case 'team':
@@ -189,11 +195,12 @@ class RegisteredUserController extends Controller
                 ];
             });
 
-            return response()->json([
-                'success' => true,
-                'message' => $request->user_type . ' registered successfully',
-                'client_id' => $result['client_id'],
-            ]);
+           return response()->json([
+    'success' => true,
+    'message' => $request->user_type . ' registered successfully',
+    'data' => [$result['client_id']],
+]);
+
 
         } catch (\Throwable $e) {
             Log::error('Registration failed', [
