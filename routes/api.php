@@ -38,7 +38,7 @@ use App\Http\Controllers\Ai\CalanderSummaryController;
 use Gemini\Laravel\Facades\Gemini;
 use App\Http\Controllers\Ai\TaskUpdateController;
 use App\Http\Controllers\OtpController;
-
+use App\Http\Controllers\EmailVerificationController;
 
 Route::get('/check-models', function () {
     $response = Gemini::models()->list();
@@ -63,8 +63,13 @@ Route::post('/stripe/webhook', [PaymentController::class, 'handleWebhook']);
 Route::get('/ai-summaries', [CalanderSummaryController::class, 'getDailyAiSummaries']);
 Route::get('/project/tasks/ai-update/{project}', [TaskUpdateController::class, 'generate']);
 
+// Public Email Verification Route (users click link before login)
+Route::post('/email/verify', [EmailVerificationController::class, 'verify']);
+Route::post('/email/resend', [EmailVerificationController::class, 'resend']);
+
 // OTP Routes (auth but NO otp middleware - users need these to verify)
 Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/email/send-verification', [EmailVerificationController::class, 'sendVerificationEmail']);
     Route::post('/otp/send',  [OtpController::class, 'sendCode']);
     Route::post('/otp/verify',[OtpController::class, 'verifyCode']);
     Route::get('/otp/status', [OtpController::class, 'checkStatus']);
@@ -72,7 +77,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 // -----------------------------
 // Authenticated routes (with OTP verification requirement)
 // -----------------------------
-Route::middleware(['auth:sanctum', 'api.otp'])->group(function () {
+Route::middleware(['auth:sanctum','verified', 'api.otp'])->group(function () {
     // Logout
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy']);
 

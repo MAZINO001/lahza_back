@@ -21,6 +21,7 @@ class UserSeeder extends Seeder
     {
         // Create admin user (no related model needed as per the controller)
         $admin = User::create([
+            'status'=> 'confirmed',
             'name' => 'Admin User',
             'email' => 'admin@lahza.com',
             'password' => Hash::make('admin@lahza.com'),
@@ -31,6 +32,7 @@ class UserSeeder extends Seeder
 
         // Create client from Morocco
         $moroccanClient = User::create([
+            'status'=> 'confirmed',
             'name' => 'Moroccan Client',
             'email' => 'client.morocco@example.com',
             'password' => Hash::make('client.morocco@example.com'),
@@ -81,6 +83,7 @@ class UserSeeder extends Seeder
 
         // Create client from France
         $frenchClient = User::create([
+            'status'=> 'confirmed',
             'name' => 'French Client',
             'email' => 'client.france@example.com',
             'password' => Hash::make('client.france@example.com'),
@@ -127,6 +130,7 @@ class UserSeeder extends Seeder
 
         // Create team member
         $teamMember = User::create([
+            'status'=> 'confirmed',
             'name' => 'Team Member',
             'email' => 'team.member@lahza.com',
             'password' => Hash::make('team.member@lahza.com'),
@@ -142,6 +146,7 @@ class UserSeeder extends Seeder
             'poste' => 'Senior Developer',
         ]);
         $teamMember = User::create([
+            'status'=> 'confirmed',
             'name' => 'Team Member2',
             'email' => 'team.member2@lahza.com',
             'password' => Hash::make('team.member2@lahza.com'),
@@ -164,6 +169,7 @@ class UserSeeder extends Seeder
 
         // Create intern
         $intern = User::create([
+            'status'=> 'confirmed',
             'name' => 'Intern User',
             'email' => 'intern@lahza.com',
             'password' => Hash::make('intern@lahza.com'),
@@ -188,6 +194,7 @@ class UserSeeder extends Seeder
 
         // Create other user type
         $otherUser = User::create([
+            'status'=> 'confirmed',
             'name' => 'Other User',
             'email' => 'other.user@lahza.com',
             'password' => Hash::make('other.user@lahza.com'),

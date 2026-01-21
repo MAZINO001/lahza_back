@@ -29,6 +29,8 @@ class User extends Authenticatable
         'otp_code',
         'otp_expires_at',
         'last_otp_verified_at',
+        'email_verification_token',
+        'email_verification_sent_at',
     ];
     public function client()
     {
@@ -42,6 +44,7 @@ class User extends Authenticatable
         'password',
         'remember_token',
         'otp_code',
+        'email_verification_token',
     ];
 
     // Cast fields if needed
@@ -50,6 +53,7 @@ class User extends Authenticatable
         'otp_expires_at' => 'datetime',
         'last_otp_verified_at' => 'datetime',
         'preferences' => 'array',
+        'email_verification_sent_at' => 'datetime',
     ];
 
     public function permissions()
