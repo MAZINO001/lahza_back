@@ -25,7 +25,10 @@ class User extends Authenticatable
         'remember_token',
         'email_verified_at',
         'profile_image',
-
+        'status',
+        'otp_code',
+        'otp_expires_at',
+        'last_otp_verified_at',
     ];
     public function client()
     {
@@ -38,11 +41,14 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'otp_code',
     ];
 
     // Cast fields if needed
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'otp_expires_at' => 'datetime',
+        'last_otp_verified_at' => 'datetime',
         'preferences' => 'array',
     ];
 
