@@ -44,12 +44,9 @@ class ResetPasswordNotification extends Notification implements ShouldQueue
 
         return (new MailMessage)
             ->subject(__('Reset Password Notification'))
-            ->greeting('Hello!')
-            ->line('You are receiving this email because we received a password reset request for your account.')
-            ->action('Reset Password', $resetUrl)
-            ->line('This password reset link will expire in ' . config('auth.passwords.users.expire', 60) . ' minutes.')
-            ->line('If you did not request a password reset, no further action is required.')
-            ->salutation('Best regards');
+            ->view('emails.reset_password', [
+                'resetUrl' => $resetUrl,
+            ]);
     }
 
     /**
