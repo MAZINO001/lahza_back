@@ -523,7 +523,7 @@
                         <div class="conditions">
                             <strong>objectif :</strong><br>
                             @if ($invoice->description)
-                                {{$invoice->description }}
+                                {{ $invoice->description }}
                             @else
                             @endif
                         </div>
@@ -572,9 +572,10 @@
                             </td>
                             <td>{{ number_format((float) ($line->quantity ?? 0), 2, '.', ' ') }}</td>
                             <td>{{ number_format((float) ($line->tax ?? 0), 2, '.', ' ') }}</td>
-                            <td>{{ number_format(($line->individual_total ?? 0) / (1 + ($line->tax ?? 0) / 100), 2, '.', ' ') }}
+                            <td>{{ number_format($line->individual_total ?? 0, 2, '.', ' ') }}
                             </td>
-                            <td>{{ number_format((float) ($line->individual_total ?? 0), 2, '.', ' ') }}</td>
+                            <td>{{ number_format((float) (($line->individual_total ?? 0) + ($line->individual_total ?? 0) * (($line->tax ?? 0) / 100)), 2, '.', ' ') }}
+                            </td>
                         </tr>
                     @endforeach
                 @else
@@ -589,11 +590,13 @@
                                     </div>
                                 @endif
                             </td>
-                            <td>{{ number_format((float) ($line->quantity ?? 0), 2, '.', ' ') }}</td>
+                            <td>{{ number_format((float) ($line->quantity ?? 0)) }}</td>
                             <td>{{ number_format((float) ($line->tax ?? 0), 2, '.', ' ') }}</td>
-                            <td>{{ number_format(($line->individual_total ?? 0) / (1 + ($line->tax ?? 0) / 100), 2, '.', ' ') }}
+                            <td>{{ number_format($line->individual_total ?? 0, 2, '.', ' ') }}
                             </td>
-                            <td>{{ number_format((float) ($line->individual_total ?? 0), 2, '.', ' ') }}</td>
+                            <td>{{ number_format((float) (($line->individual_total ?? 0) + ($line->individual_total ?? 0) * (($line->tax ?? 0) / 100)), 2, '.', ' ') }}
+                            </td>
+                            </td>
                         </tr>
                     @endforeach
                 @endif
@@ -660,7 +663,7 @@
                     <strong>Conditions d'utilisation</strong><br>
                     {{ $companyInfo?->terms_and_conditions ??
                         "En signant la facture, le client accepte sans réserves nos conditions. Pour plus d'informations,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/" }}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/" }}
                 </div>
             </div>
 
