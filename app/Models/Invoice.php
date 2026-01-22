@@ -19,6 +19,7 @@ class Invoice extends Model
         'balance_due',
         'checksum',
         'has_projects',
+        'description',
     ];
 
     protected $casts = [

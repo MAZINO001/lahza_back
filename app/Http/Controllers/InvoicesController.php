@@ -84,6 +84,7 @@ class InvoicesController extends Controller
             'has_projects' => 'nullable',
             'old_projects' => 'nullable|array',
             'old_projects.*' => 'exists:projects,id',
+            'description' => 'nullable|string',
         ]);
 
         return DB::transaction(function () use ($validate) {
@@ -97,6 +98,7 @@ class InvoicesController extends Controller
                 'notes' => $validate["notes"],
                 'total_amount' => $validate["total_amount"],
                 'balance_due' => $validate["total_amount"],
+                'description' => $validate["description"] ?? null,
                 'has_projects' => is_array($validate["has_projects"])
                     ? json_encode($validate["has_projects"])
                     : $validate["has_projects"],
@@ -211,6 +213,8 @@ class InvoicesController extends Controller
             'has_projects' => 'nullable',
             'old_projects' => 'nullable|array',
             'old_projects.*' => 'exists:projects,id',
+            'description' => 'nullable|string',
+
         ]);
 
         return DB::transaction(function () use ($invoice, $validate) {
@@ -223,6 +227,7 @@ class InvoicesController extends Controller
                 'notes' => $validate['notes'] ?? null,
                 'total_amount' => $validate['total_amount'],
                 'balance_due' => $validate['balance_due'],
+                'description' => $validate["description"] ?? null,
                 'has_projects' => is_array($validate["has_projects"])
                     ? json_encode($validate["has_projects"])
                     : $validate["has_projects"],
