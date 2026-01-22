@@ -82,6 +82,11 @@ class PaymentService implements PaymentServiceInterface
         
         $status = $balanceDue <= 0 ? 'paid' : ($balanceDue < $invoice->total_amount ? 'partially_paid' : 'unpaid');
         
+        if($invoice->quote && $status === 'paid'){
+            $invoice->quote->update(['status' => 'paid']);
+        }elseif($invoice->quote && $status === 'partially_paid'){
+            $invoice->quote->update(['status' => 'billed']);
+        }
         // Use query builder to update directly, bypassing model attributes
         // This ensures non-database attributes like admin_signature_url are not included
         DB::table('invoices')

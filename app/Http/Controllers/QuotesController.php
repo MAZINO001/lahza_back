@@ -228,6 +228,7 @@ class QuotesController extends Controller
                 'total_amount' => $quote->total_amount,
                 'balance_due' => $quote->total_amount,
                 'checksum' => $checksum,
+                'description' => $quote->description,
                 'has_projects' => $quote->has_projects,
             ]);
 
@@ -270,7 +271,7 @@ class QuotesController extends Controller
                 'pending',      // payment_status: pending until paid
                 $paymentMethod  // payment_type: bank or stripe
             );
-
+            $quote->update(['status' => 'billed']);
             // Send invoice email
             $this->sendInvoiceCreatedEmail($quote, $invoice, $response);
 
