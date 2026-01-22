@@ -35,12 +35,19 @@ class PdfController extends Controller
         $totalTVA = 0;
         $totalTTC = 0;
 
-        foreach ($invoice->invoiceServices ?? [] as $line) {
-            $ttc = (float) ($line->individual_total ?? 0);
+       foreach ($invoice->invoiceServices ?? [] as $line) {
+            $quantity = (float) ($line->quantity ?? 1);
+            $ttcPerUnit = (float) ($line->individual_total ?? 0);
             $rate = ((float) ($line->tax ?? 0)) / 100;
 
-            $ht = $rate > 0 ? $ttc / (1 + $rate) : $ttc;
-            $tva = $ttc - $ht;
+            // Calculate HT per unit
+            $htPerUnit = $rate > 0 ? $ttcPerUnit / (1 + $rate) : $ttcPerUnit;
+            $tvaPerUnit = $ttcPerUnit - $htPerUnit;
+
+            // Multiply by quantity
+            $ht = $htPerUnit * $quantity;
+            $tva = $tvaPerUnit * $quantity;
+            $ttc = $ttcPerUnit * $quantity;
 
             $totalHT += $ht;
             $totalTVA += $tva;
@@ -100,17 +107,19 @@ class PdfController extends Controller
         $totalTVA = 0;
         $totalTTC = 0;
 
-         foreach ($quote->quoteServices ?? [] as $line) {
-            $ttc = (float) ($line->individual_total ?? 0);
-            $rate = ((float) ($line->tax ?? 0)) / 100;
+        foreach ($quote->quoteServices ?? [] as $line) {
+        $quantity = (float) ($line->quantity ?? 1);
+        $pricePerUnit = (float) (($line->individual_total ?? 0) / $quantity);
+        $rate = ((float) ($line->tax ?? 0)) / 100;
 
-            $ht = $rate > 0 ? $ttc / (1 + $rate) : $ttc;
-            $tva = $ttc - $ht;
+        $ht = $pricePerUnit * $quantity;
+        $tva = $ht * $rate;
+        $ttc = $ht + $tva;
 
-            $totalHT += $ht;
-            $totalTVA += $tva;
-            $totalTTC += $ttc;
-        }
+        $totalHT += $ht;
+        $totalTVA += $tva;
+        $totalTTC += $ttc;
+    }
 
         $currency = $quote->client->currency ?? 'MAD';
 
