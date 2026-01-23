@@ -55,12 +55,15 @@ public function store(Request $request)
     $this->authorize('create', [ProjectAdditionalData::class, $project]);
 
     // Create metadata only (NO FILE PATHS)
-    $data = ProjectAdditionalData::create([
-        'project_id' => $validated['project_id'],
+    $data = ProjectAdditionalData::updateOrCreate(
+    ['project_id' => $validated['project_id']], // lookup key
+    [
         'host_acc' => $validated['host_acc'] ?? null,
         'website_acc' => $validated['website_acc'] ?? null,
         'social_media' => $validated['social_media'] ?? null,
-    ]);
+    ]
+);
+
 
     // 🧠 File handling via service
     if ($request->hasFile('logo')) {
