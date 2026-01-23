@@ -39,6 +39,8 @@ use Gemini\Laravel\Facades\Gemini;
 use App\Http\Controllers\Ai\TaskUpdateController;
 use App\Http\Controllers\OtpController;
 use App\Http\Controllers\EmailVerificationController;
+use App\Http\Controllers\FileController;
+
 
 Route::get('/check-models', function () {
     $response = Gemini::models()->list();
@@ -102,7 +104,7 @@ Route::middleware(['auth:sanctum','verified', 'api.otp'])->group(function () {
     // SHARED READ ROUTES (admin + client)
     // -------------------------------------------------
     Route::middleware('role:admin,client')->group(function () {
-
+Route::post('/file-search', [FileController::class, 'search']);
         Route::get('/company-info', [CompanyInfoController::class, 'index']);
         Route::get('/certifications', [CertificationController::class, 'index']);
         Route::get('/certifications/{certification}', [CertificationController::class, 'show']);
