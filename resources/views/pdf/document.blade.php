@@ -603,7 +603,7 @@
             </tbody>
             <tr>
                 <td colspan="4" class="Sous-total">
-                    <span>Sous-total</span>
+                    <span>Sous-total (HT)</span>
                 </td>
                 <td>
                     @php($currency = $type === 'invoice' ? $invoice->client?->currency ?? 'MAD' : $quote->client?->currency ?? 'MAD')
