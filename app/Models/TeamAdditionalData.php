@@ -37,6 +37,9 @@ class TeamAdditionalData extends Model
     {
         return $this->belongsTo(TeamUser::class);
     }
-
+public function files()
+    {
+        return $this->morphMany(File::class, 'fileable');
+    }
 
 }
