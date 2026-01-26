@@ -236,7 +236,7 @@ Route::get('/get-team-users', [UserController::class, 'getTeamUsers']);
 
         Route::post('/invoices/pay/{invoice}/{percentage}', [PaymentController::class, 'createAdditionalPayment']);
         Route::put('/payment/date/{payment}', [PaymentController::class, 'updatePaymentDate']);
-
+        
         // Projects & tasks (WRITE)
         Route::post('/projects', [ProjectController::class, 'store']);
         Route::put('/project/{project}', [ProjectController::class, 'update']);
@@ -291,8 +291,12 @@ Route::get('/get-team-users', [UserController::class, 'getTeamUsers']);
             Route::delete('/{teamUserId}', 'destroy');
         });
         Route::post('/convert-intern-to-eam-user/{internId}', [UserController::class, 'convertTeamUser']);
-    });
 
+        // Send invoice/quote emails
+        Route::put('/invoices/{invoice}/send', [InvoicesController::class, 'sendInvoice']);
+        Route::put('/quotes/{quote}/send', [QuotesController::class, 'sendQuote']);
+        });
+        
     // -------------------------------------------------
     // Client-only routes
     // -------------------------------------------------

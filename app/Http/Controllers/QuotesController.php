@@ -122,8 +122,10 @@ class QuotesController extends Controller
             $this->projectCreationService->createDraftProjectFromQuote($quote);
 
             // Send quote created email with PDF attachment
-            $this->sendQuoteCreatedEmail($quote);
-
+            // Only send email if status is NOT 'draft'
+            if ($validated['status'] !== 'draft') {
+                $this->sendQuoteCreatedEmail($quote);
+            }
             // Log activity
             $this->activityLogger->log(
                 'clients_details',
@@ -416,6 +418,74 @@ class QuotesController extends Controller
     /**
      * Send quote created email with PDF attachment
      */
+    public function sendQuote(Request $request, Quotes $quote)
+{
+    $this->authorize('update', $quote);
+
+    // Ensure quote is actually a draft
+    if ($quote->status !== 'draft') {
+        return response()->json([
+            'status' => 'error',
+            'message' => "Cannot send quote: Quote #{$quote->id} is not a draft (current status: {$quote->status})"
+        ], 400);
+    }
+
+    return DB::transaction(function () use ($quote) {
+        
+        // Update quote status from 'draft' to 'sent'
+        $quote->update([
+            'status' => 'sent',
+        ]);
+
+        // Refresh quote to ensure status is updated
+        $quote->refresh();
+
+        // Load all necessary relationships for email
+        $quote->load('client.user', 'quoteServices', 'files');
+
+        try {
+            // Send email with PDF
+            $this->sendQuoteCreatedEmail($quote);
+
+        } catch (\Exception $e) {
+            // Rollback status if email fails
+            $quote->update(['status' => 'draft']);
+            
+            Log::error('Failed to send quote', [
+                'quote_id' => $quote->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => "Failed to send quote: {$e->getMessage()}"
+            ], 500);
+        }
+
+        // Log activity
+        $this->activityLogger->log(
+            'clients_details',
+            'quotes',
+            $quote->client->id,
+            request()->ip(),
+            request()->userAgent(),
+            [
+                'quote_id' => $quote->id,
+                'client_id' => $quote->client_id,
+                'total_amount' => $quote->total_amount,
+                'status' => $quote->status,
+                'url' => request()->fullUrl()
+            ],
+            "Quote #{$quote->id} sent to client #{$quote->client_id}"
+        );
+
+        return response()->json([
+            'message' => 'Quote sent successfully',
+            'quote' => $quote->load("quoteServices", "projects", "client"),
+        ], 200);
+    });
+}
     private function sendQuoteCreatedEmail($quote)
     {
         try {

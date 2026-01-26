@@ -60,83 +60,164 @@ class InvoicesController extends Controller
         ]);
     }
 
-    public function store(Request $request)
-    {
-        $this->authorize('create', Invoice::class);
+   public function store(Request $request)
+{
+    $this->authorize('create', Invoice::class);
 
-        $validate = $request->validate([
-            'client_id' => 'required|exists:clients,id',
-            'quote_id' => 'nullable|exists:quotes,id',
-            'invoice_date' => 'required|date',
-            'due_date' => 'required|date',
-            'status' => ['required', Rule::in(['draft', 'sent', 'unpaid', 'partially_paid', 'paid', 'overdue'])],
-            'notes' => 'nullable|string',
-            'total_amount' => 'required|numeric',
-            'balance_due' => 'required|numeric',
-            'payment_percentage' => 'nullable|numeric',
-            'payment_status' => 'string',
-            'payment_type' => 'string',
-            'services' => 'array',
-            'services.*.service_id' => 'required|exists:services,id',
-            'services.*.quantity' => 'required|integer|min:1',
-            'services.*.tax' => 'nullable|numeric',
-            'services.*.individual_total' => 'nullable|numeric',
-            'has_projects' => 'nullable',
-            'old_projects' => 'nullable|array',
-            'old_projects.*' => 'exists:projects,id',
-            'description' => 'nullable|string',
+    $validate = $request->validate([
+        'client_id' => 'required|exists:clients,id',
+        'quote_id' => 'nullable|exists:quotes,id',
+        'invoice_date' => 'required|date',
+        'due_date' => 'required|date',
+        'status' => ['required', Rule::in(['draft', 'sent', 'unpaid', 'partially_paid', 'paid', 'overdue'])],
+        'notes' => 'nullable|string',
+        'total_amount' => 'required|numeric',
+        'balance_due' => 'required|numeric',
+        'payment_percentage' => 'nullable|numeric',
+        'payment_status' => 'string',
+        'payment_type' => 'string',
+        'services' => 'array',
+        'services.*.service_id' => 'required|exists:services,id',
+        'services.*.quantity' => 'required|integer|min:1',
+        'services.*.tax' => 'nullable|numeric',
+        'services.*.individual_total' => 'nullable|numeric',
+        'has_projects' => 'nullable',
+        'old_projects' => 'nullable|array',
+        'old_projects.*' => 'exists:projects,id',
+        'description' => 'nullable|string',
+    ]);
+
+    return DB::transaction(function () use ($validate) {
+
+        $invoice = Invoice::create([
+            'client_id' => $validate["client_id"],
+            'quote_id' => $validate["quote_id"] ?? null,
+            'invoice_date' => $validate["invoice_date"],
+            'due_date' => $validate["due_date"],
+            'status' => $validate["status"],
+            'notes' => $validate["notes"],
+            'total_amount' => $validate["total_amount"],
+            'balance_due' => $validate["total_amount"],
+            'description' => $validate["description"] ?? null,
+            'has_projects' => is_array($validate["has_projects"])
+                ? json_encode($validate["has_projects"])
+                : $validate["has_projects"],
         ]);
 
-        return DB::transaction(function () use ($validate) {
-
-            $invoice = Invoice::create([
-                'client_id' => $validate["client_id"],
-                'quote_id' => $validate["quote_id"] ?? null,
-                'invoice_date' => $validate["invoice_date"],
-                'due_date' => $validate["due_date"],
-                'status' => $validate["status"],
-                'notes' => $validate["notes"],
-                'total_amount' => $validate["total_amount"],
-                'balance_due' => $validate["total_amount"],
-                'description' => $validate["description"] ?? null,
-                'has_projects' => is_array($validate["has_projects"])
-                    ? json_encode($validate["has_projects"])
-                    : $validate["has_projects"],
-            ]);
-
-            if (!empty($validate["services"])) {
-                foreach ($validate["services"] as $service) {
-                    InvoiceService::create([
-                        'invoice_id' => $invoice->id,
-                        'service_id' => $service['service_id'],
-                        'quantity' => $service['quantity'],
-                        'tax' => $service['tax'] ?? 0,
-                        'individual_total' => $service['individual_total'] ?? 0,
-                    ]);
-                }
+        if (!empty($validate["services"])) {
+            foreach ($validate["services"] as $service) {
+                InvoiceService::create([
+                    'invoice_id' => $invoice->id,
+                    'service_id' => $service['service_id'],
+                    'quantity' => $service['quantity'],
+                    'tax' => $service['tax'] ?? 0,
+                    'individual_total' => $service['individual_total'] ?? 0,
+                ]);
             }
-            if(!empty($validate['old_projects'])){
-             $invoice->projects()->sync($validate['old_projects']);
-            }
+        }
 
-            // Auto-sign with admin signature
-            $this->autoSignAdminSignature($invoice);
+        if (!empty($validate['old_projects'])) {
+            $invoice->projects()->sync($validate['old_projects']);
+        }
 
-            // Load relationships
-            $invoice->load('client', 'files', 'invoiceServices');
+        // Auto-sign with admin signature
+        $this->autoSignAdminSignature($invoice);
 
-            // Add signature URLs to the response
-            $invoice->admin_signature_url = asset('images/admin_signature.png');
-            $clientSignature = $invoice->clientSignature();
-            $invoice->client_signature_url = $clientSignature ? $clientSignature->url : null;
-            $invoice->has_client_signature = $clientSignature !== null;
-            $invoice->has_admin_signature = $invoice->adminSignature() !== null;
+        // Load relationships
+        $invoice->load('client', 'files', 'invoiceServices');
 
-            // Create payment link
+        // Add signature URLs to the response
+        $invoice->admin_signature_url = asset('images/admin_signature.png');
+        $clientSignature = $invoice->clientSignature();
+        $invoice->client_signature_url = $clientSignature ? $clientSignature->url : null;
+        $invoice->has_client_signature = $clientSignature !== null;
+        $invoice->has_admin_signature = $invoice->adminSignature() !== null;
+
+        // ONLY create payment and send email if status is NOT 'draft'
+        if ($validate["status"] !== 'draft') {
             $paymentPercentage = $validate['payment_percentage'] ?? 50;
             $paymentStatus = $validate['payment_status'] ?? 'unpaid';
             $paymentType = $validate['payment_type'] ?? 'bank';
 
+            try {
+                $response = $this->paymentService->createPaymentLink(
+                    $invoice,
+                    $paymentPercentage,
+                    $paymentStatus,
+                    $paymentType
+                );
+
+                // Send email with PDF
+                $this->sendInvoiceEmail($invoice, $response);
+            } catch (\Exception $e) {
+                // Log error but don't fail invoice creation
+                Log::error('Failed to create payment or send email for invoice', [
+                    'invoice_id' => $invoice->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
+        // Create draft project(s) for direct invoice path (PATH 2)
+        if (!$invoice->quote_id) {
+            $this->projectCreationService->createDraftProjectFromInvoice($invoice);
+        }
+
+        // Log activity
+        $this->activityLogger->log(
+            'clients_details',
+            'invoices',
+            $invoice->client->id,
+            request()->ip(),
+            request()->userAgent(),
+            [
+                'invoice_id' => $invoice->id,
+                'client_id' => $invoice->client_id,
+                'total_amount' => $invoice->total_amount,
+                'status' => $invoice->status,
+                'url' => request()->fullUrl()
+            ],
+            "Invoice #{$invoice->id} created for client #{$invoice->client_id} with total: {$invoice->total_amount}"
+        );
+
+        return response()->json([
+            $invoice->load("invoiceServices", "projects"),
+            'invoice_id' => $invoice->id
+        ], 201);
+    });
+}
+
+public function sendInvoice(Request $request, Invoice $invoice)
+{
+    $this->authorize('update', $invoice);
+
+    // Ensure invoice is actually a draft
+    if ($invoice->status !== 'draft') {
+        return response()->json([
+            'status' => 'error',
+            'message' => "Cannot send invoice: Invoice #{$invoice->id} is not a draft (current status: {$invoice->status})"
+        ], 400);
+    }
+
+    $validate = $request->validate([
+        'payment_percentage' => 'required|numeric|min:0|max:100',
+        'payment_status' => 'nullable|string|in:unpaid,partially_paid,paid,pending',
+        'payment_type' => 'required|string|in:stripe,bank,cash,cheque',
+    ]);
+
+    return DB::transaction(function () use ($invoice, $validate) {
+        
+        // Update invoice status from 'draft' to 'sent'
+        $invoice->update([
+            'status' => 'sent',
+        ]);
+
+        // Create payment link
+        $paymentPercentage = $validate['payment_percentage'];
+        $paymentStatus = $validate['payment_status'] ?? 'pending';
+        $paymentType = $validate['payment_type'];
+
+        try {
             $response = $this->paymentService->createPaymentLink(
                 $invoice,
                 $paymentPercentage,
@@ -147,34 +228,42 @@ class InvoicesController extends Controller
             // Send email with PDF
             $this->sendInvoiceEmail($invoice, $response);
 
-            // Create draft project(s) for direct invoice path (PATH 2)
-            if (!$invoice->quote_id) {
-                $this->projectCreationService->createDraftProjectFromInvoice($invoice);
-            }
-
-            // Log activity
-            $this->activityLogger->log(
-                'clients_details',
-                'invoices',
-                $invoice->client->id,
-                request()->ip(),
-                request()->userAgent(),
-                [
-                    'invoice_id' => $invoice->id,
-                    'client_id' => $invoice->client_id,
-                    'total_amount' => $invoice->total_amount,
-                    'status' => $invoice->status,
-                    'url' => request()->fullUrl()
-                ],
-                "Invoice #{$invoice->id} created for client #{$invoice->client_id} with total: {$invoice->total_amount}"
-            );
-
+        } catch (\Exception $e) {
+            // Rollback status if payment/email fails
+            $invoice->update(['status' => 'draft']);
+            
             return response()->json([
-                $invoice->load("invoiceServices", "projects"),
-                'invoice_id' => $invoice->id
-            ], 201);
-        });
-    }
+                'status' => 'error',
+                'message' => "Failed to send invoice: {$e->getMessage()}"
+            ], 500);
+        }
+
+        // Log activity
+        $this->activityLogger->log(
+            'clients_details',
+            'invoices',
+            $invoice->client->id,
+            request()->ip(),
+            request()->userAgent(),
+            [
+                'invoice_id' => $invoice->id,
+                'client_id' => $invoice->client_id,
+                'total_amount' => $invoice->total_amount,
+                'status' => $invoice->status,
+                'payment_percentage' => $paymentPercentage,
+                'payment_type' => $paymentType,
+                'url' => request()->fullUrl()
+            ],
+            "Invoice #{$invoice->id} sent to client #{$invoice->client_id}"
+        );
+
+        return response()->json([
+            'message' => 'Invoice sent successfully',
+            'invoice' => $invoice->load("invoiceServices", "projects", "client", "payments"),
+            'payment_info' => $response
+        ], 200);
+    });
+}
 
     public function show($id)
     {
@@ -276,6 +365,7 @@ class InvoicesController extends Controller
         try {
             // Get client's email from user relationship
             $clientEmail = $invoice->client->user->email ?? null;
+            // $clientEmail = "mangaka.wirl@gmai.com";
 
             if (!$clientEmail) {
                 Log::warning('Cannot send invoice email: client has no email address', [
@@ -379,7 +469,8 @@ class InvoicesController extends Controller
                 'client_id' => $invoice->client_id,
                 'email' => $clientEmail,
             ]);
-        } catch (\Exception $e) {
+        } 
+        catch (\Exception $e) {
             Log::error('Failed to queue invoice email', [
                 'invoice_id' => $invoice->id,
                 'error' => $e->getMessage(),
