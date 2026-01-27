@@ -28,7 +28,6 @@
         }
 
         .header-top {
-            border-bottom: 1px solid #777;
             padding-bottom: 20px;
             margin-bottom: 30px;
             position: relative;
@@ -92,6 +91,8 @@
             color: #333;
         }
 
+
+
         .items-table {
             width: 100%;
             border-collapse: collapse;
@@ -100,12 +101,13 @@
         }
 
         .items-table th {
-            background: #f0f0f0;
-            padding: 12px 10px;
+            background-color: #051630;
+            color: white;
+            padding: 10px;
             text-align: left;
-            font-weight: bold;
-            border-bottom: 1px solid #ddd;
-            font-size: 12px;
+            font-size: 13px;
+            /* font-weight: 300; */
+            border-bottom: 1px solid #ebe6e6;
         }
 
         .items-table td {
@@ -116,7 +118,7 @@
         .items-table .qty,
         .items-table .price,
         .items-table .total {
-            text-align: right;
+            text-align: center;
         }
 
         .items-table .description {
@@ -152,17 +154,10 @@
         .payment-section {
             margin-bottom: 20px;
             font-size: 13px;
-            line-height: 1.8;
         }
 
         .payment-line {
             margin-bottom: 5px;
-        }
-
-        .payment-line strong {
-            font-weight: bold;
-            display: inline-block;
-            width: 140px;
         }
 
         .thank-you {
@@ -253,11 +248,19 @@
         <!-- Totals -->
         <div class="totals-section">
             <div class="total-line label">
-                <div>Subtotal:</div>
+                <div>
+                    <strong>
+                        Subtotal:
+                    </strong>
+                </div>
                 <div>{{ number_format($receipt['subtotal'], 2) }}</div>
             </div>
             <div class="total-line label">
-                <div>Tax :</div>
+                <div>
+                    <strong>
+                        Tax :
+                    </strong>
+                </div>
                 <div>{{ number_format($receipt['tax'], 2) }}</div>
             </div>
             <div class="total-line grand-total">
