@@ -65,4 +65,15 @@ class FileController extends Controller
 
         return response()->json($files);
     }
+
+    public function download ($path) {
+            $fullPath = storage_path('app/public/' . $path);
+
+            if (!file_exists($fullPath)) {
+                return response()->json(['error' => 'File not found'], 404);
+            }
+
+            return response()->file($fullPath);
+        }
+
 }

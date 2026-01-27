@@ -189,17 +189,19 @@ Route::post('/file-search', [FileController::class, 'search']);
         Route::get('/project/team/{project}', [ProjectAssignmentController::class, 'getProjectTeamMembers']);
         Route::delete('/project/team/{project}/{user}', [ProjectAssignmentController::class, 'DeleteProjectTeamMember']);
         Route::get('/payments/project/{project}', [PaymentController::class, 'getProjectPayments']);
-    });
 
+        Route::get('/storage/{path}', [FileController::class, 'download'])->where('path', '.*');
         Route::apiResource('tickets', TicketController::class);
         Route::get('/tickets/{ticketId}/download/{fileId}', [TicketController::class, 'downloadAttachment']);
+    });
+
     // -------------------------------------------------
     // Admin-only routes
     // -------------------------------------------------
     Route::middleware('role:admin')->group(function () {
         // get users
-Route::get('/users-all', [UserController::class, 'getAll']);
-Route::get('/get-team-users', [UserController::class, 'getTeamUsers']);
+        Route::get('/users-all', [UserController::class, 'getAll']);
+        Route::get('/get-team-users', [UserController::class, 'getTeamUsers']);
         // Clients (FULL)
         Route::get('clients', [ClientController::class, 'index']);
         Route::put('clients/{id}', [ClientController::class, 'update']);
