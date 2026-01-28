@@ -40,7 +40,7 @@ class ResetPasswordNotification extends Notification implements ShouldQueue
         // Build the password reset URL for your React frontend. Use config value
         // with sensible fallbacks to env and app URL.
         $frontend = config('app.frontend_url') ?? env('FRONTEND_URL') ?? config('app.url');
-        $resetUrl = rtrim($frontend, '/') . '/reset-password?token=' . $this->token . '&email=' . urlencode($notifiable->email);
+        $resetUrl = rtrim($frontend, '/') . '/auth/reset-password?token=' . $this->token . '&email=' . urlencode($notifiable->email);
 
         return (new MailMessage)
             ->subject(__('Reset Password Notification'))

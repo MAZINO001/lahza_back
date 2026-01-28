@@ -135,21 +135,16 @@ public function update(Request $request, $id)
         'host_acc' => 'nullable|string',
         'website_acc' => 'nullable|string',
         'social_media' => 'nullable|string',
-        // Validate files exist but don't include them in the metadata update
         'logo' => 'nullable|array',
-        'logo.*' => 'file',
         'specification_file' => 'nullable|array',
-        'specification_file.*' => 'file',
         'media_files' => 'nullable|array',
-        'media_files.*' => 'file',
         'other' => 'nullable|array',
-        'other.*' => 'file',
     ]);
 
     // 1. Update ONLY the text metadata columns
     $data->update($request->only(['host_acc', 'website_acc', 'social_media']));
 
-    // 2. Helper: delete old files by type (Same as you had)
+    // 2. Helper: delete old files by type
     $deleteByType = function ($type) use ($data) {
         $data->files()
             ->where('type', $type)
@@ -157,7 +152,27 @@ public function update(Request $request, $id)
             ->each(fn ($file) => $this->fileUploadService->deleteFile($file));
     };
 
-    // 3. Handle File Uploads (Correctly ignoring them in the metadata update)
+    // 3. Helper: check if field should be deleted
+    // Returns true if field contains ["[]"] or is empty array []
+    $shouldDeleteField = function ($fieldValue) {
+        if (!is_array($fieldValue)) {
+            return false;
+        }
+
+        // Check if empty array
+        if (empty($fieldValue)) {
+            return true;
+        }
+
+        // Check if array contains only the string "[]"
+        if (count($fieldValue) === 1 && $fieldValue[0] === '[]') {
+            return true;
+        }
+
+        return false;
+    };
+
+    // 4. Handle File Uploads
     $fileFields = [
         'logo' => 'additionalData/logo',
         'specification_file' => 'additionalData/specification_file',
@@ -166,20 +181,28 @@ public function update(Request $request, $id)
     ];
 
     foreach ($fileFields as $field => $path) {
-        if ($request->hasFile($field)) {
-            $deleteByType($field);
-            $this->fileUploadService->upload(
-                $request->file($field),
-                $data,
-                $field,
-                $path
-            );
+        if ($request->has($field)) {
+            $fieldValue = $request->input($field);
+
+            // Check if should delete (empty array or ["[]"])
+            if ($shouldDeleteField($fieldValue)) {
+                $deleteByType($field);
+            }
+            // Otherwise, if has actual files, upload them
+            elseif ($request->hasFile($field)) {
+                $deleteByType($field);
+                $this->fileUploadService->upload(
+                    $request->file($field),
+                    $data,
+                    $field,
+                    $path
+                );
+            }
         }
     }
 
     return response()->json($data->load('files'));
 }
-
 
 public function destroy($id)
 {

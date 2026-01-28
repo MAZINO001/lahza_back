@@ -17,7 +17,7 @@ class EmailVerificationNotification extends Notification
 
     public function toMail($notifiable)
     {
-        $verificationUrl = config('app.frontend_url') . '/verify-email?token=' . $notifiable->email_verification_token;
+        $verificationUrl = config('app.frontend_url') . '/auth/verify-email?token=' . $notifiable->email_verification_token;
 
         return (new MailMessage)
             ->subject('Verify Your Email Address')
