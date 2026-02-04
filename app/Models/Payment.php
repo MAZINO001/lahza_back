@@ -56,4 +56,8 @@ public function files()
     {
         return $this->morphMany(Comment::class, 'commentable');
     }
+     public function paymentAllocations()
+    {
+        return $this->hasMany(PaymentAllocation::class);
+    }
 }

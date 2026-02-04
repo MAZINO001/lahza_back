@@ -47,4 +47,61 @@ class Client extends Model
     {
         return $this->morphMany(Comment::class, 'commentable');
     }
+    public function subscriptions()
+{
+    return $this->hasMany(Subscription::class);
+}
+
+    /**
+     * Get the active subscription for this client.
+     */
+    public function activeSubscription()
+    {
+        return $this->hasOne(Subscription::class)
+            ->whereIn('status', ['active', 'trial'])
+            ->latest('started_at');
+    }
+
+    /**
+     * Check if client has an active subscription.
+     */
+    public function hasActiveSubscription(): bool
+    {
+        return $this->activeSubscription()->exists();
+    }
+
+    /**
+     * Get subscription custom field value.
+     */
+    public function getSubscriptionLimit(string $key)
+    {
+        $subscription = $this->activeSubscription;
+        
+        if (!$subscription) {
+            return null;
+        }
+        
+        return $subscription->getCustomFieldValue($key);
+    }
+
+    /**
+     * Check if client has reached a subscription limit.
+     */
+    public function hasReachedSubscriptionLimit(string $limitKey, int $currentUsage): bool
+    {
+        $subscription = $this->activeSubscription;
+        
+        if (!$subscription) {
+            return false; // No active subscription means no limits
+        }
+        
+        $limit = $subscription->getCustomFieldValue($limitKey);
+        
+        if ($limit === null) {
+            return false; // No limit set
+        }
+        
+        return $currentUsage >= $limit;
+    }
+
 }

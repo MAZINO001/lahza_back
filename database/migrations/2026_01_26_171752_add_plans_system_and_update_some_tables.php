@@ -33,7 +33,7 @@ return new class extends Migration
         Schema::create('plan_prices', function (Blueprint $table) {
             $table->id();
             $table->foreignId('plan_id')->constrained('plans')->cascadeOnDelete();
-            $table->enum('interval', ['monthly', 'yearly']);
+            $table->enum('interval', ['monthly', 'yearly', 'quarterly']);
             $table->decimal('price', 12, 2);
             $table->string('currency', 10)->default('USD');
             $table->string('stripe_price_id')->nullable();
@@ -80,6 +80,41 @@ return new class extends Migration
         Schema::table('invoices', function (Blueprint $table) {
             $table->foreignId('subscription_id')->nullable()->after('client_id')->constrained('subscriptions')->nullOnDelete();
         });
+        // Add rrules to events for recurring events
+        Schema::table('events', function (Blueprint $table) {
+                    $table->json('rrules')->nullable()->after('status');
+        });
+        Schema::create('payment_allocations', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('payment_id')->constrained('payments')->cascadeOnDelete();
+            $table->foreignId('invoice_subscription_id')->nullable()->constrained('invoice_subscriptions')->nullOnDelete();
+            $table->enum('allocatable_type', ['invoice','subscription']);
+            $table->decimal('amount', 12, 2);
+            $table->timestamps();
+        });
+        Schema::create('invoice_subscriptions', function(Blueprint $table){
+            $table->id();
+            $table->foreignId('invoice_id')->constrained('invoices')->cascadeOnDelete();
+            $table->foreignId('plan_id')->constrained('plans')->cascadeOnDelete();
+            $table->foreignId('subscription_id')->nullable()->constrained('subscriptions')->nullOnDelete();
+            
+            $table->decimal('price_snapshot', 12, 2);
+            $table->enum('billing_cycle', ['monthly','yearly']);
+            
+            $table->timestamps();
+        });
+
+        Schema::create('quote_subscriptions', function(Blueprint $table){
+            $table->id();
+            $table->foreignId('quote_id')->constrained('quotes')->cascadeOnDelete();
+            $table->foreignId('plan_id')->constrained('plans')->cascadeOnDelete();
+            
+            $table->decimal('price_snapshot', 12, 2);
+            $table->enum('billing_cycle', ['monthly','yearly']);
+            
+            $table->timestamps();
+        });
+
     }
 
     /**

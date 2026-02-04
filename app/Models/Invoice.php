@@ -20,6 +20,7 @@ class Invoice extends Model
         'checksum',
         'has_projects',
         'description',
+        'subscription_id',
     ];
 
     protected $casts = [
@@ -76,5 +77,38 @@ class Invoice extends Model
     {
         return $this->morphMany(Comment::class, 'commentable');
     }
+    public function subscription()
+    {
+        return $this->belongsTo(Subscription::class);
+    }
 
+    /**
+     * Check if this invoice is for a subscription.
+     */
+    public function isSubscriptionInvoice(): bool
+    {
+        return !is_null($this->subscription_id);
+    }
+
+    /**
+     * Scope a query to only include subscription invoices.
+     */
+    public function scopeSubscriptionInvoices($query)
+    {
+        return $query->whereNotNull('subscription_id');
+    }
+
+    /**
+     * Scope a query to only include non-subscription invoices.
+     */
+    public function scopeNonSubscriptionInvoices($query)
+    {
+        return $query->whereNull('subscription_id');
+    }
+     public function invoiceSubscriptions()
+    {
+        return $this->hasMany(InvoiceSubscription::class);
+    }
+
+   
 }

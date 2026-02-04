@@ -40,6 +40,9 @@ use App\Http\Controllers\Ai\TaskUpdateController;
 use App\Http\Controllers\OtpController;
 use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\FileController;
+use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\PackController;
+use App\Http\Controllers\PlanController;
 
 
 Route::get('/check-models', function () {
@@ -305,4 +308,53 @@ Route::post('/file-search', [FileController::class, 'search']);
     Route::middleware('role:client')->group(function () {
     
     });
-});
+    // -----------------------------
+    // Subscription routes
+    // ----------------------------- 
+    });
+    // Packs
+    Route::prefix('packs')->group(function () {
+        Route::get('/', [PackController::class, 'index']);
+        Route::post('/', [PackController::class, 'store']);
+        Route::get('/active', [PackController::class, 'activePacks']);
+        Route::get('/{pack}', [PackController::class, 'show']);
+        Route::put('/{pack}', [PackController::class, 'update']);
+        Route::delete('/{pack}', [PackController::class, 'destroy']);
+    });
+    
+    // Plans
+    Route::prefix('plans')->group(function () {
+        Route::get('/', [PlanController::class, 'index']);
+        Route::post('/', [PlanController::class, 'store']);
+        Route::get('/{plan}', [PlanController::class, 'show']);
+        Route::put('/{plan}', [PlanController::class, 'update']);
+        Route::delete('/{plan}', [PlanController::class, 'destroy']);
+        
+        // Plan prices
+        Route::post('/{plan}/prices', [PlanController::class, 'addPrice']);
+        Route::put('/{plan}/prices/{price}', [PlanController::class, 'updatePrice']);
+        
+        // Plan custom fields
+        Route::post('/{plan}/custom-fields', [PlanController::class, 'addCustomField']);
+        Route::put('/{plan}/custom-fields/{customField}', [PlanController::class, 'updateCustomField']);
+        Route::delete('/{plan}/custom-fields/{customField}', [PlanController::class, 'deleteCustomField']);
+    });
+    
+    // Subscriptions
+    Route::prefix('subscriptions')->group(function () {
+        Route::get('/', [SubscriptionController::class, 'index']);
+        Route::post('/', [SubscriptionController::class, 'store']);
+        Route::get('/stats', [SubscriptionController::class, 'stats']);
+        Route::get('/{subscription}', [SubscriptionController::class, 'show']);
+        Route::put('/{subscription}', [SubscriptionController::class, 'update']);
+        Route::delete('/{subscription}', [SubscriptionController::class, 'destroy']);
+        
+        // Subscription actions
+        Route::post('/{subscription}/cancel', [SubscriptionController::class, 'cancel']);
+        Route::post('/{subscription}/renew', [SubscriptionController::class, 'renew']);
+        Route::post('/{subscription}/change-plan', [SubscriptionController::class, 'changePlan']);
+        Route::post('/{subscription}/check-limit', [SubscriptionController::class, 'checkLimit']);
+    });
+    
+    // Client subscriptions
+    Route::get('/clients/{client}/subscription', [SubscriptionController::class, 'getActiveSubscription']);
