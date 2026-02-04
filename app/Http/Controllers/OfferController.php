@@ -58,7 +58,7 @@ public function update(Request $request, $id)
         'end_date' => 'required|date|after_or_equal:start_date',
         'status' => ['required', Rule::in(['active', 'inactive'])],
         'placement' => 'nullable|array',
-        'placement.*' => 'string|in:header,calendar',
+        'placement.*' => 'string|in:header,calendar,quotes,invoices,projects',
     ]);
 
     $offer->update($validated);

@@ -84,15 +84,7 @@ return new class extends Migration
         Schema::table('events', function (Blueprint $table) {
                     $table->json('rrules')->nullable()->after('status');
         });
-        Schema::create('payment_allocations', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('payment_id')->constrained('payments')->cascadeOnDelete();
-            $table->foreignId('invoice_subscription_id')->nullable()->constrained('invoice_subscriptions')->nullOnDelete();
-            $table->enum('allocatable_type', ['invoice','subscription']);
-            $table->decimal('amount', 12, 2);
-            $table->timestamps();
-        });
-        Schema::create('invoice_subscriptions', function(Blueprint $table){
+           Schema::create('invoice_subscriptions', function(Blueprint $table){
             $table->id();
             $table->foreignId('invoice_id')->constrained('invoices')->cascadeOnDelete();
             $table->foreignId('plan_id')->constrained('plans')->cascadeOnDelete();
@@ -103,6 +95,15 @@ return new class extends Migration
             
             $table->timestamps();
         });
+        Schema::create('payment_allocations', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('payment_id')->constrained('payments')->cascadeOnDelete();
+            $table->foreignId('invoice_subscription_id')->nullable()->constrained('invoice_subscriptions')->nullOnDelete();
+            $table->enum('allocatable_type', ['invoice','subscription']);
+            $table->decimal('amount', 12, 2);
+            $table->timestamps();
+        });
+     
 
         Schema::create('quote_subscriptions', function(Blueprint $table){
             $table->id();

@@ -41,16 +41,20 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request)
 {
-    // Revoke the current user's token
-    if ($request->user()) {
-        $request->user()->currentAccessToken()->delete();
+     $user = $request->user();
+
+    if ($user) {
+        try {
+            $user->tokens()->delete();
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to revoke tokens'], 500);
+        }
     }
-    // If this is a web request, handle session cleanup
-    if (! $request->wantsJson()) {
-        Auth::guard('web')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-    }
-    return response()->noContent();
+
+    Auth::guard('web')->logout();
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+
+    return response()->json(['message' => 'Logged out successfully']);
 }
 }

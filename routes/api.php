@@ -235,7 +235,6 @@ Route::post('/file-search', [FileController::class, 'search']);
         Route::put('/payments/{payment}', [PaymentController::class, 'updatePayment']);
         Route::get('/payments/{payment}', [PaymentController::class, 'show']);
 
-        Route::put('/validatePayments/{payment}', [PaymentController::class, 'handleManualPayment']);
         Route::put('/cancelPayment/{payment}', [PaymentController::class, 'cancelPayment']);
         Route::get('getRemaining/{invoice}', [PaymentController::class, 'getRemaining']);
 
@@ -358,3 +357,4 @@ Route::post('/file-search', [FileController::class, 'search']);
     
     // Client subscriptions
     Route::get('/clients/{client}/subscription', [SubscriptionController::class, 'getActiveSubscription']);
+        Route::put('/validatePayments/{payment}', [PaymentController::class, 'handleManualPayment']);
