@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use App\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
 class Invoice extends Model
 {
     use LogsActivity;
@@ -105,10 +107,67 @@ class Invoice extends Model
     {
         return $query->whereNull('subscription_id');
     }
-     public function invoiceSubscriptions()
-    {
-        return $this->hasMany(InvoiceSubscription::class);
-    }
 
-   
+   public function invoiceSubscriptions(): HasMany
+{
+    return $this->hasMany(InvoiceSubscription::class);
+}
+
+/**
+ * Check if this invoice has subscription plans.
+ */
+public function hasSubscriptions(): bool
+{
+    return $this->invoiceSubscriptions()->exists();
+}
+
+/**
+ * Check if this invoice has regular services.
+ */
+public function hasServices(): bool
+{
+    return $this->invoiceServices()->exists();
+}
+
+/**
+ * Check if this invoice is mixed (has both services and subscriptions).
+ */
+public function isMixedInvoice(): bool
+{
+    return $this->hasServices() && $this->hasSubscriptions();
+}
+
+/**
+ * Check if this invoice is subscription-only.
+ */
+public function isSubscriptionOnly(): bool
+{
+    return $this->hasSubscriptions() && !$this->hasServices();
+}
+
+/**
+ * Get total amount from subscriptions.
+ */
+public function getSubscriptionsTotal(): float
+{
+    return $this->invoiceSubscriptions()->sum('price_snapshot');
+}
+
+/**
+ * Get total amount from services.
+ */
+public function getServicesTotal(): float
+{
+    return $this->invoiceServices()->sum('individual_total');
+}
+
+/**
+ * Check if all subscription plans have been activated.
+ */
+public function allSubscriptionsActivated(): bool
+{
+    return $this->invoiceSubscriptions()
+        ->whereNull('subscription_id')
+        ->doesntExist();
+}
 }

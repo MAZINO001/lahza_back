@@ -17,7 +17,7 @@ use App\Services\ProjectCreationService;
 use App\Services\ActivityLoggerService;
 use App\Mail\InvoiceCreatedMail;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
-
+use App\Models\InvoiceSubscription;
 class InvoicesController extends Controller
 {
     protected $paymentService;
@@ -60,7 +60,7 @@ class InvoicesController extends Controller
         ]);
     }
 
-   public function store(Request $request)
+public function store(Request $request)
 {
     $this->authorize('create', Invoice::class);
 
@@ -76,11 +76,15 @@ class InvoicesController extends Controller
         'payment_percentage' => 'nullable|numeric',
         'payment_status' => 'string',
         'payment_type' => 'string',
-        'services' => 'array',
+        'services' => 'nullable|array',
         'services.*.service_id' => 'required|exists:services,id',
         'services.*.quantity' => 'required|integer|min:1',
         'services.*.tax' => 'nullable|numeric',
         'services.*.individual_total' => 'nullable|numeric',
+        'subscriptions' => 'nullable|array',
+        'subscriptions.*.plan_id' => 'required|exists:plans,id',
+        'subscriptions.*.billing_cycle' => 'required|in:monthly,yearly',
+        'subscriptions.*.price_snapshot' => 'required|numeric',
         'has_projects' => 'nullable',
         'old_projects' => 'nullable|array',
         'old_projects.*' => 'exists:projects,id',
@@ -104,6 +108,7 @@ class InvoicesController extends Controller
                 : $validate["has_projects"],
         ]);
 
+        // Add services
         if (!empty($validate["services"])) {
             foreach ($validate["services"] as $service) {
                 InvoiceService::create([
@@ -116,6 +121,19 @@ class InvoicesController extends Controller
             }
         }
 
+        // Add subscriptions
+        if (!empty($validate['subscriptions'])) {
+            foreach ($validate['subscriptions'] as $subscription) {
+                InvoiceSubscription::create([
+                    'invoice_id' => $invoice->id,
+                    'plan_id' => $subscription['plan_id'],
+                    'subscription_id' => null, // Will be set after payment
+                    'price_snapshot' => $subscription['price_snapshot'],
+                    'billing_cycle' => $subscription['billing_cycle'],
+                ]);
+            }
+        }
+
         if (!empty($validate['old_projects'])) {
             $invoice->projects()->sync($validate['old_projects']);
         }
@@ -124,7 +142,7 @@ class InvoicesController extends Controller
         $this->autoSignAdminSignature($invoice);
 
         // Load relationships
-        $invoice->load('client', 'files', 'invoiceServices');
+        $invoice->load('client', 'files', 'invoiceServices', 'invoiceSubscriptions.plan');
 
         // Add signature URLs to the response
         $invoice->admin_signature_url = asset('images/admin_signature.png');
@@ -135,8 +153,12 @@ class InvoicesController extends Controller
 
         // ONLY create payment and send email if status is NOT 'draft'
         if ($validate["status"] !== 'draft') {
-            $paymentPercentage = $validate['payment_percentage'] ?? 50;
-            $paymentStatus = $validate['payment_status'] ?? 'unpaid';
+            // Default payment percentage based on whether invoice has subscriptions
+            $paymentPercentage = $invoice->hasSubscriptions() 
+                ? ($validate['payment_percentage'] ?? 100)
+                : ($validate['payment_percentage'] ?? 50);
+                
+            $paymentStatus = $validate['payment_status'] ?? 'pending';
             $paymentType = $validate['payment_type'] ?? 'bank';
 
             try {
@@ -146,6 +168,13 @@ class InvoicesController extends Controller
                     $paymentStatus,
                     $paymentType
                 );
+
+                // Get the created payment and create allocations
+                $payment = $invoice->payments()->latest()->first();
+                if ($payment) {
+                    $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
+                    $subscriptionInvoiceService->createPaymentAllocations($payment, $invoice, $paymentPercentage);
+                }
 
                 // Send email with PDF
                 $this->sendInvoiceEmail($invoice, $response);
@@ -175,13 +204,14 @@ class InvoicesController extends Controller
                 'client_id' => $invoice->client_id,
                 'total_amount' => $invoice->total_amount,
                 'status' => $invoice->status,
+                'has_subscriptions' => $invoice->hasSubscriptions(),
                 'url' => request()->fullUrl()
             ],
             "Invoice #{$invoice->id} created for client #{$invoice->client_id} with total: {$invoice->total_amount}"
         );
 
         return response()->json([
-            $invoice->load("invoiceServices", "projects"),
+            $invoice->load("invoiceServices", "invoiceSubscriptions.plan", "projects"),
             'invoice_id' => $invoice->id
         ], 201);
     });

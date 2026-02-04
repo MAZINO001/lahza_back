@@ -7,6 +7,7 @@ use App\Models\Plan;
 use App\Models\PlanPrice;
 use App\Models\Subscription;
 use App\Services\SubscriptionService;
+use App\Services\SubscriptionInvoiceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -14,10 +15,14 @@ use Illuminate\Support\Facades\Validator;
 class SubscriptionController extends Controller
 {
     protected SubscriptionService $subscriptionService;
+    protected SubscriptionInvoiceService $subscriptionInvoiceService;
 
-    public function __construct(SubscriptionService $subscriptionService)
-    {
+    public function __construct(
+        SubscriptionService $subscriptionService,
+        SubscriptionInvoiceService $subscriptionInvoiceService
+    ) {
         $this->subscriptionService = $subscriptionService;
+        $this->subscriptionInvoiceService = $subscriptionInvoiceService;
     }
 
     /**
@@ -48,7 +53,8 @@ class SubscriptionController extends Controller
     }
 
     /**
-     * Store a newly created subscription.
+     * Store a newly created subscription - NOW creates invoice + payment
+     * This is for direct subscription purchase (Path 1)
      */
     public function store(Request $request): JsonResponse
     {
@@ -56,7 +62,6 @@ class SubscriptionController extends Controller
             'client_id' => 'required|exists:clients,id',
             'plan_id' => 'required|exists:plans,id',
             'plan_price_id' => 'required|exists:plan_prices,id',
-            'status' => 'nullable|in:trial,active,past_due,cancelled,expired',
             'custom_field_values' => 'nullable|array',
         ]);
 
@@ -74,20 +79,21 @@ class SubscriptionController extends Controller
                 return response()->json(['error' => 'Plan price does not belong to the selected plan'], 422);
             }
 
-            $subscription = $this->subscriptionService->createSubscription(
+            // Create invoice + payment for subscription
+            $result = $this->subscriptionInvoiceService->createInvoiceForSubscription(
                 $client,
                 $plan,
                 $planPrice,
-                $request->get('custom_field_values', []),
-                $request->get('status', 'active')
+                $request->get('custom_field_values', [])
             );
 
             return response()->json([
-                'message' => 'Subscription created successfully',
-                'subscription' => $subscription
+                'message' => 'Subscription invoice created successfully. Subscription will be activated after payment.',
+                'invoice' => $result['invoice'],
+                'payment' => $result['payment'],
             ], 201);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to create subscription: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Failed to create subscription invoice: ' . $e->getMessage()], 500);
         }
     }
 
@@ -231,8 +237,7 @@ class SubscriptionController extends Controller
             $stats = $this->subscriptionService->getSubscriptionStats();
 
             return response()->json(['stats' => $stats]);
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to retrieve stats: ' . $e->getMessage()], 500);
         }
     }

@@ -121,7 +121,7 @@ public function getRemaining(Request $request, Invoice $invoice){
 }
 public function handleManualPayment(Payment $payment)
 {
-    $this->authorize('update', $payment);
+    // $this->authorize('update', $payment);
 
     if ($payment->payment_method === 'stripe') {
         return response()->json([

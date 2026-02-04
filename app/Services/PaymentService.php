@@ -358,69 +358,73 @@ public function updatePendingPayment(Payment $payment, float $percentage, string
     ];
 }
 
-    public function handleStripeWebhook(string $payload, string $sigHeader)
-    {
-        $secret = config('services.stripe.webhook_secret');
+public function handleStripeWebhook(string $payload, string $sigHeader)
+{
+    $secret = config('services.stripe.webhook_secret');
 
-        try {
-            $event = Webhook::constructEvent($payload, $sigHeader, $secret);
-        } catch (\Exception $e) {
-            Log::error('Invalid Stripe webhook: '.$e->getMessage());
-            return ['status' => 'invalid'];
+    try {
+        $event = Webhook::constructEvent($payload, $sigHeader, $secret);
+    } catch (\Exception $e) {
+        Log::error('Invalid Stripe webhook: '.$e->getMessage());
+        return ['status' => 'invalid'];
+    }
+    
+    Log::info('Stripe webhook received', [
+        'type' => $event->type,
+        'event_id' => $event->id
+    ]);
+
+    if ($event->type === 'checkout.session.completed') {
+        $session = $event->data->object;
+
+        $payment = $this->paymentRepository->findByStripeSessionId($session->id);
+        if (!$payment) {
+            Log::warning('Payment not found for Stripe session: '.$session->id);
+            return ['status' => 'ok'];
         }
         
-        Log::info('Stripe webhook received', [
-            'type' => $event->type,
-            'event_id' => $event->id
+        Log::info('Payment found', [
+            'payment_id' => $payment->id,
+            'current_status' => $payment->status,
+            'amount' => $payment->amount
         ]);
 
-        if ($event->type === 'checkout.session.completed') {
-            $session = $event->data->object;
+        // Mark this payment as paid
+        $this->paymentRepository->update($payment, [
+            'status' => 'paid',
+            'stripe_payment_intent_id' => $session->payment_intent,
+            'payment_url' => null
+        ]);
 
-            $payment = $this->paymentRepository->findByStripeSessionId($session->id);
-            if (!$payment) {
-                Log::warning('Payment not found for Stripe session: '.$session->id);
-                return ['status' => 'ok'];
-            }
-            
-            Log::info('Payment found', [
-                'payment_id' => $payment->id,
-                'current_status' => $payment->status,
-                'amount' => $payment->amount
-            ]);
+        $invoice = $payment->invoice;
+        
+        // Update invoice status
+        $this->updateInvoiceStatus($invoice);
+        
+        // Handle subscription allocations - Create subscriptions for paid allocations
+        $this->handleSubscriptionAllocations($payment);
+        
+        // Auto-generate remaining payment if needed
+        $this->autoGenerateRemainingPayment($invoice, $payment);
 
-            // Mark this payment as paid
-            $this->paymentRepository->update($payment, [
-                'status' => 'paid',
-                'stripe_payment_intent_id' => $session->payment_intent,
-                'payment_url' => null
-            ]);
+        // Refresh invoice to get updated values
+        $invoice->refresh();
 
-            $invoice = $payment->invoice;
-            $totalAmount = $invoice->total_amount;
-            $this->updateInvoiceStatus($invoice);
-            $this->autoGenerateRemainingPayment($invoice, $payment);
+        // Update projects after payment
+        $paymentData = $invoice->payments()->latest()->first()?->toArray() ?? [];
+        $this->projectCreationService->updateProjectAfterPayment($invoice, $paymentData);
 
-            // Update invoice status
-            // Refresh invoice to get updated values
-            $invoice->refresh();
-
-
-            // Calculate total paid for logging and checking 50% threshold
-            $totalPaid = $invoice->payments()->where('status', 'paid')->sum('amount');
-            $balanceDue = $invoice->balance_due;
-
-            // Generate a new payment link if exactly 50% was paid and there's still balance due
-           
-            $paymentData = $invoice->payments()->latest()->first()?->toArray() ?? [];
-            $this->projectCreationService->updateProjectAfterPayment($invoice ,$paymentData);
-
-            // Send payment success email
-            $this->sendPaymentSuccessEmail($payment);
-        }
-
-        return ['status' => 'ok'];
+        // Send payment success email
+        $this->sendPaymentSuccessEmail($payment);
     }
+
+    return ['status' => 'ok'];
+}
+
+/**
+ * Handle subscription allocations after payment is completed
+ * Creates actual subscriptions for paid subscription allocations
+ */
 
     /**
      * Send payment success email
@@ -654,4 +658,70 @@ Stripe::setApiKey(config('services.stripe.secret'));
         $paidPayment->payment_method
     );
 }
+
+
+protected function handleSubscriptionAllocations($payment): void
+{
+    // Get all subscription allocations for this payment
+    $subscriptionAllocations = $payment->allocations()
+        ->where('allocatable_type', 'subscription')
+        ->whereNotNull('invoice_subscription_id')
+        ->with('invoiceSubscription.plan')
+        ->get();
+
+    if ($subscriptionAllocations->isEmpty()) {
+        return; // No subscription allocations
+    }
+
+    $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
+
+    foreach ($subscriptionAllocations as $allocation) {
+        try {
+            $invoiceSubscription = $allocation->invoiceSubscription;
+            
+            // Skip if subscription already created
+            if ($invoiceSubscription->subscription_id) {
+                Log::info('Subscription already exists for allocation', [
+                    'allocation_id' => $allocation->id,
+                    'subscription_id' => $invoiceSubscription->subscription_id,
+                ]);
+                continue;
+            }
+
+            // Check if this specific subscription allocation is fully paid
+            if (!$invoiceSubscription->isFullyPaid()) {
+                Log::info('Subscription not fully paid yet', [
+                    'invoice_subscription_id' => $invoiceSubscription->id,
+                    'paid_amount' => $invoiceSubscription->getTotalPaid(),
+                    'required_amount' => $invoiceSubscription->price_snapshot,
+                ]);
+                continue;
+            }
+
+            // Get custom field values if stored (you may need to adjust this)
+            $customFieldValues = [];
+            
+            // Create the subscription
+            $subscription = $subscriptionInvoiceService->createSubscriptionFromPaidAllocation(
+                $invoiceSubscription,
+                $customFieldValues
+            );
+
+            Log::info('Subscription created from payment allocation', [
+                'payment_id' => $payment->id,
+                'allocation_id' => $allocation->id,
+                'subscription_id' => $subscription->id,
+                'plan_id' => $invoiceSubscription->plan_id,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to create subscription from allocation', [
+                'allocation_id' => $allocation->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+}
+
 }
