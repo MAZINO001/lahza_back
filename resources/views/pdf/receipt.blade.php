@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Receipt</title>
+
     <style>
         * {
             margin: 0;
@@ -105,7 +106,7 @@
             color: white;
             padding: 10px;
             text-align: left;
-            font-size: 13px;
+            font-size: 12px;
             /* font-weight: 300; */
             border-bottom: 1px solid #ebe6e6;
         }

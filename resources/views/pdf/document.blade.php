@@ -11,7 +11,6 @@
             Facture {{ 'QUOTES-' . str_pad($quote->id ?? 0, 5, '0', STR_PAD_LEFT) }}
         @endif
     </title>
-
     <style>
         * {
             margin: 0;
@@ -40,6 +39,7 @@
             display: table;
             width: 100%;
             margin-bottom: 10px;
+
         }
 
         .company-info>div {
@@ -106,7 +106,7 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         /* .client-info {
@@ -114,7 +114,7 @@
             align-items: start;
             justify-content: space-between;
             width: 100%;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         } */
 
 
@@ -186,11 +186,16 @@
             text-align: right;
         }
 
+        .last {
+            position: relative;
+            top: -120px;
+        }
+
         .items-table {
             border: 1px solid #ebe6e6;
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .items-table thead {
@@ -241,7 +246,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             margin-left: auto;
             text-align: right;
         } */
@@ -275,7 +280,7 @@
 
         .payment-info {
             width: 100%;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .payment-info p {
@@ -296,9 +301,11 @@
 
         .bank-details {
             margin-top: 10px;
+            margin-top: 5px;
             font-size: 11px;
             line-height: 1.6;
             border-radius: 6px;
+
         }
 
         .bank-details p {
@@ -311,12 +318,18 @@
             color: #333;
         }
 
-        .conditions {
-
+        .objective {
             font-size: 13px;
             line-height: 1.6;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
+
+        .conditions {
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
 
         .notes {
             font-size: 12px;
@@ -324,26 +337,6 @@
         }
 
 
-        /*
-        .signatures {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        } */
-
-
-        * .signatures .admin_sign {
-            /* border: 1px solid #051630; */
-            padding: 20px 30px;
-        }
-
-        .signatures .client_sign {
-            /* border: 1px solid #051630; */
-            padding: 20px 30px;
-        }
-
-
-        /* testing this shit  */
         .signatures {
             width: 100%;
             margin-top: 20px;
@@ -352,8 +345,7 @@
 
         .signatures>.admin_sign {
             float: left;
-            width: 30%;
-            padding: 30px 20px;
+            /* padding: 30px 20px; */
             text-align: center
         }
 
@@ -361,14 +353,13 @@
 
         .signatures>.client_sign {
             float: right;
-            width: 30%;
-            padding: 30px 20px;
+            /* padding: 30px 20px; */
             text-align: center
         }
 
         .client-info {
             width: 100%;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             position: relative;
             height: auto;
         }
@@ -393,9 +384,9 @@
 
         .totals {
             width: 100%;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+
             overflow: hidden;
-            /* ensures floats stay inside */
         }
 
         .totals>div:first-child {
@@ -512,16 +503,16 @@
                         </tr>
                     </thead>
                     @if ($type === 'quote')
-                        <div class="conditions">
-                            <strong>objectif :</strong><br>
+                        <div class="objective">
+                            <strong>objective :</strong><br>
                             @if ($quote->description)
                                 {{ $quote->description }}
                             @else
                             @endif
                         </div>
                     @else
-                        <div class="conditions">
-                            <strong>objectif :</strong><br>
+                        <div class="objective">
+                            <strong>objective :</strong><br>
                             @if ($invoice->description)
                                 {{ $invoice->description }}
                             @else
@@ -663,7 +654,7 @@
                     <strong>Conditions d'utilisation</strong><br>
                     {{ $companyInfo?->terms_and_conditions ??
                         "En signant la facture, le client accepte sans réserves nos conditions. Pour plus d'informations,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/" }}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/" }}
                 </div>
             </div>
 
