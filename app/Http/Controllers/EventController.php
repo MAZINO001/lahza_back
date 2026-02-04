@@ -67,6 +67,7 @@ public function show($id)
         'guests' => 'nullable|array',
         'guests.*' => 'required|integer',
         'urgency' => 'nullable|in:low,medium,high,urgent',
+        'rrules' => 'nullable|json',
     ]);
 
     $guests = $data['guests'] ?? null;
@@ -109,6 +110,7 @@ public function show($id)
         'guests' => 'nullable|array',
         'guests.*' => 'required|integer',
         'urgency' => 'nullable|in:low,medium,high,urgent',
+        'rrules' => 'nullable|json',
     ]);
 
       $guests = $data['guests'] ?? [];
