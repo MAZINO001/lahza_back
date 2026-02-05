@@ -82,7 +82,7 @@ return new class extends Migration
         });
         // Add rrules to events for recurring events
         Schema::table('events', function (Blueprint $table) {
-                    $table->json('rrules')->nullable()->after('status');
+                    $table->json('rrule')->nullable()->after('status');
         });
            Schema::create('invoice_subscriptions', function(Blueprint $table){
             $table->id();

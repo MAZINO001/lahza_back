@@ -8,6 +8,8 @@ use App\Models\Quotes;
 use App\Models\User;
 use App\Models\Invoice;
 use App\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
 class Payment extends Model
 {
     use HasFactory;
@@ -56,8 +58,49 @@ public function files()
     {
         return $this->morphMany(Comment::class, 'commentable');
     }
-     public function paymentAllocations()
-    {
-        return $this->hasMany(PaymentAllocation::class);
-    }
+  
+    public function allocations(): HasMany
+{
+    return $this->hasMany(PaymentAllocation::class);
+}
+
+/**
+ * Get subscription allocations only.
+ */
+public function subscriptionAllocations(): HasMany
+{
+    return $this->allocations()->where('allocatable_type', 'subscription');
+}
+
+/**
+ * Get invoice (services) allocations only.
+ */
+public function invoiceAllocations(): HasMany
+{
+    return $this->allocations()->where('allocatable_type', 'invoice');
+}
+
+/**
+ * Check if this payment has subscription allocations.
+ */
+public function hasSubscriptionAllocations(): bool
+{
+    return $this->subscriptionAllocations()->exists();
+}
+
+/**
+ * Get total allocated to subscriptions.
+ */
+public function getSubscriptionAllocationTotal(): float
+{
+    return $this->subscriptionAllocations()->sum('amount');
+}
+
+/**
+ * Get total allocated to invoice services.
+ */
+public function getInvoiceAllocationTotal(): float
+{
+    return $this->invoiceAllocations()->sum('amount');
+}
 }

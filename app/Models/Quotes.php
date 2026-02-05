@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
 class Quotes extends Model
 {
     use LogsActivity;
@@ -85,4 +87,57 @@ class Quotes extends Model
     {
         return $this->morphMany(Comment::class, 'commentable');
     }
+    public function quoteSubscriptions(): HasMany
+{
+    return $this->hasMany(QuoteSubscription::class);
+}
+
+/**
+ * Check if this quote has subscription plans.
+ */
+public function hasSubscriptions(): bool
+{
+    return $this->quoteSubscriptions()->exists();
+}
+
+/**
+ * Check if this quote has regular services.
+ */
+public function hasServices(): bool
+{
+    return $this->quoteServices()->exists();
+}
+
+/**
+ * Check if this quote is mixed (has both services and subscriptions).
+ */
+public function isMixedQuote(): bool
+{
+    return $this->hasServices() && $this->hasSubscriptions();
+}
+
+/**
+ * Check if this quote is subscription-only.
+ */
+public function isSubscriptionOnly(): bool
+{
+    return $this->hasSubscriptions() && !$this->hasServices();
+}
+
+/**
+ * Get total amount from subscriptions.
+ */
+public function getSubscriptionsTotal(): float
+{
+    return $this->quoteSubscriptions()->sum('price_snapshot');
+}
+
+/**
+ * Get total amount from services.
+ */
+public function getServicesTotal(): float
+{
+    return $this->quoteServices()->sum('individual_total');
+}
+
 }

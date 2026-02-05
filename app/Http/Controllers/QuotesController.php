@@ -19,7 +19,8 @@ use App\Mail\InvoiceCreatedMail;
 use App\Mail\SendReportMail;
 use App\Mail\QuoteCreatedMail;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
-
+use App\Models\QuoteSubscription;
+use App\Models\InvoiceSubscription;
 class QuotesController extends Controller
 {
     protected $paymentService;
@@ -60,96 +61,114 @@ class QuotesController extends Controller
         ]);
     }
 
-    public function store(Request $request)
-    {
-        $this->authorize('create',Quotes::class);
-        $validated = $request->validate([
-            'client_id' => 'required|exists:clients,id',
-            'quotation_date' => 'required|date',
-            'status' => 'required|in:draft,sent,confirmed,signed,rejected',
-            'notes' => 'nullable|string',
-            'total_amount' => 'required|numeric',
-            'services' => 'array',
-            'services.*.service_id' => 'required|exists:services,id',
-            'services.*.quantity' => 'required|integer|min:1',
-            'services.*.tax' => 'nullable|numeric',
-            'services.*.individual_total' => 'nullable|numeric',
-            'has_projects' => 'nullable',
-            'description' => 'nullable'
-        ]);
+public function store(Request $request)
+{
+    $this->authorize('create', Quotes::class);
+    
+    $validated = $request->validate([
+        'client_id' => 'required|exists:clients,id',
+        'quotation_date' => 'required|date',
+        'status' => 'required|in:draft,sent,confirmed,signed,rejected',
+        'notes' => 'nullable|string',
+        'total_amount' => 'required|numeric',
+        'services' => 'nullable|array',
+        'services.*.service_id' => 'required|exists:services,id',
+        'services.*.quantity' => 'required|integer|min:1',
+        'services.*.tax' => 'nullable|numeric',
+        'services.*.individual_total' => 'nullable|numeric',
+        'subscriptions' => 'nullable|array',
+        'subscriptions.*.plan_id' => 'required|exists:plans,id',
+        'subscriptions.*.billing_cycle' => 'required|in:monthly,yearly',
+        'subscriptions.*.price_snapshot' => 'required|numeric',
+        'has_projects' => 'nullable',
+        'description' => 'nullable'
+    ]);
 
-        return DB::transaction(function () use ($validated) {
-            $quoteData = [
-                'client_id' => $validated['client_id'],
-                'quotation_date' => $validated['quotation_date'],
-                'status' => $validated['status'],
-                'notes' => $validated['notes'] ?? null,
-                'total_amount' => $validated['total_amount'],
-                'has_projects' => is_array($validated['has_projects'] ?? null) 
-                    ? json_encode($validated['has_projects']) 
-                    : ($validated['has_projects'] ?? null),
-                'description' => $validated['description'] ?? null
-            ];
-            
-            $quote = Quotes::create($quoteData);
+    return DB::transaction(function () use ($validated) {
+        $quoteData = [
+            'client_id' => $validated['client_id'],
+            'quotation_date' => $validated['quotation_date'],
+            'status' => $validated['status'],
+            'notes' => $validated['notes'] ?? null,
+            'total_amount' => $validated['total_amount'],
+            'has_projects' => is_array($validated['has_projects'] ?? null) 
+                ? json_encode($validated['has_projects']) 
+                : ($validated['has_projects'] ?? null),
+            'description' => $validated['description'] ?? null
+        ];
+        
+        $quote = Quotes::create($quoteData);
 
-            // Insert pivot records
-            if (!empty($validated['services'])) {
-                foreach ($validated['services'] as $service) {
-                    Quotes_service::create([
-                        'quote_id' => $quote->id,
-                        'service_id' => $service['service_id'],
-                        'quantity' => $service['quantity'],
-                        'tax' => $service['tax'] ?? 0,
-                        'individual_total' => $service['individual_total'] ?? 0,
-                    ]);
-                }
-            }
-
-            // Auto-sign with admin signature
-            $this->autoSignAdminSignature($quote);
-
-            $quote->load('quoteServices', 'files');
-
-            // Add signature URLs to the response
-            $quote->admin_signature_url = asset('images/admin_signature.png');
-            $clientSignature = $quote->clientSignature();
-            $quote->client_signature_url = $clientSignature ? $clientSignature->url : null;
-            $quote->has_client_signature = $clientSignature !== null;
-            $quote->has_admin_signature = $quote->adminSignature() !== null;
-
-            // Create draft project(s) for quote path (PATH 1)
-            $this->projectCreationService->createDraftProjectFromQuote($quote);
-
-            // Send quote created email with PDF attachment
-            // Only send email if status is NOT 'draft'
-            if ($validated['status'] !== 'draft') {
-                $this->sendQuoteCreatedEmail($quote);
-            }
-            // Log activity
-            $this->activityLogger->log(
-                'clients_details',
-                'quotes',
-                $quote->client->id,
-                request()->ip(),
-                request()->userAgent(),
-                [
+        // Insert service records
+        if (!empty($validated['services'])) {
+            foreach ($validated['services'] as $service) {
+                Quotes_service::create([
                     'quote_id' => $quote->id,
-                    'client_id' => $quote->client_id,
-                    'total_amount' => $quote->total_amount,
-                    'status' => $quote->status,
-                    'url' => request()->fullUrl()
-                ],
-                "Quote #{$quote->id} created for client #{$quote->client_id} with status: {$quote->status}"
-            );
+                    'service_id' => $service['service_id'],
+                    'quantity' => $service['quantity'],
+                    'tax' => $service['tax'] ?? 0,
+                    'individual_total' => $service['individual_total'] ?? 0,
+                ]);
+            }
+        }
 
-            return response()->json([
-                $quote->load('projects'),
-                'quote_id' => $quote->id
-            ], 201);
-        });
-    }
+        // Insert subscription records
+        if (!empty($validated['subscriptions'])) {
+            foreach ($validated['subscriptions'] as $subscription) {
+                QuoteSubscription::create([
+                    'quote_id' => $quote->id,
+                    'plan_id' => $subscription['plan_id'],
+                    'price_snapshot' => $subscription['price_snapshot'],
+                    'billing_cycle' => $subscription['billing_cycle'],
+                ]);
+            }
+        }
 
+        // Auto-sign with admin signature
+        $this->autoSignAdminSignature($quote);
+
+        $quote->load('quoteServices', 'quoteSubscriptions.plan', 'files');
+
+        // Add signature URLs to the response
+        $quote->admin_signature_url = asset('images/admin_signature.png');
+        $clientSignature = $quote->clientSignature();
+        $quote->client_signature_url = $clientSignature ? $clientSignature->url : null;
+        $quote->has_client_signature = $clientSignature !== null;
+        $quote->has_admin_signature = $quote->adminSignature() !== null;
+
+        // Create draft project(s) for quote path (PATH 1)
+        $this->projectCreationService->createDraftProjectFromQuote($quote);
+
+        // Send quote created email with PDF attachment
+        // Only send email if status is NOT 'draft'
+        if ($validated['status'] !== 'draft') {
+            $this->sendQuoteCreatedEmail($quote);
+        }
+        
+        // Log activity
+        $this->activityLogger->log(
+            'clients_details',
+            'quotes',
+            $quote->client->id,
+            request()->ip(),
+            request()->userAgent(),
+            [
+                'quote_id' => $quote->id,
+                'client_id' => $quote->client_id,
+                'total_amount' => $quote->total_amount,
+                'status' => $quote->status,
+                'has_subscriptions' => !empty($validated['subscriptions']),
+                'url' => request()->fullUrl()
+            ],
+            "Quote #{$quote->id} created for client #{$quote->client_id} with status: {$quote->status}"
+        );
+
+        return response()->json([
+            $quote->load('projects'),
+            'quote_id' => $quote->id
+        ], 201);
+    });
+}
     public function show($id)
     {
         $quote = Quotes::with(['quoteServices', 'files'])->findOrFail($id);
@@ -184,124 +203,150 @@ class QuotesController extends Controller
      * Create an invoice from a signed quote
      * This is the transition point from PATH 1 (Quote → Invoice)
      */
-    public function createInvoiceFromQuote($id)
-    {
-        $quote = Quotes::with(['quoteServices', 'client', 'projects'])->findOrFail($id);
+public function createInvoiceFromQuote($id)
+{
+    $quote = Quotes::with(['quoteServices', 'quoteSubscriptions.plan', 'client', 'projects'])->findOrFail($id);
 
-        // Check if quote has client signature
-        if (!$quote->clientSignature()) {
-            return response()->json([
-                'message' => 'Cannot create invoice: Quote is not fully signed by client'
-            ], 422);
-        }
-
-        // Check if an invoice already exists for this quote
-        if ($quote->invoice) {
-            return response()->json([
-                'message' => 'An invoice already exists for this quote',
-                'invoice_id' => $quote->invoice->id
-            ], 409);
-        }
-
-        return DB::transaction(function () use ($quote) {
-            // Calculate due date (30 days from now)
-            $invoiceDate = now();
-            $dueDate = now()->addDays(30);
-
-            // Generate a checksum for the invoice
-            $checksumData = [
-                'client_id' => $quote->client_id,
-                'quote_id' => $quote->id,
-                'total_amount' => $quote->total_amount,
-                'due_date' => $dueDate,
-                'invoice_date' => $invoiceDate,
-                'balance_due' => $quote->total_amount,
-            ];
-            $checksum = md5(json_encode($checksumData));
-
-            // Create the invoice
-            $invoice = Invoice::create([
-                'client_id' => $quote->client_id,
-                'quote_id' => $quote->id,
-                'invoice_date' => $invoiceDate,
-                'due_date' => $dueDate,
-                'status' => 'unpaid',
-                'notes' => 'Created from quote #' . $quote->id,
-                'total_amount' => $quote->total_amount,
-                'balance_due' => $quote->total_amount,
-                'checksum' => $checksum,
-                'description' => $quote->description,
-                'has_projects' => $quote->has_projects,
-            ]);
-
-            // Add services to the invoice
-            foreach ($quote->quoteServices as $quoteService) {
-                $invoice->services()->attach($quoteService->service_id, [
-                    'invoice_id' => $invoice->id,
-                    'service_id' => $quoteService->service_id,
-                    'quantity' => $quoteService->quantity,
-                    'tax' => $quoteService->tax,
-                    'individual_total' => $quoteService->individual_total,
-                ]);
-            }
-
-            // Copy client signature from quote to invoice
-            $this->copySignatureToInvoice($quote, $invoice, 'client_signature');
-
-            // Copy admin signature from quote to invoice or auto-sign
-            if ($quote->adminSignature()) {
-                $this->copySignatureToInvoice($quote, $invoice, 'admin_signature');
-            } else {
-                $this->autoSignAdminSignature($invoice);
-            }
-
-            // Update quote-based projects: draft → pending + link to invoice
-            $this->projectCreationService->updateProjectsOnQuoteSigned($quote, $invoice);
-
-            // If the invoice ended up with no projects, notify client/admin
-            $invoice->load('projects');  
-
-            // Determine payment method based on client country
-            $paymentMethod = strtolower($quote->client->country) === 'maroc'
-                ? 'bank'
-                : 'stripe';
-
-            // Create payment link (50% advance payment by default)
-            $response = $this->paymentService->createPaymentLink(
-                $invoice,
-                50.0,           // payment_percentage: 50% advance payment
-                'pending',      // payment_status: pending until paid
-                $paymentMethod  // payment_type: bank or stripe
-            );
-            $quote->update(['status' => 'billed']);
-            // Send invoice email
-            $this->sendInvoiceCreatedEmail($quote, $invoice, $response);
-
-            // Log activity
-            $this->activityLogger->log(
-                'clients_details',
-                'invoices',
-                $invoice->client->id,
-                request()->ip(),
-                request()->userAgent(),
-                [
-                    'invoice_id' => $invoice->id,
-                    'quote_id' => $quote->id,
-                    'client_id' => $invoice->client_id,
-                    'total_amount' => $invoice->total_amount,
-                    'status' => $invoice->status,
-                    'url' => request()->fullUrl()
-                ],
-                "Invoice #{$invoice->id} created from quote #{$quote->id} for client #{$invoice->client_id}"
-            );
-
-            return response()->json([
-                'message' => 'Invoice created successfully',
-                'invoice' => $invoice->load('services', 'projects'),
-                'payment' => $response['payment_method']
-            ], 201);
-        });
+    // Check if quote has client signature
+    if (!$quote->clientSignature()) {
+        return response()->json([
+            'message' => 'Cannot create invoice: Quote is not fully signed by client'
+        ], 422);
     }
+
+    // Check if an invoice already exists for this quote
+    if ($quote->invoice) {
+        return response()->json([
+            'message' => 'An invoice already exists for this quote',
+            'invoice_id' => $quote->invoice->id
+        ], 409);
+    }
+
+    return DB::transaction(function () use ($quote) {
+        // Calculate due date (30 days from now)
+        $invoiceDate = now();
+        $dueDate = now()->addDays(30);
+
+        // Generate a checksum for the invoice
+        $checksumData = [
+            'client_id' => $quote->client_id,
+            'quote_id' => $quote->id,
+            'total_amount' => $quote->total_amount,
+            'due_date' => $dueDate,
+            'invoice_date' => $invoiceDate,
+            'balance_due' => $quote->total_amount,
+        ];
+        $checksum = md5(json_encode($checksumData));
+
+        // Create the invoice
+        $invoice = Invoice::create([
+            'client_id' => $quote->client_id,
+            'quote_id' => $quote->id,
+            'invoice_date' => $invoiceDate,
+            'due_date' => $dueDate,
+            'status' => 'unpaid',
+            'notes' => 'Created from quote #' . $quote->id,
+            'total_amount' => $quote->total_amount,
+            'balance_due' => $quote->total_amount,
+            'checksum' => $checksum,
+            'description' => $quote->description,
+            'has_projects' => $quote->has_projects,
+        ]);
+
+        // Add services to the invoice
+        foreach ($quote->quoteServices as $quoteService) {
+            $invoice->services()->attach($quoteService->service_id, [
+                'invoice_id' => $invoice->id,
+                'service_id' => $quoteService->service_id,
+                'quantity' => $quoteService->quantity,
+                'tax' => $quoteService->tax,
+                'individual_total' => $quoteService->individual_total,
+            ]);
+        }
+
+        // Add subscriptions to the invoice
+        foreach ($quote->quoteSubscriptions as $quoteSubscription) {
+            InvoiceSubscription::create([
+                'invoice_id' => $invoice->id,
+                'plan_id' => $quoteSubscription->plan_id,
+                'subscription_id' => null, // Will be set after payment
+                'price_snapshot' => $quoteSubscription->price_snapshot,
+                'billing_cycle' => $quoteSubscription->billing_cycle,
+            ]);
+        }
+
+        // Copy client signature from quote to invoice
+        $this->copySignatureToInvoice($quote, $invoice, 'client_signature');
+
+        // Copy admin signature from quote to invoice or auto-sign
+        if ($quote->adminSignature()) {
+            $this->copySignatureToInvoice($quote, $invoice, 'admin_signature');
+        } else {
+            $this->autoSignAdminSignature($invoice);
+        }
+
+        // Update quote-based projects: draft → pending + link to invoice
+        $this->projectCreationService->updateProjectsOnQuoteSigned($quote, $invoice);
+
+        // Load invoice relationships
+        $invoice->load('projects', 'invoiceSubscriptions.plan');
+
+        // Determine payment method based on client country
+        $paymentMethod = strtolower($quote->client->country) === 'maroc'
+            ? 'bank'
+            : 'stripe';
+
+        // Determine payment percentage
+        // If invoice has subscriptions, default to 100% (subscriptions usually paid in full)
+        // Otherwise 50% advance payment
+        $paymentPercentage = $invoice->hasSubscriptions() ? 100.0 : 50.0;
+
+        // Create payment link
+        $response = $this->paymentService->createPaymentLink(
+            $invoice,
+            $paymentPercentage,
+            'pending',
+            $paymentMethod
+        );
+
+        // Get the created payment and create allocations
+        $payment = $invoice->payments()->latest()->first();
+        if ($payment) {
+            $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
+            $subscriptionInvoiceService->createPaymentAllocations($payment, $invoice, $paymentPercentage);
+        }
+
+        $quote->update(['status' => 'billed']);
+        
+        // Send invoice email
+        $this->sendInvoiceCreatedEmail($quote, $invoice, $response);
+
+        // Log activity
+        $this->activityLogger->log(
+            'clients_details',
+            'invoices',
+            $invoice->client->id,
+            request()->ip(),
+            request()->userAgent(),
+            [
+                'invoice_id' => $invoice->id,
+                'quote_id' => $quote->id,
+                'client_id' => $invoice->client_id,
+                'total_amount' => $invoice->total_amount,
+                'status' => $invoice->status,
+                'has_subscriptions' => $invoice->hasSubscriptions(),
+                'url' => request()->fullUrl()
+            ],
+            "Invoice #{$invoice->id} created from quote #{$quote->id} for client #{$invoice->client_id}"
+        );
+
+        return response()->json([
+            'message' => 'Invoice created successfully',
+            'invoice' => $invoice->load('services', 'projects', 'invoiceSubscriptions.plan'),
+            'payment' => $response['payment_method']
+        ], 201);
+    });
+}
 
     public function update(Request $request, $id)
     {

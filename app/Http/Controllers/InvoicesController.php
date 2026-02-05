@@ -17,7 +17,7 @@ use App\Services\ProjectCreationService;
 use App\Services\ActivityLoggerService;
 use App\Mail\InvoiceCreatedMail;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
-
+use App\Models\InvoiceSubscription;
 class InvoicesController extends Controller
 {
     protected $paymentService;
@@ -39,7 +39,8 @@ class InvoicesController extends Controller
         /** @var \App\Models\User */
 
         $user = Auth::user();
-        $invoices = Invoice::with(['invoiceServices', 'client.user:id,name', 'files', 'projects'])->when($user->role === 'client', function ($query) use ($user) {
+        $invoices = Invoice::with(
+            ['invoiceServices', 'client.user:id,name', 'files', 'projects'])->when($user->role === 'client', function ($query) use ($user) {
             $clientId = $user->client()->first()->id ?? 0;
             $query->where('client_id', $clientId);
         })->get();
@@ -60,7 +61,7 @@ class InvoicesController extends Controller
         ]);
     }
 
-   public function store(Request $request)
+public function store(Request $request)
 {
     $this->authorize('create', Invoice::class);
 
@@ -76,11 +77,15 @@ class InvoicesController extends Controller
         'payment_percentage' => 'nullable|numeric',
         'payment_status' => 'string',
         'payment_type' => 'string',
-        'services' => 'array',
+        'services' => 'nullable|array',
         'services.*.service_id' => 'required|exists:services,id',
         'services.*.quantity' => 'required|integer|min:1',
         'services.*.tax' => 'nullable|numeric',
         'services.*.individual_total' => 'nullable|numeric',
+        'subscriptions' => 'nullable|array',
+        'subscriptions.*.plan_id' => 'required|exists:plans,id',
+        'subscriptions.*.billing_cycle' => 'required|in:monthly,yearly,quarterly',
+        'subscriptions.*.price_snapshot' => 'required|numeric',
         'has_projects' => 'nullable',
         'old_projects' => 'nullable|array',
         'old_projects.*' => 'exists:projects,id',
@@ -104,6 +109,7 @@ class InvoicesController extends Controller
                 : $validate["has_projects"],
         ]);
 
+        // Add services
         if (!empty($validate["services"])) {
             foreach ($validate["services"] as $service) {
                 InvoiceService::create([
@@ -116,6 +122,19 @@ class InvoicesController extends Controller
             }
         }
 
+        // Add subscriptions
+        if (!empty($validate['subscriptions'])) {
+            foreach ($validate['subscriptions'] as $subscription) {
+                InvoiceSubscription::create([
+                    'invoice_id' => $invoice->id,
+                    'plan_id' => $subscription['plan_id'],
+                    'subscription_id' => null, // Will be set after payment
+                    'price_snapshot' => $subscription['price_snapshot'],
+                    'billing_cycle' => $subscription['billing_cycle'],
+                ]);
+            }
+        }
+
         if (!empty($validate['old_projects'])) {
             $invoice->projects()->sync($validate['old_projects']);
         }
@@ -124,7 +143,7 @@ class InvoicesController extends Controller
         $this->autoSignAdminSignature($invoice);
 
         // Load relationships
-        $invoice->load('client', 'files', 'invoiceServices');
+        $invoice->load('client', 'files', 'invoiceServices', 'invoiceSubscriptions.plan');
 
         // Add signature URLs to the response
         $invoice->admin_signature_url = asset('images/admin_signature.png');
@@ -135,8 +154,12 @@ class InvoicesController extends Controller
 
         // ONLY create payment and send email if status is NOT 'draft'
         if ($validate["status"] !== 'draft') {
-            $paymentPercentage = $validate['payment_percentage'] ?? 50;
-            $paymentStatus = $validate['payment_status'] ?? 'unpaid';
+            // Default payment percentage based on whether invoice has subscriptions
+            $paymentPercentage = $invoice->hasSubscriptions() 
+                ? ($validate['payment_percentage'] ?? 100)
+                : ($validate['payment_percentage'] ?? 50);
+                
+            $paymentStatus = $validate['payment_status'] ?? 'pending';
             $paymentType = $validate['payment_type'] ?? 'bank';
 
             try {
@@ -146,6 +169,13 @@ class InvoicesController extends Controller
                     $paymentStatus,
                     $paymentType
                 );
+
+                // Get the created payment and create allocations
+                $payment = $invoice->payments()->latest()->first();
+                if ($payment) {
+                    $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
+                    $subscriptionInvoiceService->createPaymentAllocations($payment, $invoice, $paymentPercentage);
+                }
 
                 // Send email with PDF
                 $this->sendInvoiceEmail($invoice, $response);
@@ -175,13 +205,14 @@ class InvoicesController extends Controller
                 'client_id' => $invoice->client_id,
                 'total_amount' => $invoice->total_amount,
                 'status' => $invoice->status,
+                'has_subscriptions' => $invoice->hasSubscriptions(),
                 'url' => request()->fullUrl()
             ],
             "Invoice #{$invoice->id} created for client #{$invoice->client_id} with total: {$invoice->total_amount}"
         );
 
         return response()->json([
-            $invoice->load("invoiceServices", "projects"),
+            $invoice->load("invoiceServices", "invoiceSubscriptions.plan", "projects"),
             'invoice_id' => $invoice->id
         ], 201);
     });
@@ -279,69 +310,114 @@ public function sendInvoice(Request $request, Invoice $invoice)
         return response()->json($invoice);
     }
 
-    public function update(Request $request, $id)
-    {
-        $invoice = Invoice::findOrFail($id);
-        $this->authorize('update', $invoice);
+ public function update(Request $request, $id)
+{
+    $invoice = Invoice::findOrFail($id);
+    $this->authorize('update', $invoice);
 
+    $oldStatus = $invoice->status;
 
-        $validate = $request->validate([
-            'client_id' => 'required|exists:clients,id',
-            'quote_id' => 'nullable|exists:quotes,id',
-            'invoice_date' => 'required|date',
-            'due_date' => 'required|date',
-            'status' => ['required', Rule::in(['draft', 'sent', 'unpaid', 'partially_paid', 'paid', 'overdue'])],
-            'notes' => 'nullable|string',
-            'total_amount' => 'required|numeric',
-            'balance_due' => 'required|numeric',
-            'services' => 'array',
-            'services.*.service_id' => 'required|exists:services,id',
-            'services.*.quantity' => 'required|integer|min:1',
-            'services.*.tax' => 'nullable|numeric',
-            'services.*.individual_total' => 'nullable|numeric',
-            'has_projects' => 'nullable',
-            'old_projects' => 'nullable|array',
-            'old_projects.*' => 'exists:projects,id',
-            'description' => 'nullable|string',
+    $validate = $request->validate([
+        'client_id' => 'required|exists:clients,id',
+        'quote_id' => 'nullable|exists:quotes,id',
+        'invoice_date' => 'required|date',
+        'due_date' => 'required|date',
+        'status' => ['required', Rule::in(['draft','sent','unpaid','partially_paid','paid','overdue'])],
+        'notes' => 'nullable|string',
+        'total_amount' => 'required|numeric',
+        'balance_due' => 'required|numeric',
+        'services' => 'array',
+        'services.*.service_id' => 'required|exists:services,id',
+        'services.*.quantity' => 'required|integer|min:1',
+        'services.*.tax' => 'nullable|numeric',
+        'services.*.individual_total' => 'nullable|numeric',
+        'has_projects' => 'nullable',
 
+        'subscriptions' => 'nullable|array',
+        'subscriptions.*.plan_id' => 'required|exists:plans,id',
+        'subscriptions.*.billing_cycle' => 'required|in:monthly,yearly,quarterly',
+        'subscriptions.*.price_snapshot' => 'required|numeric',
+        'old_projects' => 'nullable|array',
+        'old_projects.*' => 'exists:projects,id',
+        'description' => 'nullable|string',
+    ]);
+
+    return DB::transaction(function () use ($invoice, $validate, $oldStatus) {
+
+        $invoice->update([
+            'client_id' => $validate['client_id'],
+            'quote_id' => $validate['quote_id'] ?? null,
+            'invoice_date' => $validate['invoice_date'],
+            'due_date' => $validate['due_date'],
+            'status' => $validate['status'],
+            'notes' => $validate['notes'] ?? null,
+            'total_amount' => $validate['total_amount'],
+            'balance_due' => $validate['balance_due'],
+            'description' => $validate['description'] ?? null,
         ]);
 
-        return DB::transaction(function () use ($invoice, $validate) {
-            $invoice->update([
-                'client_id' => $validate['client_id'],
-                'quote_id' => $validate["quote_id"] ?? null,
-                'invoice_date' => $validate['invoice_date'],
-                'due_date' => $validate['due_date'],
-                'status' => $validate['status'],
-                'notes' => $validate['notes'] ?? null,
-                'total_amount' => $validate['total_amount'],
-                'balance_due' => $validate['balance_due'],
-                'description' => $validate["description"] ?? null,
-                'has_projects' => is_array($validate["has_projects"])
-                    ? json_encode($validate["has_projects"])
-                    : $validate["has_projects"],
-            ]);
+        /*
+        |--------------------------------------------------------------------------
+        | SERVICES
+        |--------------------------------------------------------------------------
+        */
+        if (isset($validate['services'])) {
+            $invoice->invoiceServices()->delete();
 
-            if (!empty($validate['services'])) {
-                $invoice->invoiceServices()->delete();
-                foreach ($validate['services'] as $service) {
-                    InvoiceService::create([
-                        'invoice_id' => $invoice->id,
-                        'service_id' => $service['service_id'],
-                        'quantity' => $service['quantity'],
-                        'tax' => $service['tax'] ?? 0,
-                        'individual_total' => $service['individual_total'] ?? 0,
-                    ]);
-                }
+            foreach ($validate['services'] as $service) {
+                InvoiceService::create([
+                    'invoice_id' => $invoice->id,
+                    'service_id' => $service['service_id'],
+                    'quantity' => $service['quantity'],
+                    'tax' => $service['tax'] ?? 0,
+                    'individual_total' => $service['individual_total'] ?? 0,
+                ]);
             }
-             if(!empty($validate['old_projects'])){
-             $invoice->projects()->sync($validate['old_projects']);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | SUBSCRIPTIONS
+        |--------------------------------------------------------------------------
+        */
+        if (isset($validate['subscriptions'])) {
+
+            $invoice->invoiceSubscriptions()->delete();
+
+            foreach ($validate['subscriptions'] as $subscription) {
+                InvoiceSubscription::create([
+                    'invoice_id' => $invoice->id,
+                    'plan_id' => $subscription['plan_id'],
+                    'price_snapshot' => $subscription['price_snapshot'],
+                    'billing_cycle' => $subscription['billing_cycle'],
+                ]);
             }
+        }
 
-            return response()->json($invoice->load('invoiceServices', 'projects'));
-        });
-    }
+        /*
+        |--------------------------------------------------------------------------
+        | PROJECT SYNC
+        |--------------------------------------------------------------------------
+        */
+        if (isset($validate['old_projects'])) {
+            $invoice->projects()->sync($validate['old_projects']);
+        }
 
+        /*
+        |--------------------------------------------------------------------------
+        | STATUS TRANSITION LOGIC
+        |--------------------------------------------------------------------------
+        */
+        if ($oldStatus === 'draft' && $invoice->status === 'sent') {
+
+            $this->sendInvoiceEmail($invoice, null);
+        }
+
+        return response()->json(
+            $invoice->load('invoiceServices','invoiceSubscriptions.plan','projects')
+        );
+    });
+}
     public function destroy($id)
     {
         $this->authorize('delete', Invoice::class);
@@ -363,9 +439,7 @@ public function sendInvoice(Request $request, Invoice $invoice)
     private function sendInvoiceEmail($invoice, $paymentResponse)
     {
         try {
-            // Get client's email from user relationship
             $clientEmail = $invoice->client->user->email ?? null;
-            // $clientEmail = "mangaka.wirl@gmai.com";
 
             if (!$clientEmail) {
                 Log::warning('Cannot send invoice email: client has no email address', [
