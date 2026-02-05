@@ -19,7 +19,7 @@ return [
     */
 
     'driver' => env('SESSION_DRIVER', 'cookie'),
-
+//comment for the git system lol
     /*
     |--------------------------------------------------------------------------
     | Session Lifetime
