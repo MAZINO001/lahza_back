@@ -16,283 +16,240 @@
         body {
             font-family: "PlusJakartaSans", sans-serif;
             background: #f5f5f5;
-            letter-spacing: 1.5px;
-            line-height: 1.5;
+            color: #222;
+            line-height: 1.45;
+            font-size: 13px;
         }
-
 
         .receipt-container {
             background: white;
-            max-width: 800px;
-            padding: 40px;
-            margin: 0 auto;
+            max-width: 820px;
+            margin: 30px auto;
+            padding: 40px 50px;
+            border: 1px solid #eee;
         }
 
-        .header-top {
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-            position: relative;
+        .header {
+            margin-bottom: 35px;
         }
 
-        .logo-section {
-            width: 50%;
+        .logo {
+            width: 48%;
             display: inline-block;
             vertical-align: top;
         }
 
-        .logo-section img {
-            width: 150px;
+        .logo img {
+            max-width: 160px;
             height: auto;
         }
 
-        .contact-section {
-            width: 50%;
+        .company-info {
+            width: 48%;
             display: inline-block;
             vertical-align: top;
             text-align: right;
-            font-size: 12px;
-            line-height: 1.8;
-            position: absolute;
-            right: 0;
-            top: 0;
+            font-size: 12.5px;
+            line-height: 1.7;
         }
 
-        .contact-section p {
-            margin: 0;
+        .company-info strong {
+            font-size: 14px;
         }
 
-        .main-title {
+        h1 {
             text-align: center;
-            font-size: 28px;
+            font-size: 26px;
             font-weight: bold;
-            margin-bottom: 10px;
-            margin-top: 20px;
+            margin: 0 0 8px 0;
+            color: #111;
         }
 
-        .receipt-date {
+        .date {
             text-align: center;
-            font-size: 15px;
-            margin-bottom: 20px;
             color: #555;
+            font-size: 14px;
+            margin-bottom: 30px;
         }
 
-        .from-section {
-            margin-bottom: 20px;
-        }
-
-        .section-label {
-            font-size: 13px;
+        .section-title {
+            font-size: 13.5px;
             font-weight: bold;
-            margin-bottom: 8px;
+            margin: 0 0 6px 0;
+            color: #222;
         }
 
-        .section-content {
-            font-size: 13px;
-            line-height: 1.6;
-            color: #333;
+        .customer {
+            margin-bottom: 28px;
         }
-
-
 
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 30px;
-            font-size: 13px;
+            margin-bottom: 28px;
         }
 
         .items-table th {
-            background-color: #051630;
+            background: #041a38;
             color: white;
-            padding: 10px;
-            text-align: left;
+            padding: 9px 10px;
+            font-weight: normal;
             font-size: 12px;
-            /* font-weight: 300; */
-            border-bottom: 1px solid #ebe6e6;
+            text-align: left;
         }
 
-        .items-table td {
-            padding: 12px 10px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .items-table .qty,
-        .items-table .price,
-        .items-table .total {
+        .items-table th.center,
+        .items-table td.center {
             text-align: center;
         }
 
-        .items-table .description {
+        .items-table td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            vertical-align: top;
+        }
+
+        .items-table .desc {
+            font-weight: 600;
+        }
+
+        .totals-wrapper {
+            width: 320px;
+            margin-left: auto;
+            margin-bottom: 30px;
+        }
+
+        .totals-line {
+            padding: 10px 0;
+            margin-bottom: 10px;
+        }
+
+        .totals-line strong {
             font-weight: bold;
         }
 
-        .totals-section {
-            width: 50%;
-            margin-bottom: 20px;
+        .totals-line .label {
+            float: left;
         }
 
-        .total-line {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            font-size: 13px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .total-line.label {
-            border-bottom: none;
+        .totals-line .value {
+            float: right;
         }
 
         .grand-total {
-            border-top: 1px solid #333;
             border-bottom: none;
             padding-top: 10px;
-            font-weight: bold;
+            margin-top: 6px;
             font-size: 15px;
-            margin-top: 5px;
         }
 
-        .payment-section {
-            margin-bottom: 20px;
-            font-size: 13px;
-        }
-
-        .payment-line {
-            margin-bottom: 5px;
+        .payment {
+            margin-bottom: 25px;
+            line-height: 1.7;
         }
 
         .thank-you {
             text-align: center;
+            color: #444;
             font-size: 13px;
-            line-height: 1.8;
-            color: #555;
+            line-height: 1.6;
         }
 
         .thank-you strong {
-            color: #333;
-            font-weight: bold;
+            color: #000;
         }
     </style>
 </head>
 
 <body>
+
     <div class="receipt-container">
-        <div class="header-top">
-            <div class="logo-section">
-                <img src="{{ public_path('logo.png') }}" alt="lahza logo">
+
+        <div class="header">
+            <div class="logo">
+                <img src="{{ public_path('logo.png') }}" alt="Company logo">
             </div>
-            <div class="contact-section">
-                <p><strong>{{ $receipt['companyInfo']->company_name ?? 'Lahza Agency' }}</strong></p>
-                <p>{{ $receipt['companyInfo']->email ?? 'contact@company.com' }}</p>
-                <p>{{ $receipt['companyInfo']->phone ?? 'Phone' }}</p>
-            </div>
-        </div>
 
-
-        <!-- Title -->
-        <h1 class="main-title">Receipt</h1>
-
-
-        <!-- Date -->
-        <div class="receipt-date">
-            Date: {{ $receipt['date'] }}
-        </div>
-
-
-        <!-- From Section -->
-        <div class="from-section">
-            <div class="section-label">Received From:</div>
-            <div class="section-content">
-                <strong>{{ $receipt['customer_name'] }}</strong><br>
-                Email: {{ $receipt['customer_email'] }}
+            <div class="company-info">
+                <strong>{{ $receipt['companyInfo']->company_name ?? 'Lahza Agency' }}</strong><br>
+                {{ $receipt['companyInfo']->email ?? 'contact@company.com' }}<br>
+                {{ $receipt['companyInfo']->phone ?? '(+212) 222 555 777' }}
             </div>
         </div>
 
+        <h1>Receipt</h1>
 
-        <!-- Description Section -->
-        <div class="from-section">
-            <div class="section-label">Description of Services or Products:</div>
+        <div class="date">Date: {{ $receipt['date'] }}</div>
+
+        <div class="customer">
+            <div class="section-title">Received From:</div>
+            <strong>{{ $receipt['customer_name'] }}</strong><br>
+            Email: {{ $receipt['customer_email'] }}
         </div>
 
+        <div class="section-title">Description of Services or Products:</div>
 
-        <!-- Items Table -->
         <table class="items-table">
             <thead>
                 <tr>
                     <th>Item Description</th>
-                    <th class="qty">Quantity</th>
-                    <th class="price">Unit Price</th>
-                    <th class="price">Tax (%)</th>
-                    <th class="total">Total (HT)</th>
-                    <th class="total">Total (TTC)</th>
+                    <th class="center">Quantity</th>
+                    <th class="center">Unit Price</th>
+                    <th class="center">Tax (%)</th>
+                    <th class="center">Total (HT)</th>
+                    <th class="center">Total (TTC)</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($receipt['items'] as $item)
                     <tr>
-                        <td class="description">{{ $item['description'] }}</td>
-                        <td class="qty">{{ $item['quantity'] }}</td>
-                        <td class="price">{{ number_format($item['unit_price'], 2) }}</td>
-                        <td class="price">{{ number_format($item['tax_rate'], 2) }}%</td>
-                        <td class="total">{{ number_format($item['total_price_ht'], 2) }}</td>
-                        <td class="total"><strong>{{ number_format($item['total_price_ttc'], 2) }}</strong></td>
+                        <td class="desc">{{ $item['description'] }}</td>
+                        <td class="center">{{ $item['quantity'] }}</td>
+                        <td class="center">{{ number_format($item['unit_price'], 2) }}</td>
+                        <td class="center">{{ number_format($item['tax_rate'], 2) }}%</td>
+                        <td class="center">{{ number_format($item['total_price_ht'], 2) }}</td>
+                        <td class="center"><strong>{{ number_format($item['total_price_ttc'], 2) }}</strong></td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6">No items found</td>
+                        <td colspan="6" style="text-align:center;padding:20px;">No items</td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
 
+        <div class="totals-wrapper">
+            <div class="totals-line">
+                <div class="label"><strong>Subtotal</strong></div>
+                <div class="value">{{ number_format($receipt['subtotal'], 2) }}</div>
+            </div>
 
-        <!-- Totals -->
-        <div class="totals-section">
-            <div class="total-line label">
-                <div>
-                    <strong>
-                        Subtotal:
-                    </strong>
-                </div>
-                <div>{{ number_format($receipt['subtotal'], 2) }}</div>
+            <div class="totals-line">
+                <div class="label"><strong>Tax</strong></div>
+                <div class="value">{{ number_format($receipt['tax'], 2) }}</div>
             </div>
-            <div class="total-line label">
-                <div>
-                    <strong>
-                        Tax :
-                    </strong>
-                </div>
-                <div>{{ number_format($receipt['tax'], 2) }}</div>
-            </div>
-            <div class="total-line grand-total">
-                <div><strong>Total Amount:</strong></div>
-                <div><strong>{{ number_format($receipt['total'], 2) }}</strong></div>
+
+            <div class="totals-line grand-total">
+                <div class="label"><strong>Total Amount</strong></div>
+                <div class="value"><strong>{{ number_format($receipt['total'], 2) }}</strong></div>
             </div>
         </div>
 
-        <!-- Payment Info -->
-        <div class="payment-section">
-            <div class="payment-line">
-                <strong>Payment Method:</strong> {{ $receipt['payment_method'] }}
-            </div>
-            <div class="payment-line">
-                <strong>Transaction ID:</strong> {{ str_pad($receipt['transaction_id'] ?? 0, 5, '0', STR_PAD_LEFT) }}
-            </div>
-            <div class="payment-line">
-                <strong>Invoice Number:</strong> {{ str_pad($receipt['invoice']->id ?? 0, 5, '0', STR_PAD_LEFT) }}
-            </div>
+        <div class="payment">
+            <strong>Payment Method:</strong> {{ $receipt['payment_method'] }}<br>
+            <strong>Transaction ID:</strong> {{ str_pad($receipt['transaction_id'] ?? 0, 5, '0', STR_PAD_LEFT) }}<br>
+            <strong>Invoice Number:</strong> {{ str_pad($receipt['invoice']->id ?? 0, 5, '0', STR_PAD_LEFT) }}
         </div>
 
-
-        <!-- Thank You -->
         <div class="thank-you">
             Thank you for your purchase!<br>
             If you have any questions or need assistance,<br>
             feel free to contact us at
-            <strong>{{ config('app.contact_email') ?? ($receipt['companyInfo']->email ?? 'your@email.com') }}</strong>.
+            <strong>{{ config('app.contact_email') ?? ($receipt['companyInfo']->email ?? 'contact@company.com') }}</strong>.
         </div>
 
     </div>
+
 </body>
 
 </html>
