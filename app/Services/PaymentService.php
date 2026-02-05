@@ -14,6 +14,7 @@ use App\Services\ProjectCreationService;
 use App\Services\ActivityLoggerService;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\PaymentSuccessfulMail;
+use App\Models\Subscription;
 class PaymentService implements PaymentServiceInterface
 {
     protected $paymentRepository;
@@ -280,7 +281,6 @@ public function updatePendingPayment(Payment $payment, float $percentage, string
     $this->validateInvoiceForPayment($invoice);
 
     // 3. Calculate and Validate Amount
-    // Assuming $payment->total refers to the invoice total or the base amount for percentage
     $newAmount = ($payment->total * $percentage) / 100;
     
     if ($newAmount <= 0) {
@@ -361,7 +361,6 @@ public function updatePendingPayment(Payment $payment, float $percentage, string
 public function handleStripeWebhook(string $payload, string $sigHeader)
 {
     $secret = config('services.stripe.webhook_secret');
-
     try {
         $event = Webhook::constructEvent($payload, $sigHeader, $secret);
     } catch (\Exception $e) {
@@ -488,7 +487,6 @@ public function handleStripeWebhook(string $payload, string $sigHeader)
 
     public function createAdditionalPayment(Invoice $invoice, float $percentage, string $payment_type = 'stripe', string $status = 'pending')
     {
-           
         // Validate payment_method matches ENUM values
         $allowedPaymentMethods = ['stripe', 'bank', 'cash', 'cheque'];
         if (!in_array($payment_type, $allowedPaymentMethods)) {
@@ -658,8 +656,6 @@ Stripe::setApiKey(config('services.stripe.secret'));
         $paidPayment->payment_method
     );
 }
-
-
 protected function handleSubscriptionAllocations($payment): void
 {
     // Get all subscription allocations for this payment
@@ -674,20 +670,12 @@ protected function handleSubscriptionAllocations($payment): void
     }
 
     $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
+    $subscriptionService = app(\App\Services\SubscriptionService::class);
 
     foreach ($subscriptionAllocations as $allocation) {
         try {
             $invoiceSubscription = $allocation->invoiceSubscription;
             
-            // Skip if subscription already created
-            if ($invoiceSubscription->subscription_id) {
-                Log::info('Subscription already exists for allocation', [
-                    'allocation_id' => $allocation->id,
-                    'subscription_id' => $invoiceSubscription->subscription_id,
-                ]);
-                continue;
-            }
-
             // Check if this specific subscription allocation is fully paid
             if (!$invoiceSubscription->isFullyPaid()) {
                 Log::info('Subscription not fully paid yet', [
@@ -698,16 +686,40 @@ protected function handleSubscriptionAllocations($payment): void
                 continue;
             }
 
+            // If subscription already exists, reactivate it
+            if ($invoiceSubscription->subscription_id) {
+                $subscription = Subscription::find($invoiceSubscription->subscription_id);
+                
+                if ($subscription) {
+                    // Reactivate if cancelled
+                    if ($subscription->isCancelled() || $subscription->isExpired()) {
+                        $subscriptionService->updateStatus($subscription, 'active');
+                        
+                        Log::info('Subscription reactivated from payment', [
+                            'payment_id' => $payment->id,
+                            'allocation_id' => $allocation->id,
+                            'subscription_id' => $subscription->id,
+                        ]);
+                    } else {
+                        Log::info('Subscription already active', [
+                            'allocation_id' => $allocation->id,
+                            'subscription_id' => $subscription->id,
+                        ]);
+                    }
+                    continue;
+                }
+            }
+
             // Get custom field values if stored (you may need to adjust this)
             $customFieldValues = [];
             
-            // Create the subscription
+            // Create NEW subscription only if it doesn't exist
             $subscription = $subscriptionInvoiceService->createSubscriptionFromPaidAllocation(
                 $invoiceSubscription,
                 $customFieldValues
             );
 
-            Log::info('Subscription created from payment allocation', [
+            Log::info('NEW subscription created from payment allocation', [
                 'payment_id' => $payment->id,
                 'allocation_id' => $allocation->id,
                 'subscription_id' => $subscription->id,
@@ -715,7 +727,7 @@ protected function handleSubscriptionAllocations($payment): void
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to create subscription from allocation', [
+            Log::error('Failed to create/reactivate subscription from allocation', [
                 'allocation_id' => $allocation->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -723,5 +735,160 @@ protected function handleSubscriptionAllocations($payment): void
         }
     }
 }
+/**
+ * Handle manual payment (non-Stripe) - mark as paid
+ */
+public function handleManualPayment(Payment $payment): array
+{
+    // Validate payment method
+    if ($payment->payment_method === 'stripe') {
+        throw new \Illuminate\Http\Exceptions\HttpResponseException(
+            response()->json([
+                'error' => true,
+                'message' => 'Stripe payments cannot be manually processed',
+            ], 400)
+        );
+    }
 
+    // Validate payment status
+    if ($payment->status !== 'pending') {
+        throw new \Illuminate\Http\Exceptions\HttpResponseException(
+            response()->json([
+                'error' => true,
+                'message' => 'Only pending payments can be marked as paid',
+            ], 400)
+        );
+    }
+
+    
+    return DB::transaction(function () use ($payment) {
+        // Mark payment as paid
+        $payment->update(['status' => 'paid']);
+        
+        $invoice = $payment->invoice;
+        
+        // Update invoice status
+        $this->updateInvoiceStatus($invoice);
+        
+        // Handle subscription allocations - NOW reactivates if exists
+        $this->handleSubscriptionAllocations($payment);
+        
+        // Auto-generate remaining payment if needed
+        $this->autoGenerateRemainingPayment($invoice, $payment);
+
+        // Refresh invoice
+        $invoice->refresh();
+
+        // Update projects
+        $paymentData = $invoice->payments()->latest()->first()?->toArray() ?? [];
+        $this->projectCreationService->updateProjectAfterPayment($invoice, $paymentData);
+        
+        // Send payment success email
+        $this->sendPaymentSuccessEmail($payment);
+
+        return [
+            'success' => true,
+            'message' => 'Payment processed successfully',
+            'payment' => $payment->fresh(),
+        ];
+    });
+}
+
+/**
+ * Cancel a paid manual payment - revert to pending
+ */
+public function cancelManualPayment(Payment $payment): array
+{
+    // Validate payment method
+    if ($payment->payment_method === 'stripe') {
+        throw new \Illuminate\Http\Exceptions\HttpResponseException(
+            response()->json([
+                'error' => true,
+                'message' => 'Stripe payments cannot be manually cancelled',
+            ], 400)
+        );
+    }
+
+    // Validate payment status
+    if ($payment->status !== 'paid') {
+        throw new \Illuminate\Http\Exceptions\HttpResponseException(
+            response()->json([
+                'error' => true,
+                'message' => 'Only paid payments can be cancelled',
+            ], 400)
+        );
+    }
+
+    return DB::transaction(function () use ($payment) {
+        $invoice = $payment->invoice;
+
+        // Delete any pending payment that was auto-generated after this payment
+        $invoice->payments()
+            ->where('status', 'pending')
+            ->where('created_at', '>=', $payment->updated_at)
+            ->delete();
+
+        // Mark the payment as pending
+        $payment->update(['status' => 'pending']);
+
+        // Update invoice status
+        $this->updateInvoiceStatus($invoice);
+
+        // Cancel project update
+        $this->projectCreationService->cancelProjectUpdate($invoice);
+
+        // Handle subscription cancellation if needed
+        $this->cancelSubscriptionAllocations($payment);
+
+        return [
+            'success' => true,
+            'message' => 'Payment cancelled successfully',
+            'payment' => $payment->fresh(),
+        ];
+    });
+}
+
+/**
+ * Cancel subscriptions created from this payment's allocations
+ */
+/**
+ * Cancel subscriptions created from this payment's allocations
+ */
+protected function cancelSubscriptionAllocations(Payment $payment): void
+{
+    // Get subscription allocations
+    $subscriptionAllocations = $payment->allocations()
+        ->where('allocatable_type', 'subscription')
+        ->whereNotNull('invoice_subscription_id')
+        ->with('invoiceSubscription.subscription')
+        ->get();
+
+    if ($subscriptionAllocations->isEmpty()) {
+        return;
+    }
+
+    foreach ($subscriptionAllocations as $allocation) {
+        $invoiceSubscription = $allocation->invoiceSubscription;
+        
+        // If subscription was created, cancel it but keep the link
+        if ($invoiceSubscription->subscription_id) {
+            $subscription = $invoiceSubscription->subscription;
+            
+            if ($subscription && !$subscription->isCancelled()) {
+                // Cancel subscription immediately
+                $subscriptionService = app(\App\Services\SubscriptionService::class);
+                $subscriptionService->cancelSubscription($subscription, immediate: true);
+                
+                // DO NOT unlink - keep subscription_id so we can reactivate it
+                // $invoiceSubscription->update(['subscription_id' => null]); // REMOVED
+                
+                Log::info('Subscription cancelled due to payment cancellation', [
+                    'payment_id' => $payment->id,
+                    'subscription_id' => $subscription->id,
+                    'invoice_subscription_id' => $invoiceSubscription->id,
+                ]);
+            }
+        }
+    }
+}
 }

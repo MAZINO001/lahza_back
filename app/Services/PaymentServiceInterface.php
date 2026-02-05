@@ -16,4 +16,6 @@ interface PaymentServiceInterface
     public function updateInvoiceStatus(Invoice $invoice);
     public function sendPaymentSuccessEmail(Payment $payment);
     public function autoGenerateRemainingPayment(Invoice $invoice, Payment $payment): void;
+    public function handleManualPayment(Payment $payment):array;
+    public function cancelManualPayment(Payment $payment):array;
 }

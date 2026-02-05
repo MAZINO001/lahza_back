@@ -123,82 +123,36 @@ public function handleManualPayment(Payment $payment)
 {
     // $this->authorize('update', $payment);
 
-    if ($payment->payment_method === 'stripe') {
+    try {
+        $result = $this->paymentService->handleManualPayment($payment);
+        
+        return response()->json($result);
+    } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+        throw $e;
+    } catch (\Exception $e) {
         return response()->json([
             'error' => true,
-            'message' => 'Stripe method is not allowed',
-        ]);
+            'message' => 'Failed to process payment: ' . $e->getMessage(),
+        ], 500);
     }
-
-    // ---- PAY FLOW ----
-    if ($payment->status !== 'pending') {
-        return response()->json([
-            'error' => true,
-            'message' => 'Only pending payments can be marked as paid',
-        ]);
-    }
-
-    DB::transaction(function () use ($payment) {
-        $payment->update(['status' => 'paid']);
-        $this->paymentService->updateInvoiceStatus($payment->invoice);
-        $this->paymentService->autoGenerateRemainingPayment($payment->invoice, $payment);
-
-        $paymentData = $payment->invoice
-            ->payments()
-            ->latest()
-            ->first()?->toArray() ?? [];
-
-        $this->projectCreationService->updateProjectAfterPayment($payment->invoice, $paymentData);
-        // Send payment success email
-        $this->paymentService->sendPaymentSuccessEmail($payment);
-    });
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Payment processed successfully',
-    ]);
 }
-public function cancelPayment(Payment $payment) {
+
+public function cancelPayment(Payment $payment)
+{
     $this->authorize('update', $payment);
 
-    if ($payment->payment_method === 'stripe') {
+    try {
+        $result = $this->paymentService->cancelManualPayment($payment);
+        
+        return response()->json($result);
+    } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+        throw $e;
+    } catch (\Exception $e) {
         return response()->json([
             'error' => true,
-            'message' => 'Stripe method is not allowed',
-        ]);
+            'message' => 'Failed to cancel payment: ' . $e->getMessage(),
+        ], 500);
     }
-
-    if ($payment->status !== 'paid') {
-        return response()->json([
-            'error' => true,
-            'message' => "Only paid payments can be cancelled"
-        ]);
-    }
-
-    DB::transaction(function() use ($payment) {
-        $invoice = $payment->invoice;
-
-        // Delete any pending payment that was auto-generated after this payment
-        // (created after this payment was marked as paid)
-        $invoice->payments()
-            ->where('status', 'pending')
-            ->where('created_at', '>=', $payment->updated_at) // Created after this payment was paid
-            ->delete();
-
-        // Mark the payment as pending
-        $payment->update(['status' => 'pending']);
-
-        // Update invoice status
-        $this->paymentService->updateInvoiceStatus($invoice);
-
-        // Cancel project update
-        $this->projectCreationService->cancelProjectUpdate($invoice);
-    });
-
-    return response()->json([
-        'success' => true,
-        'message' => "Payment cancelled successfully"
-    ]);
 }
 public function updatePaymentDate(Request $request ,Payment $payment){
     $this->authorize('update', $payment);
