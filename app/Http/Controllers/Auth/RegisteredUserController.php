@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
 use App\Mail\ClientRegisteredMail;
-
+use Illuminate\Support\Str;
 class RegisteredUserController extends Controller
 {
     public function store(Request $request): \Illuminate\Http\JsonResponse
@@ -91,7 +91,12 @@ class RegisteredUserController extends Controller
                     // This gives new users 15 days before first OTP check
                     'last_otp_verified_at' => now(),
                 ]);
+                $user->email_verification_token = Str::random(64);
+                $user->email_verification_sent_at = now();
+                $user->save();
 
+                // Send the notification
+                $user->notify(new \App\Notifications\EmailVerificationNotification());
                 $clientId = null;
 
                 switch ($request->user_type) {
