@@ -92,6 +92,7 @@ Route::middleware(['auth:sanctum','verified', 'api.otp'])->group(function () {
             'id' => $request->user()->id,
             'name' => $request->user()->name,
             'email' => $request->user()->email,
+            'status' => $request->user()->status,
             'role' => $request->user()->role,
             'user_type' => $request->user()->user_type,
             'profile_image'=> $request->user()->profile_image,
