@@ -23,6 +23,7 @@ return [
         'http://localhost:5173',
         'http://localhost:5174',
         'http://localhost:5175',
+        'https://application.lahza.ma/',
     ],
 
     'allowed_origins_patterns' => [],
