@@ -124,7 +124,7 @@ class RegisteredUserController extends Controller
                             ['user_id' => $user->id, 'permission_id' => 2],
                         ]);
 
-                    $this->sendClientRegistrationEmail($user, $client);
+                    // $this->sendClientRegistrationEmail($user, $client);
                     
                     $client->load('user');
                     $clientId = [

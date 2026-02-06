@@ -20,7 +20,7 @@ class EmailVerificationNotification extends Notification
         $verificationUrl = config('app.frontend_url') . '/auth/verify-email?token=' . $notifiable->email_verification_token;
 
         return (new MailMessage)
-            ->subject('Verify Your Email Address')
+            ->subject('Bienvenue sur votre espace - LAHZA votre partenaire Marketing Digital')
             ->view('emails.verify_email', [
                 'verificationUrl' => $verificationUrl,
             ]);

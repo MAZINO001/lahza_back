@@ -31,22 +31,25 @@
 </head>
 <body>
     <div class="container">
-        <h2>Verify Your Email Address</h2>
+        <h2>Vérifiez votre adresse e-mail</h2>
         
-        <p>Hello,</p>
-        
-        <p>Thank you for registering! Please verify your email address by clicking the button below.</p>
+        <p>Bonjour,</p>
         
         <p>
-            <a href="{{ $verificationUrl }}" class="button">Verify Email</a>
+           Bonjour, Votre compte client LAHZA est actif. Accédez à votre tableau
+            de bord pour suivre vos projets, valider vos devis et gérer vos factures.
         </p>
         
-        <p>This link will expire in 24 hours.</p>
+        <p>
+            <a href="{{ $verificationUrl }}" class="button">Vérifier votre e-mail</a>
+        </p>
         
-        <p>If you did not create an account, no further action is required.</p>
+        <p>Ce lien expirera dans 24 heures.</p>
+        
+        <p>Si vous n’avez pas créé de compte, aucune autre action n’est requise.</p>
         
         <div class="footer">
-            <p>Thanks,<br>{{ config('app.name') }}</p>
+            <p>Merci,<br>{{ config('app.name') }}</p>
         </div>
     </div>
 </body>
