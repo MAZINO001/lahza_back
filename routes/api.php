@@ -203,6 +203,12 @@ Route::post('/file-search', [FileController::class, 'search']);
     // Admin-only routes
     // -------------------------------------------------
     Route::middleware('role:admin')->group(function () {
+    
+    // New reusable attachment routes
+    Route::post('/attachments/manage', [FileController::class, 'manageAttachments']);
+    Route::get('/attachments', [FileController::class, 'getAttachments']);
+
+
         // get users
         Route::get('/users-all', [UserController::class, 'getAll']);
         Route::get('/get-team-users', [UserController::class, 'getTeamUsers']);
