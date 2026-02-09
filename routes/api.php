@@ -109,6 +109,8 @@ Route::middleware(['auth:sanctum','verified', 'api.otp'])->group(function () {
     // -------------------------------------------------
     Route::middleware('role:admin,client')->group(function () {
 Route::post('/file-search', [FileController::class, 'search']);
+Route::post('/file-upload', [FileController::class, 'upload']);
+Route::delete('/files-delete/{id}', [FileController::class, 'delete']);
         Route::get('/company-info', [CompanyInfoController::class, 'index']);
         Route::get('/certifications', [CertificationController::class, 'index']);
         Route::get('/certifications/{certification}', [CertificationController::class, 'show']);

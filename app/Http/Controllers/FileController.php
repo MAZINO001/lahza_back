@@ -17,7 +17,42 @@ class FileController extends Controller
     {
         $this->fileUploadService = $fileUploadService;
     }
+public function upload(Request $request)
+{
+    $request->validate([
+        'files.*' => 'required|file|max:10240',
+        'fileable_type' => 'required|string',
+        'fileable_id' => 'required|integer',
+        'type' => 'required|string',
+    ]);
 
+    $modelClass = $request->fileable_type;
+
+    // 1. verify model class
+    if (
+        ! class_exists($modelClass) ||
+        ! is_subclass_of($modelClass, \Illuminate\Database\Eloquent\Model::class)
+    ) {
+        return response()->json(['message' => 'Invalid model type'], 422);
+    }
+
+    // 2. verify record exists
+    $model = $modelClass::find($request->fileable_id);
+
+    if (! $model) {
+        return response()->json(['message' => 'Model not found'], 404);
+    }
+
+    $this->fileUploadService->upload(
+        $request->file('files'),
+        $model,
+        $request->type,
+        $request->folder ?? 'files',
+        $request->disk ?? 'public'
+    );
+
+    return response()->json(['message' => 'Uploaded'], 200);
+}
     public function search(Request $request)
     {
         $validated = $request->validate([
@@ -123,4 +158,22 @@ class FileController extends Controller
             'data' => $attachments,
         ], 200);
     }
+    public function delete($id)
+{
+    $file = File::find($id);
+
+    if (! $file) {
+        return response()->json(['message' => 'File not found'], 404);
+    }
+
+    // ownership check
+    $user = Auth::user();
+    if ($user->role !== 'admin' && $file->user_id !== $user->id) {
+        return response()->json(['message' => 'Forbidden'], 403);
+    }
+
+    $this->fileUploadService->deleteFile($file);
+
+    return response()->json(['message' => 'File deleted'], 200);
+}
 }

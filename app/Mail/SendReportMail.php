@@ -6,22 +6,27 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Symfony\Component\Mime\Email;
+use Illuminate\Support\Facades\Log;
 
 class SendReportMail extends Mailable
 {
     use Queueable, SerializesModels;
 
     public $data;
-    public $pdfPath;
+    public $attachmentPaths;
 
-    public function __construct($data, $pdfPath)
+    public function __construct($data, $attachmentPaths = [])
     {
         $this->data = $data;
-        $this->pdfPath = $pdfPath;
+        $this->attachmentPaths = is_array($attachmentPaths) ? $attachmentPaths : [$attachmentPaths];
     }
 
     public function build()
     {
+        Log::info('Building email with attachments', [
+            'attachment_count' => count($this->attachmentPaths)
+        ]);
+
         $subject = $this->data['subject'] ?? 'Your Document';
         $message = $this->data['message'] ?? 'Please find the attached document.';
         $name    = $this->data['name'] ?? 'Customer';
@@ -42,14 +47,43 @@ class SendReportMail extends Mailable
             });
         }
 
-        if ($this->pdfPath && file_exists($this->pdfPath)) {
-            $mail->attach($this->pdfPath, [
-                'as'   => 'document.pdf',
-                'mime' => 'application/pdf',
+        // Attach all files from the array
+        foreach ($this->attachmentPaths as $index => $filePath) {
+            // Normalize path for Windows/Linux compatibility
+            $normalizedPath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $filePath);
+            
+            Log::info('Processing attachment', [
+                'index' => $index,
+                'original_path' => $filePath,
+                'normalized_path' => $normalizedPath,
+                'exists' => file_exists($normalizedPath)
             ]);
+            
+            if (file_exists($normalizedPath)) {
+                $filename = basename($normalizedPath);
+                
+                // First file is the main PDF (invoice/quote)
+                if ($index === 0 && pathinfo($normalizedPath, PATHINFO_EXTENSION) === 'pdf') {
+                    $filename = 'invoice.pdf';
+                }
+                
+                $mail->attach($normalizedPath, [
+                    'as' => $filename,
+                    'mime' => mime_content_type($normalizedPath) ?: 'application/pdf'
+                ]);
+                
+                Log::info('Successfully attached file', [
+                    'filename' => $filename,
+                    'size' => filesize($normalizedPath)
+                ]);
+            } else {
+                Log::error('Attachment file not found', [
+                    'path' => $normalizedPath,
+                    'index' => $index
+                ]);
+            }
         }
 
         return $mail;
     }
 }
-

@@ -18,6 +18,13 @@ return new class extends Migration
         $table->string('fileable_type')->nullable()->change();
         $table->unsignedBigInteger('fileable_id')->nullable()->change();
         });
+
+
+        Schema::table('events', function (Blueprint $table) {
+        if (Schema::hasColumn('events', 'repeatedly')) {
+            $table->dropColumn('repeatedly');
+        }
+        });
     }
 
     /**
