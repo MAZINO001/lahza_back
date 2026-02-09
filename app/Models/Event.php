@@ -22,7 +22,6 @@ class Event extends Model
         'status',
         'url',
         'type',
-        'repeatedly',
         'color',
         'all_day',
         'guests',
