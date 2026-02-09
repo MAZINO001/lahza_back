@@ -26,7 +26,7 @@ class QuoteSubscription extends Model
      */
     public function quote(): BelongsTo
     {
-        return $this->belongsTo(Quotes::class);
+        return $this->belongsTo(Quotes::class, 'quote_id');
     }
 
     /**

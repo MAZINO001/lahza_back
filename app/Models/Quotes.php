@@ -88,9 +88,9 @@ class Quotes extends Model
         return $this->morphMany(Comment::class, 'commentable');
     }
     public function quoteSubscriptions(): HasMany
-{
-    return $this->hasMany(QuoteSubscription::class);
-}
+    {
+        return $this->hasMany(QuoteSubscription::class, 'quote_id');
+    }
 
 /**
  * Check if this quote has subscription plans.
