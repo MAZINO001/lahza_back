@@ -81,7 +81,9 @@ public function store(Request $request)
         'subscriptions.*.billing_cycle' => 'required|in:monthly,yearly',
         'subscriptions.*.price_snapshot' => 'required|numeric',
         'has_projects' => 'nullable',
-        'description' => 'nullable'
+        'description' => 'nullable',
+        'attachment_file_ids' => 'nullable|array',
+        'attachment_file_ids.*' => 'integer|exists:files,id',
     ]);
 
     return DB::transaction(function () use ($validated) {
@@ -142,7 +144,7 @@ public function store(Request $request)
         // Send quote created email with PDF attachment
         // Only send email if status is NOT 'draft'
         if ($validated['status'] !== 'draft') {
-            $this->sendQuoteCreatedEmail($quote);
+        $this->sendQuoteCreatedEmail($quote, $validated['attachment_file_ids'] ?? []);
         }
         
         // Log activity
@@ -466,6 +468,10 @@ public function createInvoiceFromQuote($id)
     public function sendQuote(Request $request, Quotes $quote)
 {
     $this->authorize('update', $quote);
+    $request->validate([
+        'attachment_file_ids' => 'nullable|array',
+        'attachment_file_ids.*' => 'integer|exists:files,id',
+    ]);
 
     // Ensure quote is actually a draft
     if ($quote->status !== 'draft') {
@@ -490,7 +496,7 @@ public function createInvoiceFromQuote($id)
 
         try {
             // Send email with PDF
-            $this->sendQuoteCreatedEmail($quote);
+            $this->sendQuoteCreatedEmail($quote,$request->attachment_file_ids ?? []);
 
         } catch (\Exception $e) {
             // Rollback status if email fails
@@ -531,106 +537,77 @@ public function createInvoiceFromQuote($id)
         ], 200);
     });
 }
-    private function sendQuoteCreatedEmail($quote)
-    {
-        try {
-            // Get client's email from user relationship
-            $clientEmail = $quote->client->user->email ?? null;
+    private function sendQuoteCreatedEmail($quote, $attachmentFileIds = [])
+{
+    try {
+        $clientEmail = $quote->client->user->email ?? null;
 
-            if (!$clientEmail) {
-                Log::warning('Cannot send quote email: client has no email address', [
-                    'quote_id' => $quote->id,
-                    'client_id' => $quote->client_id,
-                ]);
-                return;
-            }
-
-            // Check email notifications preference
-            if (!$quote->client->user->allowsMail('quotes')) {
-
-                Log::info('Quote email not sent: email notifications disabled', [
-                    'quote_id' => $quote->id,
-                    'client_id' => $quote->client_id,
-                ]);
-                return;
-            }
-
-            // Generate PDF for the quote
-            $reportsDir = storage_path('app/reports');
-            if (!file_exists($reportsDir)) {
-                mkdir($reportsDir, 0777, true);
-            }
-
-            $adminSignatureBase64 = null;
-            $clientSignatureBase64 = null;
-            if ($quote->adminSignature()) {
-                $adminSignatureBase64 = $this->getImageBase64($quote->adminSignature()->path);
-            } else {
-                $adminSignatureBase64 = $this->getDefaultAdminSignatureBase64();
-            }
-            if ($quote->clientSignature()) {
-                $clientSignatureBase64 = $this->getImageBase64($quote->clientSignature()->path);
-            }
-
-            $quote->load('quoteServices', 'services', 'files');
-
-            // Calculate totals for PDF
-            $totalHT = 0;
-            $totalTVA = 0;
-            $totalTTC = 0;
-
-            foreach ($quote->quoteServices ?? [] as $line) {
-                $ttc = (float) ($line->individual_total ?? 0);
-                $rate = ((float) ($line->tax ?? 0)) / 100;
-
-                $ht = $rate > 0 ? $ttc / (1 + $rate) : $ttc;
-                $tva = $ttc - $ht;
-
-                $totalHT += $ht;
-                $totalTVA += $tva;
-                $totalTTC += $ttc;
-            }
-
-            $currency = $quote->client->currency ?? 'MAD';
-
-            $pdf = PDF::loadView('pdf.document', [
-                'quote' => $quote,
-                'type' => 'quote',
-                'totalHT' => $totalHT,
-                'totalTVA' => $totalTVA,
-                'totalTTC' => $totalTTC,
-                'currency' => $currency,
-                'adminSignatureBase64' => $adminSignatureBase64,
-                'clientSignatureBase64' => $clientSignatureBase64,
-            ]);
-
-            $fullPdfPath = $reportsDir . '/' . uniqid() . '_quote_' . $quote->id . '.pdf';
-            $pdf->save($fullPdfPath);
-
-            if (!file_exists($fullPdfPath)) {
-                Log::error('PDF generation failed for quote email', [
-                    'quote_id' => $quote->id,
-                ]);
-                return;
-            }
-
-            // Queue email with PDF attachment
-            Mail::to($clientEmail)->queue(new QuoteCreatedMail($quote, $fullPdfPath));
-
-            Log::info('Quote created email queued successfully', [
-                'quote_id' => $quote->id,
-                'client_id' => $quote->client_id,
-                'email' => $clientEmail,
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Failed to queue quote created email', [
-                'quote_id' => $quote->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+        if (!$clientEmail || !$quote->client->user->allowsMail('quotes')) {
+            return;
         }
-    }
 
+        // --- PDF GENERATION ---
+        $adminSignatureBase64 = $quote->adminSignature() 
+            ? $this->getImageBase64($quote->adminSignature()->path) 
+            : $this->getDefaultAdminSignatureBase64();
+            
+        $clientSignatureBase64 = $quote->clientSignature() 
+            ? $this->getImageBase64($quote->clientSignature()->path) 
+            : null;
+
+        $quote->load('quoteServices', 'services', 'files');
+
+        // Totals calculation (Keep your existing logic here)
+        $totalHT = 0; $totalTVA = 0; $totalTTC = 0;
+        foreach ($quote->quoteServices ?? [] as $line) {
+            $ttc = (float) ($line->individual_total ?? 0);
+            $rate = ((float) ($line->tax ?? 0)) / 100;
+            $ht = $rate > 0 ? $ttc / (1 + $rate) : $ttc;
+            $totalHT += $ht; $totalTVA += ($ttc - $ht); $totalTTC += $ttc;
+        }
+
+        $pdf = PDF::loadView('pdf.document', [
+            'quote' => $quote,
+            'type' => 'quote',
+            'totalHT' => $totalHT,
+            'totalTVA' => $totalTVA,
+            'totalTTC' => $totalTTC,
+            'currency' => $quote->client->currency ?? 'MAD',
+            'adminSignatureBase64' => $adminSignatureBase64,
+            'clientSignatureBase64' => $clientSignatureBase64,
+        ]);
+
+        // --- NEW STORAGE LOGIC ---
+        // 1. Define a relative path (relative to storage/app)
+        $relativePdfPath = 'reports/quote_' . $quote->id . '_' . uniqid() . '.pdf';
+
+        // 2. Save the PDF using Storage instead of $pdf->save()
+        // This ensures the directory is created and permissions are correct for the queue
+        Storage::disk('local')->put($relativePdfPath, $pdf->output());
+
+        // 3. Initialize the array with our relative path
+        $attachmentPaths = [Storage::disk('local')->path($relativePdfPath)];
+        // 4. Add additional attachments (ensure they are also relative)
+        if (!empty($attachmentFileIds)) {
+            $attachmentFiles = \App\Models\File::whereIn('id', $attachmentFileIds)->get();
+            
+            foreach ($attachmentFiles as $file) {
+                // We only want the path stored in the DB (e.g., 'uploads/image.png')
+                // Not the full Storage::path()!
+                $attachmentPaths[] = Storage::disk($file->disk)->path($file->path);
+            }
+        }
+
+        // 5. Queue the mail passing the RELATIVE paths and the disk name
+Mail::to($clientEmail)->send(
+    new QuoteCreatedMail($quote, $attachmentPaths)
+);
+        Log::info('Quote email successfully queued', ['quote_id' => $quote->id]);
+
+    } catch (\Exception $e) {
+        Log::error('Queue Error: ' . $e->getMessage());
+    }
+}
     /**
      * Get image as base64 data URI
      */
@@ -687,7 +664,7 @@ public function createInvoiceFromQuote($id)
                 'payment_method' => $paymentResponse['payment_method'],
                 'subject' => 'New Invoice Created - ' . $invoiceNumber,
             ];
-        if($quote->client->user->allowsMail('quotes') || $quote->client->allowsMail('invoices')){
+        if($quote->client->user->allowsMail('quotes') || $quote->client->user->allowsMail('invoices')){
             Mail::to($email)->send(new InvoiceCreatedMail($data));
         }
         } 

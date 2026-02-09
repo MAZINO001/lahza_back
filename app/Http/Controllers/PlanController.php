@@ -50,7 +50,7 @@ class PlanController extends Controller
             'description' => 'nullable|string',
             'is_active' => 'nullable|boolean',
             'prices' => 'nullable|array',
-            'prices.*.interval' => 'required|in:monthly,yearly',
+            'prices.*.interval' => 'required|in:monthly,yearly,quarterly',
             'prices.*.price' => 'required|numeric|min:0',
             'prices.*.currency' => 'nullable|string|max:10',
             'prices.*.stripe_price_id' => 'nullable|string',

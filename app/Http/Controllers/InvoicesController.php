@@ -18,6 +18,7 @@ use App\Services\ActivityLoggerService;
 use App\Mail\InvoiceCreatedMail;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use App\Models\InvoiceSubscription;
+use App\Models\File;
 class InvoicesController extends Controller
 {
     protected $paymentService;
@@ -90,6 +91,8 @@ public function store(Request $request)
         'old_projects' => 'nullable|array',
         'old_projects.*' => 'exists:projects,id',
         'description' => 'nullable|string',
+        'attachment_file_ids' => 'nullable|array',
+        'attachment_file_ids.*' => 'integer|exists:files,id',
     ]);
 
     return DB::transaction(function () use ($validate) {
@@ -178,7 +181,7 @@ public function store(Request $request)
                 }
 
                 // Send email with PDF
-                $this->sendInvoiceEmail($invoice, $response);
+                $this->sendInvoiceEmail($invoice, $response, $validate['attachment_file_ids'] ?? []);
             } catch (\Exception $e) {
                 // Log error but don't fail invoice creation
                 Log::error('Failed to create payment or send email for invoice', [
@@ -234,6 +237,8 @@ public function sendInvoice(Request $request, Invoice $invoice)
         'payment_percentage' => 'required|numeric|min:0|max:100',
         'payment_status' => 'nullable|string|in:unpaid,partially_paid,paid,pending',
         'payment_type' => 'required|string|in:stripe,bank,cash,cheque',
+        'attachment_file_ids' => 'nullable|array',
+        'attachment_file_ids.*' => 'integer|exists:files,id',
     ]);
 
     return DB::transaction(function () use ($invoice, $validate) {
@@ -257,7 +262,7 @@ public function sendInvoice(Request $request, Invoice $invoice)
             );
 
             // Send email with PDF
-            $this->sendInvoiceEmail($invoice, $response);
+            $this->sendInvoiceEmail($invoice, $response, $validate['attachment_file_ids'] ?? []);
 
         } catch (\Exception $e) {
             // Rollback status if payment/email fails
@@ -340,6 +345,9 @@ public function sendInvoice(Request $request, Invoice $invoice)
         'old_projects' => 'nullable|array',
         'old_projects.*' => 'exists:projects,id',
         'description' => 'nullable|string',
+        'attachment_file_ids' => 'nullable|array',
+        'attachment_file_ids.*' => 'integer|exists:files,id',
+
     ]);
 
     return DB::transaction(function () use ($invoice, $validate, $oldStatus) {
@@ -436,122 +444,178 @@ public function sendInvoice(Request $request, Invoice $invoice)
     /**
      * Send invoice created email with PDF attachment
      */
-    private function sendInvoiceEmail($invoice, $paymentResponse)
-    {
-        try {
-            $clientEmail = $invoice->client->user->email ?? null;
+    private function sendInvoiceEmail($invoice, $paymentResponse, $attachmentFileIds = [])
+{
+    try {
+        $clientEmail = $invoice->client->user->email ?? null;
 
-            if (!$clientEmail) {
-                Log::warning('Cannot send invoice email: client has no email address', [
-                    'invoice_id' => $invoice->id,
-                    'client_id' => $invoice->client_id,
-                ]);
-                return;
-            }
-
-            // Check email notifications preference
-            if (!$invoice->client->user->allowsMail('invoices')) {
-                Log::info('Invoice email not sent: email notifications disabled', [
-                    'invoice_id' => $invoice->id,
-                    'client_id' => $invoice->client_id,
-                ]);
-                return;
-            }
-
-            // Generate PDF for the invoice
-            $reportsDir = storage_path('app/reports');
-            if (!file_exists($reportsDir)) {
-                mkdir($reportsDir, 0777, true);
-            }
-
-            $adminSignatureBase64 = null;
-            $clientSignatureBase64 = null;
-            if ($invoice->adminSignature()) {
-                $adminSignatureBase64 = $this->getImageBase64($invoice->adminSignature()->path);
-            } else {
-                $adminSignatureBase64 = $this->getDefaultAdminSignatureBase64();
-            }
-            if ($invoice->clientSignature()) {
-                $clientSignatureBase64 = $this->getImageBase64($invoice->clientSignature()->path);
-            }
-
-            $invoice->load('invoiceServices', 'files');
-
-            // Calculate totals for PDF
-            $totalHT = 0;
-            $totalTVA = 0;
-            $totalTTC = 0;
-
-            foreach ($invoice->invoiceServices ?? [] as $line) {
-                $ttc = (float) ($line->individual_total ?? 0);
-                $rate = ((float) ($line->tax ?? 0)) / 100;
-
-                $ht = $rate > 0 ? $ttc / (1 + $rate) : $ttc;
-                $tva = $ttc - $ht;
-
-                $totalHT += $ht;
-                $totalTVA += $tva;
-                $totalTTC += $ttc;
-            }
-
-            $currency = $invoice->client->currency ?? 'MAD';
-
-            $pdf = PDF::loadView('pdf.document', [
-                'invoice' => $invoice,
-                'type' => 'invoice',
-                'totalHT' => $totalHT,
-                'totalTVA' => $totalTVA,
-                'totalTTC' => $totalTTC,
-                'currency' => $currency,
-                'adminSignatureBase64' => $adminSignatureBase64,
-                'clientSignatureBase64' => $clientSignatureBase64,
-            ]);
-
-            $fullPdfPath = $reportsDir . '/' . uniqid() . '_invoice_' . $invoice->id . '.pdf';
-            $pdf->save($fullPdfPath);
-
-            if (!file_exists($fullPdfPath)) {
-                Log::error('PDF generation failed for invoice email', [
-                    'invoice_id' => $invoice->id,
-                ]);
-                return;
-            }
-
-            $invoiceNumber = 'INVOICE-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT);
-            
-            $data = [
-                'quote' => $invoice->quote ?? null,
-                'invoice' => $invoice,
-                'client' => $invoice->client,
-                'client_id' => $invoice->client_id,
-                'payment_url' => $paymentResponse['payment_url'] ?? null,
-                'bank_info' => $paymentResponse['bank_info'] ?? null,
-                'payment_method' => $paymentResponse['payment_method'] ?? 'bank',
-                'subject' => 'New Invoice Created - ' . $invoiceNumber,
-            ];
-
-            // Queue email with PDF attachment using SendReportMail
-            Mail::to($clientEmail)->queue(new \App\Mail\SendReportMail([
-                'subject' => $data['subject'],
-                'message' => 'Please find your invoice attached.',
-                'name' => $invoice->client->name ?? 'Customer',
-                'client_id' => $invoice->client_id,
-            ], $fullPdfPath));
-
-            Log::info('Invoice created email queued successfully', [
+        if (!$clientEmail) {
+            Log::warning('Cannot send invoice email: client has no email address', [
                 'invoice_id' => $invoice->id,
                 'client_id' => $invoice->client_id,
-                'email' => $clientEmail,
             ]);
-        } 
-        catch (\Exception $e) {
-            Log::error('Failed to queue invoice email', [
-                'invoice_id' => $invoice->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            return;
         }
+
+        // Check email notifications preference
+        if (!$invoice->client->user->allowsMail('invoices')) {
+            Log::info('Invoice email not sent: email notifications disabled', [
+                'invoice_id' => $invoice->id,
+                'client_id' => $invoice->client_id,
+            ]);
+            return;
+        }
+
+        // Generate PDF for the invoice
+        $reportsDir = storage_path('app/reports');
+        if (!file_exists($reportsDir)) {
+            mkdir($reportsDir, 0777, true);
+        }
+
+        $adminSignatureBase64 = null;
+        $clientSignatureBase64 = null;
+        if ($invoice->adminSignature()) {
+            $adminSignatureBase64 = $this->getImageBase64($invoice->adminSignature()->path);
+        } else {
+            $adminSignatureBase64 = $this->getDefaultAdminSignatureBase64();
+        }
+        if ($invoice->clientSignature()) {
+            $clientSignatureBase64 = $this->getImageBase64($invoice->clientSignature()->path);
+        }
+
+        $invoice->load('invoiceServices', 'files');
+
+        // Calculate totals for PDF
+        $totalHT = 0;
+        $totalTVA = 0;
+        $totalTTC = 0;
+
+        foreach ($invoice->invoiceServices ?? [] as $line) {
+            $ttc = (float) ($line->individual_total ?? 0);
+            $rate = ((float) ($line->tax ?? 0)) / 100;
+
+            $ht = $rate > 0 ? $ttc / (1 + $rate) : $ttc;
+            $tva = $ttc - $ht;
+
+            $totalHT += $ht;
+            $totalTVA += $tva;
+            $totalTTC += $ttc;
+        }
+
+        $currency = $invoice->client->currency ?? 'MAD';
+
+        $pdf = PDF::loadView('pdf.document', [
+            'invoice' => $invoice,
+            'type' => 'invoice',
+            'totalHT' => $totalHT,
+            'totalTVA' => $totalTVA,
+            'totalTTC' => $totalTTC,
+            'currency' => $currency,
+            'adminSignatureBase64' => $adminSignatureBase64,
+            'clientSignatureBase64' => $clientSignatureBase64,
+        ]);
+
+        $fullPdfPath = $reportsDir . DIRECTORY_SEPARATOR . uniqid() . '_invoice_' . $invoice->id . '.pdf';
+        $pdf->save($fullPdfPath);
+
+        if (!file_exists($fullPdfPath)) {
+            Log::error('PDF generation failed for invoice email', [
+                'invoice_id' => $invoice->id,
+                'expected_path' => $fullPdfPath
+            ]);
+            return;
+        }
+
+        Log::info('Invoice PDF generated successfully', [
+            'invoice_id' => $invoice->id,
+            'pdf_path' => $fullPdfPath,
+            'file_exists' => file_exists($fullPdfPath),
+            'file_size' => filesize($fullPdfPath)
+        ]);
+
+        $invoiceNumber = 'INVOICE-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT);
+        
+        $data = [
+            'quote' => $invoice->quote ?? null,
+            'invoice' => $invoice,
+            'client' => $invoice->client,
+            'client_id' => $invoice->client_id,
+            'payment_url' => $paymentResponse['payment_url'] ?? null,
+            'bank_info' => $paymentResponse['bank_info'] ?? null,
+            'payment_method' => $paymentResponse['payment_method'] ?? 'bank',
+            'subject' => 'New Invoice Created - ' . $invoiceNumber,
+        ];
+
+        // Start with the invoice PDF (THIS MUST ALWAYS BE FIRST AND PRESENT)
+        $attachmentPaths = [$fullPdfPath];
+
+        // Add additional attachments if provided
+        if (!empty($attachmentFileIds)) {
+            $user = Auth::user();
+            $query = File::whereIn('id', $attachmentFileIds);
+            
+            // Security: Only allow user's own files (or all files if admin)
+            if ($user && $user->role !== 'admin') {
+                $query->where('user_id', $user->id);
+            }
+            
+            $attachmentFiles = $query->get();
+            
+            Log::info('Processing additional attachments', [
+                'requested_ids' => $attachmentFileIds,
+                'found_count' => $attachmentFiles->count()
+            ]);
+            
+            foreach ($attachmentFiles as $file) {
+                // Build the absolute path correctly based on disk type
+                $filePath = Storage::disk($file->disk)->path($file->path);
+                
+                if (file_exists($filePath)) {
+                    $attachmentPaths[] = $filePath;
+                    Log::info('Additional attachment added', [
+                        'file_id' => $file->id,
+                        'path' => $filePath,
+                        'exists' => true
+                    ]);
+                } else {
+                    Log::warning('Additional attachment file not found', [
+                        'file_id' => $file->id,
+                        'path' => $filePath,
+                        'disk' => $file->disk
+                    ]);
+                }
+            }
+        }
+
+        Log::info('Final attachment list for email', [
+            'invoice_id' => $invoice->id,
+            'total_attachments' => count($attachmentPaths),
+            'paths' => $attachmentPaths
+        ]);
+
+        // Queue email with all attachments
+        Mail::to($clientEmail)->send(new \App\Mail\SendReportMail([
+            'subject' => $data['subject'],
+            'message' => 'Please find your invoice attached.',
+            'name' => $invoice->client->name ?? 'Customer',
+            'client_id' => $invoice->client_id,
+        ], $attachmentPaths));
+
+        Log::info('Invoice email queued successfully', [
+            'invoice_id' => $invoice->id,
+            'client_id' => $invoice->client_id,
+            'email' => $clientEmail,
+            'attachment_count' => count($attachmentPaths)
+        ]);
+    } 
+    catch (\Exception $e) {
+        Log::error('Failed to queue invoice email', [
+            'invoice_id' => $invoice->id,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
     }
+}
 
     /**
      * Get image as base64 data URI
