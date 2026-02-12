@@ -242,6 +242,7 @@ Route::delete('/files-delete/{id}', [FileController::class, 'delete']);
         // Payments
         Route::post('/quotes/{quote}/pay', [PaymentController::class, 'createPaymentLink']);
         Route::put('/payments/{payment}', [PaymentController::class, 'updatePayment']);
+        Route::put('/payments/allocation/{allocation}', [PaymentController::class, 'updateAllocation']);
         Route::get('/payments/{payment}', [PaymentController::class, 'show']);
 
         Route::put('/cancelPayment/{payment}', [PaymentController::class, 'cancelPayment']);
