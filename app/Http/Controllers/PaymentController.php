@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Invoice;
 use App\Services\PaymentServiceInterface;
 use App\Models\Payment;
+use App\Models\PaymentAllocation;
 use Illuminate\Support\Facades\Log;
 use App\Services\ProjectCreationService;
 use Illuminate\Support\Facades\DB;
@@ -186,5 +187,38 @@ public function show(Payment $payment)
     $this->authorize('view', $payment);
     return response()->json($payment->load('invoice', 'user'));
 }
+
+    /**
+     * Update a single payment allocation (services or subscription) percentage.
+     *
+     * This recalculates the allocation amount and the parent payment amount.
+     */
+    public function updateAllocation(Request $request, PaymentAllocation $allocation)
+    {
+        $this->authorize('update', $allocation->payment);
+
+        $data = $request->validate([
+            'percentage' => 'required|numeric|min:0.01|max:100',
+        ]);
+
+        try {
+            $result = $this->paymentService->updatePaymentAllocation(
+                $allocation,
+                floatval($data['percentage'])
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+            ]);
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
 
 }

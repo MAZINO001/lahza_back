@@ -15,10 +15,12 @@ class PaymentAllocation extends Model
         'invoice_subscription_id',
         'allocatable_type',
         'amount',
+        'paid_percentage',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'paid_percentage' => 'decimal:2',
     ];
 
     /**

@@ -12,7 +12,7 @@ public function getPayment()
 {
     /** @var \App\Models\User */
     $user =  Auth::user();
-    $payments = Payment::with(['invoice', 'user'])
+    $payments = Payment::with(['invoice', 'user','allocations'])
         ->when($user->role === 'client', function ($query) use ($user) {
             $clientId = $user->client()->first()->id ?? 0; 
             $query->whereHas('invoice', function ($q) use ($clientId) {

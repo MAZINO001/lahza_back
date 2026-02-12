@@ -127,16 +127,58 @@ class SubscriptionService
      */
     public function setCustomFieldValues(Subscription $subscription, array $values): void
     {
-        foreach ($values as $key => $value) {
+        // Expected formats (ID-based only):
+        // 1) Array of objects: [
+        //      ['custom_field_id' => 1, 'value' => 10],
+        //      ['custom_field_id' => 2, 'value' => 5],
+        //    ]
+        // 2) Associative array keyed by custom_field_id:
+        //    [1 => 10, 2 => 5]
+
+        if (empty($values)) {
+            return;
+        }
+
+        // Normalize associative "id => value" format into the object format
+        $isListOfObjects = isset($values[0]) && is_array($values[0]) && array_key_exists('custom_field_id', $values[0]);
+
+        if (!$isListOfObjects) {
+            $normalized = [];
+            foreach ($values as $fieldId => $value) {
+                $normalized[] = [
+                    'custom_field_id' => $fieldId,
+                    'value' => $value,
+                ];
+            }
+            $values = $normalized;
+        }
+
+        foreach ($values as $item) {
+            if (!is_array($item) || !isset($item['custom_field_id'])) {
+                continue;
+            }
+
+            $fieldId = $item['custom_field_id'];
+
             $customField = SubscriptionCustomField::where('plan_id', $subscription->plan_id)
-                ->where('key', $key)
+                ->where('id', $fieldId)
                 ->first();
 
             if (!$customField) {
                 continue;
             }
 
-            $preparedValue = $customField->prepareValue($value);
+            $rawValue = $item['value'] ?? null;
+
+            // If value is explicitly null, we treat this as a delete request
+            if ($rawValue === null) {
+                $subscription->customFieldValues()
+                    ->where('custom_field_id', $customField->id)
+                    ->delete();
+                continue;
+            }
+
+            $preparedValue = $customField->prepareValue($rawValue);
 
             $subscription->customFieldValues()->updateOrCreate(
                 ['custom_field_id' => $customField->id],

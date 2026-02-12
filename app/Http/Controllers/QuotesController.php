@@ -87,12 +87,21 @@ public function store(Request $request)
     ]);
 
     return DB::transaction(function () use ($validated) {
+        // Recalculate totals from services + subscriptions so quote total is always correct
+        $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
+        $totals = $subscriptionInvoiceService->calculateInvoiceTotals(
+            $validated['services'] ?? [],
+            $validated['subscriptions'] ?? []
+        );
+
+        $calculatedTotal = $totals['total_amount'];
+
         $quoteData = [
             'client_id' => $validated['client_id'],
             'quotation_date' => $validated['quotation_date'],
             'status' => $validated['status'],
             'notes' => $validated['notes'] ?? null,
-            'total_amount' => $validated['total_amount'],
+            'total_amount' => $calculatedTotal,
             'has_projects' => is_array($validated['has_projects'] ?? null) 
                 ? json_encode($validated['has_projects']) 
                 : ($validated['has_projects'] ?? null),
@@ -224,16 +233,42 @@ public function createInvoiceFromQuote($id)
         ], 409);
     }
 
-    return DB::transaction(function () use ($quote) {
+        return DB::transaction(function () use ($quote) {
         // Calculate due date (30 days from now)
         $invoiceDate = now();
         $dueDate = now()->addDays(30);
+
+        // Recalculate totals from quote services + subscriptions to ensure correctness
+        // using the shared SubscriptionInvoiceService so that logic is centralised.
+        $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
+
+        $servicesArray = $quote->quoteServices->map(function ($service) {
+            return [
+                'individual_total' => $service->individual_total,
+            ];
+        })->toArray();
+
+        $subscriptionsArray = $quote->quoteSubscriptions->map(function ($subscription) {
+            return [
+                'price_snapshot' => $subscription->price_snapshot,
+            ];
+        })->toArray();
+
+        $totals = $subscriptionInvoiceService->calculateInvoiceTotals(
+            $servicesArray,
+            $subscriptionsArray
+        );
+
+        $totalAmount = $totals['total_amount'];
+
+        // Keep quote total in sync as well
+        $quote->update(['total_amount' => $totalAmount]);
 
         // Generate a checksum for the invoice
         $checksumData = [
             'client_id' => $quote->client_id,
             'quote_id' => $quote->id,
-            'total_amount' => $quote->total_amount,
+            'total_amount' => $totalAmount,
             'due_date' => $dueDate,
             'invoice_date' => $invoiceDate,
             'balance_due' => $quote->total_amount,
@@ -248,8 +283,8 @@ public function createInvoiceFromQuote($id)
             'due_date' => $dueDate,
             'status' => 'unpaid',
             'notes' => 'Created from quote #' . $quote->id,
-            'total_amount' => $quote->total_amount,
-            'balance_due' => $quote->total_amount,
+            'total_amount' => $totalAmount,
+            'balance_due' => $totalAmount,
             'checksum' => $checksum,
             'description' => $quote->description,
             'has_projects' => $quote->has_projects,
@@ -298,25 +333,28 @@ public function createInvoiceFromQuote($id)
             ? 'bank'
             : 'stripe';
 
-        // Determine payment percentage
-        // If invoice has subscriptions, default to 100% (subscriptions usually paid in full)
-        // Otherwise 50% advance payment
-        $paymentPercentage = $invoice->hasSubscriptions() ? 100.0 : 50.0;
+        // Determine payment percentage, interpreted as "services percentage"
+        $hasSubscriptions = $invoice->hasSubscriptions();
+        $hasServices = $invoice->invoiceServices()->exists();
 
-        // Create payment link
+        if ($hasServices && $hasSubscriptions) {
+            // Mixed: 50% on services, 100% on subscriptions by default
+            $paymentPercentage = 50.0;
+        } elseif ($hasSubscriptions && !$hasServices) {
+            // Only subscriptions: 100% (full subscription amount)
+            $paymentPercentage = 100.0;
+        } else {
+            // Only services: legacy 50% advance
+            $paymentPercentage = 50.0;
+        }
+
+        // Create payment link (allocations are now handled inside PaymentService)
         $response = $this->paymentService->createPaymentLink(
             $invoice,
             $paymentPercentage,
             'pending',
             $paymentMethod
         );
-
-        // Get the created payment and create allocations
-        $payment = $invoice->payments()->latest()->first();
-        if ($payment) {
-            $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
-            $subscriptionInvoiceService->createPaymentAllocations($payment, $invoice, $paymentPercentage);
-        }
 
         $quote->update(['status' => 'billed']);
         
@@ -367,24 +405,44 @@ public function createInvoiceFromQuote($id)
             'services.*.quantity' => 'required|integer|min:1',
             'services.*.tax' => 'nullable|numeric',
             'services.*.individual_total' => 'nullable|numeric',
+            'subscriptions' => 'nullable|array',
+            'subscriptions.*.plan_id' => 'required|exists:plans,id',
+            'subscriptions.*.billing_cycle' => 'required|in:monthly,yearly',
+            'subscriptions.*.price_snapshot' => 'required|numeric',
             'has_projects' => 'nullable',
             'description' => 'nullable'
         ]);
 
         return DB::transaction(function () use ($quote, $validated) {
+            /*
+            |--------------------------------------------------------------------------
+            | TOTALS CALCULATION (SERVICES + SUBSCRIPTIONS)
+            |--------------------------------------------------------------------------
+            |
+            | Use SubscriptionInvoiceService so that totals are always calculated
+            | in a single place for both store() and update().
+            */
+            $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
+            $totals = $subscriptionInvoiceService->calculateInvoiceTotals(
+                $validated['services'] ?? [],
+                $validated['subscriptions'] ?? []
+            );
+
+            $calculatedTotal = $totals['total_amount'];
+
             $quote->update([
                 'client_id' => $validated['client_id'],
                 'quotation_date' => $validated['quotation_date'],
                 'status' => $validated['status'],
                 'notes' => $validated['notes'],
-                'total_amount' => $validated['total_amount'],
+                'total_amount' => $calculatedTotal,
                 'has_projects' => is_array($validated["has_projects"])
                     ? json_encode($validated["has_projects"])
                     : $validated["has_projects"],
                 'description' => $validated['description']
             ]);
 
-            // Update pivot table if services provided
+            // Update services if provided
             if (!empty($validated['services'])) {
                 // Delete old pivot entries
                 $quote->quoteServices()->delete();
@@ -397,6 +455,25 @@ public function createInvoiceFromQuote($id)
                         'quantity' => $service['quantity'],
                         'tax' => $service['tax'] ?? 0,
                         'individual_total' => $service['individual_total'] ?? 0,
+                    ]);
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | SUBSCRIPTIONS
+            |--------------------------------------------------------------------------
+            */
+            if (isset($validated['subscriptions'])) {
+                // Remove existing subscriptions then recreate from payload
+                $quote->quoteSubscriptions()->delete();
+
+                foreach ($validated['subscriptions'] as $subscription) {
+                    QuoteSubscription::create([
+                        'quote_id' => $quote->id,
+                        'plan_id' => $subscription['plan_id'],
+                        'price_snapshot' => $subscription['price_snapshot'],
+                        'billing_cycle' => $subscription['billing_cycle'],
                     ]);
                 }
             }

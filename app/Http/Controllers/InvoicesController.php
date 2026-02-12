@@ -97,6 +97,15 @@ public function store(Request $request)
 
     return DB::transaction(function () use ($validate) {
 
+        // Recalculate totals from services + subscriptions to avoid mismatches
+        $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
+        $totals = $subscriptionInvoiceService->calculateInvoiceTotals(
+            $validate['services'] ?? [],
+            $validate['subscriptions'] ?? []
+        );
+
+        $calculatedTotal = $totals['total_amount'];
+
         $invoice = Invoice::create([
             'client_id' => $validate["client_id"],
             'quote_id' => $validate["quote_id"] ?? null,
@@ -104,8 +113,8 @@ public function store(Request $request)
             'due_date' => $validate["due_date"],
             'status' => $validate["status"],
             'notes' => $validate["notes"],
-            'total_amount' => $validate["total_amount"],
-            'balance_due' => $validate["total_amount"],
+            'total_amount' => $calculatedTotal,
+            'balance_due' => $calculatedTotal,
             'description' => $validate["description"] ?? null,
             'has_projects' => is_array($validate["has_projects"])
                 ? json_encode($validate["has_projects"])
@@ -157,11 +166,23 @@ public function store(Request $request)
 
         // ONLY create payment and send email if status is NOT 'draft'
         if ($validate["status"] !== 'draft') {
-            // Default payment percentage based on whether invoice has subscriptions
-            $paymentPercentage = $invoice->hasSubscriptions() 
-                ? ($validate['payment_percentage'] ?? 100)
-                : ($validate['payment_percentage'] ?? 50);
-                
+            // Determine composition
+            $hasSubscriptions = $invoice->hasSubscriptions();
+            $hasServices = $invoice->invoiceServices()->exists();
+
+            // Interpret payment_percentage as "services percentage":
+            // - services-only     → default 50%
+            // - subscriptions-only→ default 100% (kept for backwards compat, though it only affects services)
+            // - mixed             → default 50% for services, subscriptions always 100%
+            if ($hasServices && $hasSubscriptions) {
+                $paymentPercentage = $validate['payment_percentage'] ?? 50;
+            } elseif ($hasSubscriptions && !$hasServices) {
+                $paymentPercentage = $validate['payment_percentage'] ?? 100;
+            } else {
+                // services only
+                $paymentPercentage = $validate['payment_percentage'] ?? 50;
+            }
+            
             $paymentStatus = $validate['payment_status'] ?? 'pending';
             $paymentType = $validate['payment_type'] ?? 'bank';
 
@@ -173,12 +194,6 @@ public function store(Request $request)
                     $paymentType
                 );
 
-                // Get the created payment and create allocations
-                $payment = $invoice->payments()->latest()->first();
-                if ($payment) {
-                    $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
-                    $subscriptionInvoiceService->createPaymentAllocations($payment, $invoice, $paymentPercentage);
-                }
 
                 // Send email with PDF
                 $this->sendInvoiceEmail($invoice, $response, $validate['attachment_file_ids'] ?? []);
@@ -352,6 +367,23 @@ public function sendInvoice(Request $request, Invoice $invoice)
 
     return DB::transaction(function () use ($invoice, $validate, $oldStatus) {
 
+        /*
+        |--------------------------------------------------------------------------
+        | TOTALS CALCULATION (SERVICES + SUBSCRIPTIONS)
+        |--------------------------------------------------------------------------
+        |
+        | Keep the calculation logic in the SubscriptionInvoiceService so that
+        | both store() and update() share the same source of truth.
+        | Frontend-provided totals are ignored in favour of backend calculation.
+        */
+        $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
+        $totals = $subscriptionInvoiceService->calculateInvoiceTotals(
+            $validate['services'] ?? [],
+            $validate['subscriptions'] ?? []
+        );
+
+        $calculatedTotal = $totals['total_amount'];
+
         $invoice->update([
             'client_id' => $validate['client_id'],
             'quote_id' => $validate['quote_id'] ?? null,
@@ -359,7 +391,8 @@ public function sendInvoice(Request $request, Invoice $invoice)
             'due_date' => $validate['due_date'],
             'status' => $validate['status'],
             'notes' => $validate['notes'] ?? null,
-            'total_amount' => $validate['total_amount'],
+            'total_amount' => $calculatedTotal,
+            // Keep balance_due behaviour as-is (driven by request / existing flows)
             'balance_due' => $validate['balance_due'],
             'description' => $validate['description'] ?? null,
         ]);
