@@ -367,6 +367,23 @@ public function sendInvoice(Request $request, Invoice $invoice)
 
     return DB::transaction(function () use ($invoice, $validate, $oldStatus) {
 
+        /*
+        |--------------------------------------------------------------------------
+        | TOTALS CALCULATION (SERVICES + SUBSCRIPTIONS)
+        |--------------------------------------------------------------------------
+        |
+        | Keep the calculation logic in the SubscriptionInvoiceService so that
+        | both store() and update() share the same source of truth.
+        | Frontend-provided totals are ignored in favour of backend calculation.
+        */
+        $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
+        $totals = $subscriptionInvoiceService->calculateInvoiceTotals(
+            $validate['services'] ?? [],
+            $validate['subscriptions'] ?? []
+        );
+
+        $calculatedTotal = $totals['total_amount'];
+
         $invoice->update([
             'client_id' => $validate['client_id'],
             'quote_id' => $validate['quote_id'] ?? null,
@@ -374,7 +391,8 @@ public function sendInvoice(Request $request, Invoice $invoice)
             'due_date' => $validate['due_date'],
             'status' => $validate['status'],
             'notes' => $validate['notes'] ?? null,
-            'total_amount' => $validate['total_amount'],
+            'total_amount' => $calculatedTotal,
+            // Keep balance_due behaviour as-is (driven by request / existing flows)
             'balance_due' => $validate['balance_due'],
             'description' => $validate['description'] ?? null,
         ]);
