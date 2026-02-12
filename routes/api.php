@@ -342,6 +342,10 @@ Route::delete('/files-delete/{id}', [FileController::class, 'delete']);
         // Plan prices
         Route::post('/{plan}/prices', [PlanController::class, 'addPrice']);
         Route::put('/{plan}/prices/{price}', [PlanController::class, 'updatePrice']);
+        //plan features
+        Route::post('/{plan}/features', [PlanController::class, 'addFeature']);
+        Route::put('/{plan}/features/{feature}', [PlanController::class, 'updateFeature']);
+        Route::delete('/{plan}/features/{feature}', [PlanController::class, 'deleteFeature']);
         
         // Plan custom fields
         Route::post('/{plan}/custom-fields', [PlanController::class, 'addCustomField']);
@@ -363,6 +367,9 @@ Route::delete('/files-delete/{id}', [FileController::class, 'delete']);
         Route::post('/{subscription}/renew', [SubscriptionController::class, 'renew']);
         Route::post('/{subscription}/change-plan', [SubscriptionController::class, 'changePlan']);
         Route::post('/{subscription}/check-limit', [SubscriptionController::class, 'checkLimit']);
+
+        // Custom-field-only update (ID based)
+        Route::patch('/{subscription}/custom-fields-value', [SubscriptionController::class, 'updateCustomFieldsValue']);
     });
     
     // Client subscriptions

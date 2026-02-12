@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Plan;
 use App\Models\PlanPrice;
+use App\Models\PlanFeature;
 use App\Models\SubscriptionCustomField;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -60,6 +61,8 @@ class PlanController extends Controller
             'custom_fields.*.type' => 'required|in:number,boolean,text,json',
             'custom_fields.*.default_value' => 'nullable|string',
             'custom_fields.*.required' => 'nullable|boolean',
+            'features' => 'nullable|array',
+            'features.*' => 'required|string',
         ]);
 
         if ($validator->fails()) {
@@ -102,6 +105,13 @@ class PlanController extends Controller
                     ]);
                 }
             }
+            if($request->has('features')) {
+                foreach ($request->features as $featureName) {
+                    $plan->features()->create([
+                        'feature_name' => $featureName,
+                    ]);
+                }
+            }
 
             DB::commit();
 
@@ -137,6 +147,19 @@ class PlanController extends Controller
             'name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'is_active' => 'nullable|boolean',
+            'prices' => 'nullable|array',
+            'prices.*.interval' => 'nullable|in:monthly,yearly,quarterly',
+            'prices.*.price' => 'nullable|numeric|min:0',
+            'prices.*.currency' => 'nullable|string|max:10',
+            'features' => 'nullable|array',
+            'features.*' => 'required|string',
+            'custom_fields' => 'nullable|array',
+            'custom_fields.*.key' => 'nullable|string',
+            'custom_fields.*.label' => 'nullable|string',
+            'custom_fields.*.type' => 'nullable|in:number,boolean,text,json',
+            'custom_fields.*.default_value' => 'nullable|string',
+            'custom_fields.*.required' => 'nullable|boolean',
+            'prices.*.stripe_price_id' => 'nullable|string',
         ]
         );
 
@@ -144,19 +167,63 @@ class PlanController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        try 
-        {
-            $plan->update($request->all());
+       try 
+{
+    DB::beginTransaction();
 
-            return response()->json([
-                'message' => 'Plan updated successfully',
-                'plan' => $plan->fresh(['pack', 'prices', 'customFields'])
+    // Update basic plan fields
+    $plan->update($request->only(['pack_id', 'name', 'description', 'is_active']));
+
+    // Update features if provided
+    if ($request->has('features')) {
+        $plan->features()->delete();
+        foreach ($request->features as $featureName) {
+            $plan->features()->create([
+                'feature_name' => $featureName,
             ]);
         }
-        catch (\Exception $e) 
-        {
-            return response()->json(['error' => 'Failed to update plan: ' . $e->getMessage()], 500);
+    }
+
+    // Update custom fields if provided
+    if ($request->has('custom_fields')) {
+        $plan->customFields()->delete();
+        foreach ($request->custom_fields as $fieldData) {
+            SubscriptionCustomField::create([
+                'plan_id' => $plan->id,
+                'key' => $fieldData['key'],
+                'label' => $fieldData['label'] ?? null,
+                'type' => $fieldData['type'],
+                'default_value' => $fieldData['default_value'] ?? null,
+                'required' => $fieldData['required'] ?? false,
+            ]);
         }
+    }
+
+    // Update prices if provided
+    if ($request->has('prices')) {
+        $plan->prices()->delete();
+        foreach ($request->prices as $price) {
+            $plan->prices()->create([
+                'interval' => $price['interval'],
+                'price' => $price['price'],
+                'currency' => $price['currency'] ?? 'USD',
+                'stripe_price_id' => $price['stripe_price_id'] ?? null,
+            ]);
+        }
+    }
+
+    DB::commit();
+
+    return response()->json([
+        'message' => 'Plan updated successfully',
+        'plan' => $plan->fresh(['pack', 'prices', 'customFields', 'features'])
+    ]);
+}
+catch (\Exception $e) 
+{
+    DB::rollBack();
+    return response()->json(['error' => 'Failed to update plan: ' . $e->getMessage()], 500);
+}
     }
 
     /**
@@ -337,6 +404,69 @@ class PlanController extends Controller
             return response()->json(['message' => 'Custom field deleted successfully']);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to delete custom field: ' . $e->getMessage()], 500);
+        }
+    }
+
+   public function addFeature(Request $request, Plan $plan): JsonResponse
+{
+    $validated = $request->validate([
+        'features' => 'required|array|min:1',
+        'features.*.feature_name' => 'required|string|max:255',
+    ]);
+
+    try {
+
+        $createdFeatures = $plan->features()->createMany(
+            collect($validated['features'])
+                ->map(fn ($feature) => [
+                    'feature_name' => $feature['feature_name'],
+                ])
+                ->toArray()
+        );
+
+        return response()->json([
+            'message' => 'Features added successfully',
+            'data' => $createdFeatures
+        ], 201);
+
+    } catch (\Throwable $e) {
+        return response()->json([
+            'message' => 'Failed to add features',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
+
+    public function updateFeature(Request $request, Plan $plan, PlanFeature $feature): JsonResponse
+    {
+        $validated = $request->validate([
+            'feature_name' => 'required|string|max:255',
+        ]);
+        if ($feature->plan_id !== $plan->id) {
+            return response()->json(['error' => 'Feature does not belong to this plan'], 404);
+        }
+
+        $feature->update($validated);
+
+        return response()->json([
+            'message' => 'Feature updated successfully',
+            'data' => $feature->fresh()
+        ]);
+    }
+
+    public function deleteFeature(Plan $plan, PlanFeature $feature): JsonResponse
+    {
+        // Verify the feature belongs to the plan
+        if ($feature->plan_id !== $plan->id) {
+            return response()->json(['error' => 'Feature does not belong to this plan'], 404);
+        }               
+
+        try {
+            $feature->delete();
+
+            return response()->json(['message' => 'Feature deleted successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to delete feature: ' . $e->getMessage()], 500);
         }
     }
 }

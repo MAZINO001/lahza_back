@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('payment_allocations', function (Blueprint $table){
             $table->decimal('paid_percentage', 10, 2)->default(0)->after('amount');
         });
-        Schema::create('plans_features', function (Blueprint $table) {
+        Schema::create('plan_features', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('plan_id');
             $table->string('feature_name');

@@ -150,6 +150,38 @@ class SubscriptionController extends Controller
     }
 
     /**
+     * Update only the custom field values for a subscription.
+     * Expects ID-based values (custom_field_id).
+     */
+    public function updateCustomFieldsValue(Request $request, Subscription $subscription): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'custom_field_values' => 'required|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            $this->subscriptionService->setCustomFieldValues(
+                $subscription,
+                $request->input('custom_field_values', [])
+            );
+
+            $subscription->load(['customFieldValues.customField']);
+
+            return response()->json([
+                'message' => 'Subscription custom fields updated successfully',
+                'subscription' => $subscription,
+                'custom_values' => $this->subscriptionService->getCustomFieldValues($subscription),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to update subscription custom fields: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Cancel a subscription.
      */
     public function cancel(Request $request, Subscription $subscription): JsonResponse
@@ -223,7 +255,8 @@ class SubscriptionController extends Controller
                 'message' => 'Subscription plan changed successfully',
                 'subscription' => $subscription
             ]);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             return response()->json(['error' => 'Failed to change plan: ' . $e->getMessage()], 500);
         }
     }
