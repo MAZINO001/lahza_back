@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\File;
 use App\Models\Invoice;
 use App\Models\Quotes;
+use App\Models\Payment;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
@@ -86,10 +87,23 @@ class SignatureController extends Controller
         }
 
         $user = $request->user();
-        if($instance instanceof Quotes){
-         if($instance->invoice->status === 'paid'|| $instance->invoice->status === 'partially_paid'){
-            return response()->json(['message' => 'Invoice is paid'], 400);
-         }   
+        /**
+         * If this is a quote and it has an associated invoice:
+         * - Block removal when the invoice is already paid/partially paid.
+         * - Otherwise, we will delete the invoice and its payments below,
+         *   and keep the quote without the client signature.
+         */
+        $invoiceToDelete = null;
+        if ($instance instanceof Quotes) {
+            $relatedInvoice = $instance->invoice; // may be null
+
+            if ($relatedInvoice) {
+                if (in_array($relatedInvoice->status, ['paid', 'partially_paid'])) {
+                    return response()->json(['message' => 'Invoice is paid'], 400);
+                }
+
+                $invoiceToDelete = $relatedInvoice;
+            }
         }
 
         if ($user && $user->role === 'admin') {
@@ -112,6 +126,21 @@ class SignatureController extends Controller
         }
 
         $file->delete();
+
+        // If this signature belonged to a quote that has an unpaid / not-partially-paid invoice,
+        // delete that invoice and all its payments, and reset quote status.
+        if ($invoiceToDelete) {
+            // Delete payments linked to this invoice (allocations are expected to cascade from Payment)
+            $invoiceToDelete->payments()->delete();
+
+            // Finally delete the invoice itself
+            $invoiceToDelete->delete();
+
+            // If the quote was previously billed, revert it back to draft
+            if ($instance instanceof Quotes && $instance->status === 'billed') {
+                $instance->update(['status' => 'draft']);
+            }
+        }
 
         return response()->json(['message' => 'Signature removed successfully']);
     }
