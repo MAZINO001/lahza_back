@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\PaymentAllocation;
+
 interface PaymentServiceInterface
 {
     public function getPayment();
@@ -16,6 +18,7 @@ interface PaymentServiceInterface
     public function updateInvoiceStatus(Invoice $invoice);
     public function sendPaymentSuccessEmail(Payment $payment);
     public function autoGenerateRemainingPayment(Invoice $invoice, Payment $payment): void;
-    public function handleManualPayment(Payment $payment):array;
-    public function cancelManualPayment(Payment $payment):array;
+    public function handleManualPayment(Payment $payment): array;
+    public function cancelManualPayment(Payment $payment): array;
+    public function updatePaymentAllocation(PaymentAllocation $allocation, float $percentage): array;
 }

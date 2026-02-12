@@ -69,14 +69,14 @@ class SubscriptionInvoiceService
             // 5. Get the created payment
             $payment = $invoice->payments()->latest()->first();
 
-            // 6. Create payment allocation for subscription (100%)
-            if ($payment) {
-                $payment->allocations()->create([
-                    'invoice_subscription_id' => $invoiceSubscription->id,
-                    'allocatable_type' => 'subscription',
-                    'amount' => $planPrice->price,
-                ]);
-            }
+            // // 6. Create payment allocation for subscription (100%)
+            // if ($payment) {
+            //     $payment->allocations()->create([
+            //         'invoice_subscription_id' => $invoiceSubscription->id,
+            //         'allocatable_type' => 'subscription',
+            //         'amount' => $planPrice->price,
+            //     ]);
+            // }
 
             Log::info('Subscription invoice created', [
                 'invoice_id' => $invoice->id,
@@ -171,63 +171,86 @@ class SubscriptionInvoiceService
         ];
     }
 
-    /**
-     * Create payment allocations for invoice with both services and subscriptions
-     */
-    public function createPaymentAllocations(
-        $payment,
-        Invoice $invoice,
-        float $paymentPercentage = 100
-    ): void {
-        $invoiceSubscriptions = $invoice->invoiceSubscriptions;
-        $hasServices = $invoice->invoiceServices()->count() > 0;
+   /**
+ * Create payment allocations for invoice with both services and subscriptions
+ */
+public function createPaymentAllocations(
+    $payment,
+    Invoice $invoice,
+    float $paymentPercentage = 100
+): void {
+    $invoiceSubscriptions = $invoice->invoiceSubscriptions;
+    $hasServices = $invoice->invoiceServices()->count() > 0;
 
-        if ($invoiceSubscriptions->isEmpty() && !$hasServices) {
-            // No allocations needed
-            return;
+    if ($invoiceSubscriptions->isEmpty() && !$hasServices) {
+        return;
+    }
+
+    $allocations = [];
+
+    // 1. Create allocations for subscriptions
+    //    Use InvoiceSubscription as source of truth and allocate ONLY the remaining amount.
+    foreach ($invoiceSubscriptions as $invoiceSubscription) {
+        // Money already paid for this subscription across PAID payments
+        $alreadyPaidAmount = $invoiceSubscription->getTotalPaid();
+
+        // Remaining amount for this subscription
+        $remainingAmount = max(0, $invoiceSubscription->price_snapshot - $alreadyPaidAmount);
+
+        // Only create allocation if there is something left to pay
+        if ($remainingAmount > 0) {
+            $allocations[] = [
+                'payment_id' => $payment->id,
+                'invoice_subscription_id' => $invoiceSubscription->id,
+                'allocatable_type' => 'subscription',
+                'amount' => round($remainingAmount, 2),
+                'paid_percentage' => 0, // Will be set when payment is marked as paid
+            ];
         }
+    }
 
-        // Calculate total payment amount
-        $totalPaymentAmount = $payment->amount;
-
-        // Calculate proportional amounts
+    // 2. Create allocation for services - uses payment percentage, check what's already paid
+    if ($hasServices) {
         $servicesTotal = $invoice->invoiceServices->sum('individual_total');
-        $subscriptionsTotal = $invoiceSubscriptions->sum('price_snapshot');
-        $invoiceTotal = $invoice->total_amount;
-
-        $allocations = [];
-
-        // 1. Create allocation for services (if any)
-        if ($hasServices && $servicesTotal > 0) {
-            $servicesAllocationAmount = ($servicesTotal / $invoiceTotal) * $totalPaymentAmount;
+        
+        // Check what % of services is already paid
+        $alreadyPaidPercentage = DB::table('payment_allocations')
+            ->whereNull('invoice_subscription_id')
+            ->where('allocatable_type', 'invoice')
+            ->whereIn('payment_id', function($query) use ($invoice) {
+                $query->select('id')
+                    ->from('payments')
+                    ->where('invoice_id', $invoice->id)
+                    ->where('status', 'paid'); // Only count paid payments
+            })
+            ->sum('paid_percentage');
+        
+        $remainingPercentage = 100 - $alreadyPaidPercentage;
+        
+        // Only create allocation if there's remaining percentage
+        if ($remainingPercentage > 0) {
+            // Services use the payment percentage (up to remaining)
+            $allocationPercentage = min($paymentPercentage, $remainingPercentage);
+            $servicesAllocationAmount = ($servicesTotal * $allocationPercentage) / 100;
             
             $allocations[] = [
                 'payment_id' => $payment->id,
                 'invoice_subscription_id' => null,
                 'allocatable_type' => 'invoice',
                 'amount' => round($servicesAllocationAmount, 2),
+                'paid_percentage' => 0, // Will be set when payment is paid
             ];
         }
+    }
 
-        // 2. Create separate allocation for EACH subscription plan
-        foreach ($invoiceSubscriptions as $invoiceSubscription) {
-            $subscriptionAllocationAmount = ($invoiceSubscription->price_snapshot / $invoiceTotal) * $totalPaymentAmount;
-            
-            $allocations[] = [
-                'payment_id' => $payment->id,
-                'invoice_subscription_id' => $invoiceSubscription->id,
-                'allocatable_type' => 'subscription',
-                'amount' => round($subscriptionAllocationAmount, 2),
-            ];
-        }
-
-        // Bulk insert allocations
+    // Bulk insert allocations
+    if (!empty($allocations)) {
         DB::table('payment_allocations')->insert($allocations);
-
+        
         Log::info('Payment allocations created', [
             'payment_id' => $payment->id,
-            'invoice_id' => $invoice->id,
             'allocations_count' => count($allocations),
         ]);
     }
+}
 }

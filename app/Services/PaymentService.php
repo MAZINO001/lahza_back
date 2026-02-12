@@ -15,6 +15,7 @@ use App\Services\ActivityLoggerService;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\PaymentSuccessfulMail;
 use App\Models\Subscription;
+use App\Models\PaymentAllocation;
 class PaymentService implements PaymentServiceInterface
 {
     protected $paymentRepository;
@@ -136,8 +137,26 @@ class PaymentService implements PaymentServiceInterface
         // Get current balance due from invoice
         $currentBalanceDue = $invoice->balance_due;
         
-        // Calculate amount based on percentage
-        $amount = round(($invoice->total_amount * $payment_percentage) / 100, 2);
+        // Calculate amount based on invoice composition:
+        // - Subscriptions: use ONLY remaining amount per subscription
+        //   (price_snapshot - totalPaid), never exceeding balance_due.
+        // - Services use the given percentage (acts as "services percentage"),
+        //   but we NEVER exceed the current balance_due.
+        $invoiceSubscriptions = $invoice->invoiceSubscriptions;
+        $subscriptionsTotal = $invoiceSubscriptions->sum(function ($sub) {
+            /** @var \App\Models\InvoiceSubscription $sub */
+            $alreadyPaid = $sub->getTotalPaid();
+            return max(0, $sub->price_snapshot - $alreadyPaid);
+        });
+        $servicesTotal = $invoice->invoiceServices->sum('individual_total');
+
+        // Budget left for services part given that subscriptions are 100%
+        $maxServicesBudget = max(0, $currentBalanceDue - $subscriptionsTotal);
+
+        $rawServicesPart = ($servicesTotal * $payment_percentage) / 100;
+        $servicesPart = min($rawServicesPart, $maxServicesBudget);
+
+        $amount = round($subscriptionsTotal + $servicesPart, 2);
         
         // Validate that amount doesn't exceed balance due (only for pending/unpaid)
         if ($payment_status !== 'paid' && $amount > $currentBalanceDue) {
@@ -161,6 +180,11 @@ class PaymentService implements PaymentServiceInterface
 
         $client = $invoice->client;
 
+        // Effective services percentage actually used (after clamping to balance_due)
+        $effectiveServicesPercentage = $servicesTotal > 0
+            ? round(($servicesPart / $servicesTotal) * 100, 2)
+            : 0;
+
         $paymentData = [
             'invoice_id' => $invoice->id,
             'client_id' => $client->id,
@@ -170,7 +194,8 @@ class PaymentService implements PaymentServiceInterface
             'payment_method' => $payment_type,
             'status' => $payment_status,
             'payment_url' => null,
-            'percentage' => $payment_percentage,
+            // Store the effective services percentage used for this payment
+            'percentage' => $effectiveServicesPercentage,
         ];
 
         $response = [
@@ -227,7 +252,12 @@ class PaymentService implements PaymentServiceInterface
             ];
         }
 
-$payment = $this->paymentRepository->create($paymentData);
+        $payment = $this->paymentRepository->create($paymentData);
+        // CREATE PAYMENT ALLOCATIONS
+        // Use the EFFECTIVE services percentage so allocations match the payment amount
+        $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
+        $subscriptionInvoiceService->createPaymentAllocations($payment, $invoice, $effectiveServicesPercentage);
+
          $this->activityLogger->log(
                 'clients_details',
                 'payments',
@@ -280,27 +310,47 @@ public function updatePendingPayment(Payment $payment, float $percentage, string
     }
     $this->validateInvoiceForPayment($invoice);
 
-    // 3. Calculate and Validate Amount
-    $newAmount = ($payment->total * $percentage) / 100;
-    
-    if ($newAmount <= 0) {
-        throw new \Illuminate\Http\Exceptions\HttpResponseException(
-            response()->json([
-                'status' => 'error',
-                'message' => "Cannot update payment: The calculated amount ($" . number_format($newAmount, 2) . ") must be greater than zero."
-            ], 400)
-        );
-    }
-
+    // 3. Calculate new payment amount based on invoice composition,
+    //    mirroring createPaymentLink logic:
+    //    - Subscriptions use remaining amount (snapshot - totalPaid)
+    //    - Services controlled by the given percentage, clamped to balance_due.
     $currentBalanceDue = $invoice->balance_due;
-    if ($newAmount > $currentBalanceDue) {
-        throw new \Illuminate\Http\Exceptions\HttpResponseException(
-            response()->json([
-                'status' => 'error',
-                'message' => "Cannot update payment: The requested amount ($" . number_format($newAmount, 2) . ") exceeds the remaining balance ($" . number_format($currentBalanceDue, 2) . ")."
-            ], 400)
-        );
-    }
+
+    $invoiceSubscriptions = $invoice->invoiceSubscriptions;
+    $subscriptionsTotal = $invoiceSubscriptions->sum(function ($sub) {
+        /** @var \App\Models\InvoiceSubscription $sub */
+        $alreadyPaid = $sub->getTotalPaid();
+        return max(0, $sub->price_snapshot - $alreadyPaid);
+    });
+
+    $servicesTotal = $invoice->invoiceServices->sum('individual_total');
+
+    // Budget left for services part given that subscriptions are 100%
+    $maxServicesBudget = max(0, $currentBalanceDue - $subscriptionsTotal);
+
+    $rawServicesPart = ($servicesTotal * $percentage) / 100;
+    $servicesPart = min($rawServicesPart, $maxServicesBudget);
+
+    $newAmount = $subscriptionsTotal + $servicesPart;
+
+if ($newAmount <= 0) {
+    throw new \Illuminate\Http\Exceptions\HttpResponseException(
+        response()->json([
+            'status' => 'error',
+            'message' => "Cannot update payment: The calculated amount ($" . number_format($newAmount, 2) . ") must be greater than zero."
+        ], 400)
+    );
+}
+
+// Safety check (should not normally trigger due to clamping above)
+if ($newAmount > $currentBalanceDue + 0.0001) {
+    throw new \Illuminate\Http\Exceptions\HttpResponseException(
+        response()->json([
+            'status' => 'error',
+            'message' => "Cannot update payment: The requested amount ($" . number_format($newAmount, 2) . ") exceeds the remaining balance ($" . number_format($currentBalanceDue, 2) . ")."
+        ], 400)
+    );
+}
 
     // 4. Update the payment method on the model BEFORE logic check
     $payment->payment_method = $payment_method;
@@ -308,7 +358,7 @@ public function updatePendingPayment(Payment $payment, float $percentage, string
 
     // 5. Handle Stripe specific logic
     if ($payment->payment_method === 'stripe') {
-        // Reset old session data
+    // Reset old session data
         $payment->stripe_session_id = null;
         $payment->stripe_payment_intent_id = null;
 
@@ -346,9 +396,16 @@ public function updatePendingPayment(Payment $payment, float $percentage, string
     }
 
     // 6. Finalize Save
-    $payment->amount = $newAmount;
-    $payment->percentage = $percentage;
+    // Effective services percentage after clamping
+    $effectiveServicesPercentage = $servicesTotal > 0
+        ? round(($servicesPart / $servicesTotal) * 100, 2)
+        : 0;
+
+    $payment->amount = round($newAmount, 2);
+    $payment->percentage = $effectiveServicesPercentage;
     $payment->save();
+    // RECALCULATE ALLOCATIONS BASED ON NEW PAYMENT AMOUNT
+    $this->recalculatePaymentAllocations($payment);
 
     return [
         'status' => 'updated',
@@ -395,6 +452,8 @@ public function handleStripeWebhook(string $payload, string $sigHeader)
             'payment_url' => null
         ]);
 
+        $this->markAllocationsAsPaid($payment);
+
         $invoice = $payment->invoice;
         
         // Update invoice status
@@ -419,7 +478,49 @@ public function handleStripeWebhook(string $payload, string $sigHeader)
 
     return ['status' => 'ok'];
 }
+/**
+ * Mark all allocations of a payment with their paid_percentage
+ */
+protected function markAllocationsAsPaid(Payment $payment): void
+{
+    $invoice = $payment->invoice;
+    
+    foreach ($payment->allocations as $allocation) {
+        if ($allocation->allocatable_type === 'subscription') {
+            // Calculate what percentage of the subscription this allocation represents
+            $invoiceSubscription = $allocation->invoiceSubscription;
+            $allocationPercentage = ($allocation->amount / $invoiceSubscription->price_snapshot) * 100;
+            
+            $allocation->update(['paid_percentage' => round($allocationPercentage, 2)]);
+        } else {
+            // Services allocation uses the payment percentage
+            $servicesTotal = $invoice->invoiceServices->sum('individual_total');
+            $servicesPercentage = ($allocation->amount / $servicesTotal) * 100;
+            
+            $allocation->update(['paid_percentage' => round($servicesPercentage, 2)]);
+        }
+    }
+    
+    Log::info('Payment allocations marked as paid', [
+        'payment_id' => $payment->id,
+        'allocations_count' => $payment->allocations->count(),
+    ]);
+}
 
+/**
+ * Reset paid_percentage for all allocations when payment is cancelled
+ */
+protected function resetAllocationsPaidPercentage(Payment $payment): void
+{
+    foreach ($payment->allocations as $allocation) {
+        $allocation->update(['paid_percentage' => 0]);
+    }
+    
+    Log::info('Payment allocations paid_percentage reset', [
+        'payment_id' => $payment->id,
+        'allocations_count' => $payment->allocations->count(),
+    ]);
+}
 /**
  * Handle subscription allocations after payment is completed
  * Creates actual subscriptions for paid subscription allocations
@@ -637,11 +738,54 @@ Stripe::setApiKey(config('services.stripe.secret'));
         return;
     }
 
-    // Calculate remaining percentage based on ACTUAL balance, not just the paid payment percentage
-    $remainingPercentage = ($invoice->balance_due / $invoice->total_amount) * 100;
-    
-    // Round to 2 decimal places to avoid floating point issues
-    $remainingPercentage = round($remainingPercentage, 2);
+    // Determine what kind of invoice we have
+    $hasSubscriptions = $invoice->hasSubscriptions();
+    $hasServices = $invoice->hasServices();
+
+    if ($hasServices && $hasSubscriptions) {
+        /**
+         * MIXED INVOICE (services + subscriptions)
+         *
+         * By the time we are here:
+         *  - Subscriptions are typically covered 100% in the first payment.
+         *  - We want the auto-generated remaining payment to cover ONLY the
+         *    remaining services part, and keep percentages clean.
+         *
+         * We therefore:
+         *  - Look at how much of services has already been paid (via allocations)
+         *  - Use the exact remaining services percentage as the new payment "percentage".
+         */
+
+        $servicesTotal = $invoice->getServicesTotal();
+
+        if ($servicesTotal <= 0) {
+            return;
+        }
+
+        // Sum of paid_percentage for services allocations on PAID payments
+        $servicesPaidPercentage = DB::table('payment_allocations')
+            ->whereNull('invoice_subscription_id')
+            ->where('allocatable_type', 'invoice')
+            ->whereIn('payment_id', function ($query) use ($invoice) {
+                $query->select('id')
+                    ->from('payments')
+                    ->where('invoice_id', $invoice->id)
+                    ->where('status', 'paid');
+            })
+            ->sum('paid_percentage');
+
+        $remainingServicesPercentage = max(0, 100 - $servicesPaidPercentage);
+        $remainingPercentage = round($remainingServicesPercentage, 2);
+    } else {
+        /**
+         * SERVICES-ONLY or SUBSCRIPTIONS-ONLY
+         *
+         * For these simpler cases, using the invoice-level ratio is OK:
+         *  remaining% = balance_due / total_amount.
+         */
+        $remainingPercentage = ($invoice->balance_due / $invoice->total_amount) * 100;
+        $remainingPercentage = round($remainingPercentage, 2);
+    }
 
     // Only create if there's actually something remaining
     if ($remainingPercentage <= 0) {
@@ -764,7 +908,9 @@ public function handleManualPayment(Payment $payment): array
     return DB::transaction(function () use ($payment) {
         // Mark payment as paid
         $payment->update(['status' => 'paid']);
-        
+        // Mark allocations as paid with their percentages
+        $this->markAllocationsAsPaid($payment);
+
         $invoice = $payment->invoice;
         
         // Update invoice status
@@ -830,7 +976,8 @@ public function cancelManualPayment(Payment $payment): array
 
         // Mark the payment as pending
         $payment->update(['status' => 'pending']);
-
+        // Reset allocation paid percentages to 0
+        $this->resetAllocationsPaidPercentage($payment);
         // Update invoice status
         $this->updateInvoiceStatus($invoice);
 
@@ -891,4 +1038,274 @@ protected function cancelSubscriptionAllocations(Payment $payment): void
         }
     }
 }
+    /**
+     * Recalculate payment allocations proportionally based on new payment amount.
+     *
+     * NOTE: This is still used by the old global percentage flow.
+     * For the new behaviour (editing a single allocation), see updatePaymentAllocation().
+     */
+    protected function recalculatePaymentAllocations(Payment $payment): void
+    {
+        $allocations = $payment->allocations;
+        
+        if ($allocations->isEmpty()) {
+            return; // No allocations to recalculate
+        }
+
+        $invoice = $payment->invoice;
+        $servicesTotal = $invoice->invoiceServices->sum('individual_total');
+        
+        // Get the services percentage from payment
+        $servicesPercentage = $payment->percentage;
+
+        foreach ($allocations as $allocation) {
+            if ($allocation->allocatable_type === 'subscription') {
+                // For subscriptions, keep the allocation amount as-is.
+                // Subscription allocations are now driven by remaining amount logic
+                // in SubscriptionInvoiceService::createPaymentAllocations and
+                // updatePaymentAllocation, so we do NOT override them here.
+                continue;
+            } else {
+                // Invoice/services allocation: uses the payment percentage
+                $newAmount = ($servicesTotal * $servicesPercentage) / 100;
+                $allocation->update(['amount' => round($newAmount, 2)]);
+            }
+        }
+
+        Log::info('Payment allocations recalculated', [
+            'payment_id' => $payment->id,
+            'payment_percentage' => $servicesPercentage,
+            'allocations_updated' => $allocations->count(),
+        ]);
+    }
+
+    /**
+     * Update a single payment allocation (services or subscription) and
+     * recalculate the parent payment amount + Stripe session.
+     *
+     * Example:
+     *  - 2 subscription allocations both at 100% → payment = 100% + 100%
+     *  - Change one allocation to 50% → payment becomes 50% + 100%.
+     */
+    public function updatePaymentAllocation(PaymentAllocation $allocation, float $percentage): array
+    {
+        // 1. Basic validations
+        if ($percentage <= 0 || $percentage > 100) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'status' => 'error',
+                    'message' => 'Percentage must be between 0 and 100.',
+                ], 400)
+            );
+        }
+
+        $payment = $allocation->payment;
+
+        if (!$payment) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'status' => 'error',
+                    'message' => 'Payment not found for this allocation.',
+                ], 400)
+            );
+        }
+
+        if ($payment->status !== 'pending') {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'status' => 'error',
+                    'message' => "Only pending payments can be updated. Payment ID {$payment->id} has status '{$payment->status}'.",
+                ], 400)
+            );
+        }
+
+        $invoice = $payment->invoice;
+        if (!$invoice) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'status' => 'error',
+                    'message' => "Invoice not found for payment ID {$payment->id}.",
+                ], 400)
+            );
+        }
+
+        // Ensure invoice itself is still payable
+        $this->validateInvoiceForPayment($invoice);
+
+        // 2. Compute new allocation amount based on type
+        if ($allocation->isSubscriptionAllocation()) {
+            $invoiceSubscription = $allocation->invoiceSubscription;
+            if (!$invoiceSubscription) {
+                throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                    response()->json([
+                        'status' => 'error',
+                        'message' => 'Invoice subscription not found for this allocation.',
+                    ], 400)
+                );
+            }
+
+            // Amount already paid for this subscription across PAID payments
+            $alreadyPaidAmount = $invoiceSubscription->getTotalPaid();
+
+            // Maximum remaining amount we can allocate for this subscription
+            $maxRemainingAmount = max(0, $invoiceSubscription->price_snapshot - $alreadyPaidAmount);
+
+            // Requested amount based on percentage
+            $requestedAmount = ($invoiceSubscription->price_snapshot * $percentage) / 100;
+
+            if ($requestedAmount - 0.0001 > $maxRemainingAmount) {
+                throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                    response()->json([
+                        'status' => 'error',
+                        'message' => "Cannot update allocation: requested {$percentage}% exceeds remaining amount for this subscription.",
+                    ], 400)
+                );
+            }
+
+            $newAllocationAmount = $requestedAmount;
+        } else {
+            // Services (invoice) allocation
+            $servicesTotal = $invoice->invoiceServices->sum('individual_total');
+
+            if ($servicesTotal <= 0) {
+                throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                    response()->json([
+                        'status' => 'error',
+                        'message' => 'Cannot update services allocation: invoice has no services total.',
+                    ], 400)
+                );
+            }
+
+            // Already‑paid percentage for services from PAID payments only
+            $alreadyPaidPercentage = DB::table('payment_allocations')
+                ->whereNull('invoice_subscription_id')
+                ->where('allocatable_type', 'invoice')
+                ->whereIn('payment_id', function ($query) use ($invoice) {
+                    $query->select('id')
+                        ->from('payments')
+                        ->where('invoice_id', $invoice->id)
+                        ->where('status', 'paid');
+                })
+                ->sum('paid_percentage');
+
+            if ($alreadyPaidPercentage + $percentage > 100.0001) {
+                throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                    response()->json([
+                        'status' => 'error',
+                        'message' => "Cannot update allocation: requested {$percentage}% would exceed 100% for services (already paid {$alreadyPaidPercentage}%).",
+                    ], 400)
+                );
+            }
+
+            $baseAmount = $servicesTotal;
+            $newAllocationAmount = ($baseAmount * $percentage) / 100;
+        }
+
+        $newAllocationAmount = round($newAllocationAmount, 2);
+
+        if ($newAllocationAmount <= 0) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'status' => 'error',
+                    'message' => 'Allocation amount must be greater than zero.',
+                ], 400)
+            );
+        }
+
+        // 3. Save new allocation amount
+        $allocation->amount = $newAllocationAmount;
+        // We do NOT touch paid_percentage here; it is updated only when payment is actually marked as paid
+        $allocation->save();
+
+        // Re‑sum all allocations for this payment as the new payment amount
+        $newPaymentAmount = $payment->allocations()->sum('amount');
+
+        // 4. Validate against invoice total and already‑paid payments
+        $totalPaidOtherPayments = $invoice->payments()
+            ->where('status', 'paid')
+            ->where('id', '<>', $payment->id)
+            ->sum('amount');
+
+        if ($totalPaidOtherPayments + $newPaymentAmount - 0.0001 > $invoice->total_amount) {
+            // Roll back allocation change by refreshing model from DB
+            $allocation->refresh();
+
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json([
+                    'status' => 'error',
+                    'message' => 'Cannot update allocation: resulting payment would exceed the invoice total.',
+                ], 400)
+            );
+        }
+
+        // 5. Update payment record + Stripe session if needed
+        $payment->amount = $newPaymentAmount;
+        $payment->total = $newPaymentAmount;
+
+        // Optionally keep payment->percentage in sync for services allocation
+        if ($allocation->isInvoiceAllocation()) {
+            $servicesTotal = $invoice->invoiceServices->sum('individual_total');
+            $payment->percentage = $servicesTotal > 0
+                ? round(($allocation->amount / $servicesTotal) * 100, 2)
+                : $payment->percentage;
+        }
+
+        $paymentUrl = null;
+
+        if ($payment->payment_method === 'stripe') {
+            // Reset old session data
+            $payment->stripe_session_id = null;
+            $payment->stripe_payment_intent_id = null;
+
+            \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
+
+            $session = \Stripe\Checkout\Session::create([
+                'payment_method_types' => ['card'],
+                'line_items' => [[
+                    'price_data' => [
+                        'currency' => 'usd',
+                        'unit_amount' => (int)($newPaymentAmount * 100),
+                        'product_data' => [
+                            'name' => "Updated payment for invoice #{$payment->invoice_id}",
+                        ],
+                    ],
+                    'quantity' => 1,
+                ]],
+                'mode' => 'payment',
+                'metadata' => [
+                    'invoice_id' => $payment->invoice_id,
+                    'client_id' => $payment->client_id,
+                    'updated_payment' => true,
+                ],
+                'success_url' => config('app.frontend_url') . '/client/projects',
+                'cancel_url' => config('app.frontend_url') . '/client/invoices',
+            ]);
+
+            $payment->stripe_session_id = $session->id;
+            $payment->stripe_payment_intent_id = $session->payment_intent;
+            $payment->payment_url = $session->url;
+            $paymentUrl = $session->url;
+        } else {
+            // Non‑Stripe methods do not have a checkout URL
+            $payment->payment_url = null;
+        }
+
+        $payment->save();
+
+        Log::info('Payment allocation updated', [
+            'payment_id' => $payment->id,
+            'allocation_id' => $allocation->id,
+            'new_allocation_amount' => $allocation->amount,
+            'new_payment_amount' => $payment->amount,
+        ]);
+
+        return [
+            'status' => 'updated',
+            'payment_id' => $payment->id,
+            'allocation_id' => $allocation->id,
+            'allocation_amount' => $allocation->amount,
+            'payment_amount' => $payment->amount,
+            'payment_url' => $paymentUrl,
+        ];
+    }
 }
