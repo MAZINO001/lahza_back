@@ -18,7 +18,7 @@ class PlanController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Plan::with(['pack', 'prices', 'customFields']);
+        $query = Plan::with(['pack', 'prices', 'customFields','features']);
 
         // Filter by pack
         if ($request->has('pack_id')) {
@@ -131,7 +131,7 @@ class PlanController extends Controller
      */
     public function show(Plan $plan): JsonResponse
     {
-        $plan->load(['pack', 'prices', 'customFields', 'subscriptions']);
+        $plan->load(['pack', 'prices', 'customFields', 'subscriptions', 'features']);
 
         return response()->json(['plan' => $plan]);
     }
