@@ -14,7 +14,7 @@ class PackController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Pack::with(['plans.prices', 'plans.customFields']);
+        $query = Pack::with(['plans.prices', 'plans.customFields', 'plans.subscriptions','plans.features']);
 
         // Filter by active status
         if ($request->has('is_active')) {
