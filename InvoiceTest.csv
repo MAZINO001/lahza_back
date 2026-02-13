@@ -1,0 +1,8 @@
+client_name,invoice_date,due_date,status,total_amount,balance_due,description,notes
+Acme Corp,2026-01-05,2026-01-15,draft,1500,1500,Website redesign,Initial draft invoice
+Sophie Martin,2026-01-10,2026-01-20,sent,800,800,Hosting service,Sent to external client
+Tech Solutions,2026-01-12,2026-01-25,unpaid,2300,2300,Mobile app development,Awaiting payment
+Acme Corp,2026-02-01,2026-02-10,paid,1200,0,SEO optimization,Fully paid
+Future Client,2026-02-03,2026-02-18,partially_paid,3000,1500,Platform upgrade,Half payment received
+No Client,2026-02-05,2026-02-15,overdue,900,900,Maintenance contract,Past due date
+,2026-02-07,2026-02-17,draft,400,400,Invoice without client,Testing nullable client_id
