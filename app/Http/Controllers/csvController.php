@@ -221,64 +221,121 @@ public function uploadClients(Request $request)
     ]);
 }
 
-    public function uploadInvoices(Request $request)
-    {
-        $request->validate([
-            'file' => 'required|mimes:csv,txt',
-        ]);
+public function uploadInvoices(Request $request)
+{
+    $request->validate([
+        'file' => 'required|file|mimes:csv,txt'
+    ]);
 
-        $file = $request->file('file');
+    $file = fopen($request->file('file'), 'r');
+    $header = fgetcsv($file);
+    $skipped = 0;
+    $created = 0;
+
+    DB::beginTransaction();
+
+    try {
+        while (($row = fgetcsv($file)) !== false) {
+            $data = array_combine($header, $row);
+            /*
+            |--------------------------------------------------------------------------
+            | Validate Required Fields
+            |--------------------------------------------------------------------------
+            */
+            validator($data, [
+                'invoice_date' => 'required|date',
+                'due_date' => 'required|date',
+                'status' => 'required|in:draft,sent,unpaid,partially_paid,paid,overdue',
+                'total_amount' => 'required|numeric',
+                'balance_due' => 'required|numeric',
+            ])->validate();
 
 
-        $rows = array_map('str_getcsv', file($file->getRealPath()));
-        $header = array_map('trim', array_shift($rows));
+            /*
+            |--------------------------------------------------------------------------
+            | Find Client Using USER NAME
+            |--------------------------------------------------------------------------
+            */
 
-        $inserted = 0;
-        $skipped = 0;
+            $client = null;
 
-        foreach ($rows as $row) {
-            $rowData = array_combine($header, $row);
+            $clientName = $data['client_name'] ?? null;
 
+            if (!empty($clientName)) {
 
-            $checksum = md5(json_encode([
-                $rowData['invoice_date'] ?? '',
-                $rowData['due_date'] ?? '',
-                $rowData['total_amount'] ?? 0,
-                $rowData['balance_due'] ?? 0,
-                $rowData['notes'] ?? '',
-            ]));
-
-
-            if (Invoice::where('checksum', $checksum)->exists()) {
-                $skipped++;
-                continue;
+                $client = Client::whereHas('user', function ($q) use ($clientName) {
+                    $q->whereRaw('LOWER(name) = ?', [
+                        strtolower(trim($clientName))
+                    ]);
+                })->first();
             }
+            /*
+            |--------------------------------------------------------------------------
+            | Generate Checksum and Skip Duplicates
+            |--------------------------------------------------------------------------
+            */
+            // -------------------------
+// Generate normalized checksum 
+// -------------------------
+$normalizedData = [
+    'client_name'  => strtolower(trim($data['client_name'] ?? '')),
+    'invoice_date' => $data['invoice_date'],
+    'due_date'     => $data['due_date'],
+    'total_amount' => round(floatval($data['total_amount']), 2), // normalize number
+];
 
-            Invoice::create([
-                'client_id'      => null,
-                'quote_id'       => null,
-                'invoice_date'   => $rowData['invoice_date'] ?? now(),
-                'due_date'       => $rowData['due_date'] ?? now()->addDays(30),
-                'status'         => $rowData['status'] ?? 'unpaid',
-                'notes'          => $rowData['notes'] ?? null,
-                'total_amount'   => $rowData['total_amount'] ?? 0,
-                'balance_due'    => $rowData['balance_due'] ?? 0,
-                'checksum'       => $checksum,
-                'created_at'     => now(),
-                'updated_at'     => now(),
-            ]);
+$checksum = md5(json_encode($normalizedData));
 
-            $inserted++;
+// -------------------------
+// Skip duplicates
+// -------------------------
+if (Invoice::where('checksum', $checksum)->exists()) {
+    $skipped++;
+    continue;
+}
+
+// -------------------------
+// Create invoice
+// -------------------------
+$invoice = Invoice::create([
+    'client_id'   => $client?->id,
+    'invoice_date'=> $data['invoice_date'],
+    'due_date'    => $data['due_date'],
+    'status'      => $data['status'],
+    'total_amount'=> $data['total_amount'],
+    'balance_due' => $data['balance_due'],
+    'description' => $data['description'] ?? null,
+    'notes'       => $data['notes'] ?? null,
+    'checksum'    => $checksum, // ✅ use the same checksum
+]);
+
+$created++;
+            /*
+            |--------------------------------------------------------------------------
+            | Optional Admin Signature
+            |--------------------------------------------------------------------------
+            */
+
+            // $this->autoSignAdminSignature($invoice);
         }
 
-        return response()->json([
-            'message' => 'Invoices processed',
-            'inserted' => $inserted,
-            'skipped_duplicates' => $skipped,
-            'total_rows' => count($rows),
-        ]);
-    }
+        DB::commit();
 
+        return response()->json([
+            'message' => 'Invoices imported successfully',
+            'created' => $created,
+            'skipped' => $skipped,
+        ]);
+
+    } catch (\Throwable $e) {
+
+        DB::rollBack();
+
+        return response()->json([
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
 
     public function uploadServices(Request $request)
     {
