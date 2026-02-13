@@ -62,7 +62,7 @@ class PackController extends Controller
      */
     public function show(Pack $pack): JsonResponse
     {
-        $pack->load(['plans.prices', 'plans.customFields', 'plans.subscriptions']);
+        $pack->load(['plans.prices', 'plans.customFields', 'plans.subscriptions','plans.features']);
 
         return response()->json(['pack' => $pack]);
     }
