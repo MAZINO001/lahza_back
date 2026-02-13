@@ -342,6 +342,7 @@ Route::delete('/files-delete/{id}', [FileController::class, 'delete']);
         // Plan prices
         Route::post('/{plan}/prices', [PlanController::class, 'addPrice']);
         Route::put('/{plan}/prices/{price}', [PlanController::class, 'updatePrice']);
+        Route::delete('/{plan}/prices/{price}', [PlanController::class, 'deletePrice']);
         //plan features
         Route::post('/{plan}/features', [PlanController::class, 'addFeature']);
         Route::put('/{plan}/features/{feature}', [PlanController::class, 'updateFeature']);
