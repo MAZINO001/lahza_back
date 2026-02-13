@@ -312,6 +312,21 @@ catch (\Exception $e)
             return response()->json(['error' => 'Failed to update price: ' . $e->getMessage()], 500);
         }
     }
+    public function deletePrice(Plan $plan, PlanPrice $price): JsonResponse
+    {
+        // Verify the price belongs to the plan
+        if ($price->plan_id !== $plan->id) {
+            return response()->json(['error' => 'Price does not belong to this plan'], 404);
+        }
+
+        try {
+            $price->delete();
+
+            return response()->json(['message' => 'Price deleted successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to delete price: ' . $e->getMessage()], 500);
+        }
+    }
 
     /**
      * Add a custom field to a plan.
