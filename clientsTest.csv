@@ -1,0 +1,8 @@
+name,email,client_type,company,phone,address,city,country,currency,vat,siren,ice
+John Doe,mangaka.wir@gmail.com,individual,,0600000001,12 Street A,Casablanca,Morocco,MAD,,,
+Sophie Martin,sophie@example.com,company,Martin SARL,0600000002,45 Avenue B,Rabat,Morocco,MAD,123456789,987654321,
+Ahmed Benali,ahmed@example.com,company,Benali Group,0600000003,78 Boulevard C,Marrakech,Morocco,MAD,456123789,,ICE12345
+Lina Haddad,lina@example.com,individual,,0600000004,22 Rue D,Tangier,Morocco,MAD,,,
+Karim Ali,karim@example.com,company,Ali Tech,0600000005,10 Zone Industrielle,Agadir,Morocco,MAD,789456123,123789456,ICE98765
+Invalid Email,not-an-email,individual,,0600000006,Test Address,Fes,Morocco,MAD,,,
+Duplicate Test,john@example.com,individual,,0600000007,Duplicate Street,Oujda,Morocco,MAD,,,
