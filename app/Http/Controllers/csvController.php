@@ -8,334 +8,310 @@ use App\Models\User;
 use App\Models\Client;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use App\Models\Service;
-use App\Mail\WelcomeMail;
 
 class csvController extends Controller
 {
-    // public function uploadClients(Request $request)
-    // {
+    // ─────────────────────────────────────────────────────────────
+    // MAPPERS
+    // ─────────────────────────────────────────────────────────────
 
-    //     $request->validate([
-    //         'file' => 'required|mimes:csv,txt',
-    //     ]);
-
-    //     $file = $request->file('file');
-
-
-    //     $rows = array_map('str_getcsv', file($file->getRealPath()));
-    //     $header = array_map('trim', $rows[0]);
-    //     unset($rows[0]);
-
-    //     $created = 0;
-    //     $skipped = 0;
-
-    //     $results = DB::transaction(function () use ($rows, $header) {
-    //         $created = 0;
-    //         $skipped = 0;
-    //         $createdUsers = [];
-
-    //         foreach ($rows as $row) {
-
-    //             if (count($row) !== count($header)) {
-    //                 continue;
-    //             }
-
-    //             $data = array_combine($header, $row);
-
-    //             if (empty($data['email']) || User::where('email', $data['email'])->exists()) {
-    //                 $skipped++;
-    //                 continue;
-    //             }
-
-    //             $user = User::create([
-    //                 'name'      => $data['name'] ?? $data['company'] ?? 'Client',
-    //                 'email'     => $data['email'],
-    //                 'password'  => Hash::make("lahzaapp2025"),
-    //                 'role'      => 'client',
-    //                 'user_type' => 'client',
-    //             ]);
-
-    //             Client::create([
-    //                 'user_id'        => $user->id,
-    //                 'client_type'    => $data['client_type'] ?? null,
-    //                 'company'        => $data['company'] ?? null,
-    //                 'phone'          => $data['phone'] ?? null,
-    //                 'address'        => $data['address'] ?? null,
-    //                 'city'           => $data['city'] ?? null,
-    //                 'country'        => $data['country'] ?? null,
-    //                 'currency'       => $data['currency'] ?? null,
-    //                 'vat'            => $data['vat'] ?? null,
-    //                 'siren'          => $data['siren'] ?? null,
-    //                 'ice'            => $data['ice'] ?? null,
-    //             ]);
-
-    //             $created++;
-    //             $createdUsers[] = $user;
-    //         }
-
-    //         return [
-    //             'created' => $created,
-    //             'skipped' => $skipped,
-    //             'users' => $createdUsers,
-    //         ];
-    //     });
-
-    //     $created = $results['created'] ?? 0;
-    //     $skipped = $results['skipped'] ?? 0;
-
-    //     // Send welcome email to each created user after successful commit
-    //     if (!empty($results['users'])) {
-    //         foreach ($results['users'] as $user) {
-    //             try {
-    //                 $password = 'lahzaapp2025';
-    //                 Mail::to($user->email)->send(new WelcomeMail($user, $password));
-    //                 Log::info('Welcome email sent successfully', ['email' => $user->email]);
-    //             } catch (\Exception $e) {
-    //                 Log::error('Failed to send welcome email', ['email' => $user->email, 'error' => $e->getMessage()]);
-    //             }
-    //         }
-    //     }
-
-    //     return response()->json([
-    //         'message' => 'File imported successfully',
-    //         'created' => $created,
-    //         'skipped' => $skipped,
-    //     ]);
-    // }
-public function uploadClients(Request $request)
+ private function mapClientRow(array $data): array
 {
-    $request->validate([
-        'file' => 'required|mimes:csv,txt',
-    ]);
+    $clientTypeMap = [
+        'business'   => 'company',
+        'company'    => 'company',
+        'individual' => 'individual',
+        'b2b'        => 'company',
+        'b2c'        => 'individual',
+    ];
 
-    $file = $request->file('file');
-    $path = $file->getRealPath();
+    $rawType    = strtolower(trim($data['Customer Sub Type'] ?? $data['client_type'] ?? ''));
+    $clientType = $clientTypeMap[$rawType] ?? null;
 
-    $createdUsers = [];
-    $created = 0;
-    $skipped = 0;
-
-    // STEP 1: Read file using streaming (no memory overload)
-    if (($handle = fopen($path, 'r')) !== false) {
-
-        $header = array_map('trim', fgetcsv($handle));
-
-        $rows = [];
-
-        while (($row = fgetcsv($handle)) !== false) {
-            if (count($row) === count($header)) {
-                $rows[] = array_combine($header, $row);
-            }
-        }
-
-        fclose($handle);
-    } else {
-        return response()->json(['message' => 'Could not open file'], 400);
-    }
-
-    // STEP 2: Get all emails from CSV
-    $emails = collect($rows)
-        ->pluck('email')
-        ->filter()
-        ->toArray();
-
-    // STEP 3: Get existing emails in ONE query (performance fix)
-    $existingEmails = User::whereIn('email', $emails)
-        ->pluck('email')
-        ->toArray();
-
-    DB::transaction(function () use ($rows, &$created, &$skipped, &$createdUsers, $existingEmails) {
-
-        foreach ($rows as $data) {
-
-            // Validate email
-            if (
-                empty($data['email']) ||
-                !filter_var($data['email'], FILTER_VALIDATE_EMAIL) ||
-                in_array($data['email'], $existingEmails)
-            ) {
-                $skipped++;
-                continue;
-            }
-
-            $clientName = $data['name'] ?? $data['company'] ?? 'client';
-
-            // Generate password: clientname@lahza@2026
-            $cleanName = strtolower(str_replace(' ', '', $clientName));
-            $plainPassword = $cleanName . '@lahza@2026';
-
-            $user = User::create([
-                'name'      => $clientName,
-                'email'     => $data['email'],
-                'password'  => Hash::make($plainPassword),
-                'role'      => 'client',
-                'user_type' => 'client',
-            ]);
-
-            Client::create([
-                'user_id'        => $user->id,
-                'client_type'    => $data['client_type'] ?? null,
-                'company'        => $data['company'] ?? null,
-                'phone'          => $data['phone'] ?? null,
-                'address'        => $data['address'] ?? null,
-                'city'           => $data['city'] ?? null,
-                'country'        => $data['country'] ?? null,
-                'currency'       => $data['currency'] ?? null,
-                'vat'            => $data['vat'] ?? null,
-                'siren'          => $data['siren'] ?? null,
-                'ice'            => $data['ice'] ?? null,
-            ]);
-
-            $created++;
-
-            $createdUsers[] = [
-                'user' => $user,
-                'password' => $plainPassword
-            ];
-        }
-    });
-
-    // STEP 4: Send emails AFTER transaction
-    foreach ($createdUsers as $item) {
-        try {
-            Mail::to($item['user']->email)
-                ->send(new WelcomeMail($item['user'], $item['password']));
-
-            Log::info('Welcome email sent', ['email' => $item['user']->email]);
-        } catch (\Exception $e) {
-            Log::error('Failed to send welcome email', [
-                'email' => $item['user']->email,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    return response()->json([
-        'message' => 'File imported successfully',
-        'created' => $created,
-        'skipped' => $skipped,
-    ]);
+    return [
+        'email'       => trim($data['EmailID'] ?? $data['email'] ?? ''),
+        'name'        => trim($data['Display Name'] ?? $data['name'] ?? $data['Company Name'] ?? 'Client'),
+        'company'     => $data['Company Name']    ?? $data['company']      ?? null,
+        'client_type' => $clientType,
+        'phone'       => $data['Phone']           ?? $data['Billing Phone'] ?? $data['phone'] ?? null,
+        'address'     => $data['Billing Address'] ?? $data['address']      ?? null,
+        'city'        => $data['Billing City']    ?? $data['city']         ?? null,
+        'country'     => $data['Billing Country'] ?? $data['country']      ?? null,
+        'currency'    => $data['Currency Code']   ?? $data['currency']     ?? null,
+        'vat'         => $data['CF.TVA']          ?? $data['vat']          ?? null,
+        'siren'       => $data['CF.SIREN']        ?? $data['siren']        ?? null,
+        'ice'         => $data['CF.ICE']          ?? $data['ice']          ?? null,
+    ];
 }
 
-public function uploadInvoices(Request $request)
-{
-    $request->validate([
-        'file' => 'required|file|mimes:csv,txt'
-    ]);
+    private function mapInvoiceRow(array $data): array
+    {
+        $statusMap = [
+            'sent'           => 'sent',
+            'draft'          => 'draft',
+            'paid'           => 'paid',
+            'unpaid'         => 'unpaid',
+            'overdue'        => 'overdue',
+            'partially paid' => 'partially_paid',
+            'partially_paid' => 'partially_paid',
+        ];
 
-    $file = fopen($request->file('file'), 'r');
-    $header = fgetcsv($file);
-    $skipped = 0;
-    $created = 0;
+        $rawStatus = strtolower(trim($data['Invoice Status'] ?? $data['status'] ?? 'draft'));
+        $status    = $statusMap[$rawStatus] ?? 'paid';
 
-    DB::beginTransaction();
+        return [
+            'client_name'  => trim($data['Customer Name'] ?? $data['client_name'] ?? ''),
+            'invoice_date' => $data['Invoice Date']       ?? $data['invoice_date'] ?? null,
+            'due_date'     => $data['Due Date']           ?? $data['due_date']     ?? null,
+            'status'       => $status,
+            'total_amount' => $data['Total']              ?? $data['total_amount'] ?? 0,
+            'balance_due'  => $data['Balance']            ?? $data['balance_due']  ?? 0,
+            // 'description'  => $data['Terms & Conditions'] ?? $data['description'] ?? null,
+            'notes'        => $data['Notes']              ?? $data['notes']        ?? null,
+        ];
+    }
 
-    try {
-        while (($row = fgetcsv($file)) !== false) {
-            $data = array_combine($header, $row);
-            /*
-            |--------------------------------------------------------------------------
-            | Validate Required Fields
-            |--------------------------------------------------------------------------
-            */
-            validator($data, [
-                'invoice_date' => 'required|date',
-                'due_date' => 'required|date',
-                'status' => 'required|in:draft,sent,unpaid,partially_paid,paid,overdue',
-                'total_amount' => 'required|numeric',
-                'balance_due' => 'required|numeric',
-            ])->validate();
+    // ─────────────────────────────────────────────────────────────
+    // UPLOAD CLIENTS
+    // ─────────────────────────────────────────────────────────────
 
+    public function uploadClients(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:csv,txt',
+        ]);
 
-            /*
-            |--------------------------------------------------------------------------
-            | Find Client Using USER NAME
-            |--------------------------------------------------------------------------
-            */
+        $file = $request->file('file');
+        $path = $file->getRealPath();
 
-            $client = null;
+        $created = 0;
+        $skipped = 0;
 
-            $clientName = $data['client_name'] ?? null;
+        // STEP 1: Read file using streaming (no memory overload)
+        if (($handle = fopen($path, 'r')) !== false) {
 
-            if (!empty($clientName)) {
+            $header = array_map('trim', fgetcsv($handle));
+            $rows   = [];
 
-                $client = Client::whereHas('user', function ($q) use ($clientName) {
-                    $q->whereRaw('LOWER(name) = ?', [
-                        strtolower(trim($clientName))
-                    ]);
-                })->first();
+            while (($row = fgetcsv($handle)) !== false) {
+                if (count($row) === count($header)) {
+                    $rows[] = array_combine($header, $row);
+                }
             }
-            /*
-            |--------------------------------------------------------------------------
-            | Generate Checksum and Skip Duplicates
-            |--------------------------------------------------------------------------
-            */
-            // -------------------------
-// Generate normalized checksum 
-// -------------------------
-$normalizedData = [
-    'client_name'  => strtolower(trim($data['client_name'] ?? '')),
-    'invoice_date' => $data['invoice_date'],
-    'due_date'     => $data['due_date'],
-    'total_amount' => round(floatval($data['total_amount']), 2), // normalize number
-];
 
-$checksum = md5(json_encode($normalizedData));
-
-// -------------------------
-// Skip duplicates
-// -------------------------
-if (Invoice::where('checksum', $checksum)->exists()) {
-    $skipped++;
-    continue;
-}
-
-// -------------------------
-// Create invoice
-// -------------------------
-$invoice = Invoice::create([
-    'client_id'   => $client?->id,
-    'invoice_date'=> $data['invoice_date'],
-    'due_date'    => $data['due_date'],
-    'status'      => $data['status'],
-    'total_amount'=> $data['total_amount'],
-    'balance_due' => $data['balance_due'],
-    'description' => $data['description'] ?? null,
-    'notes'       => $data['notes'] ?? null,
-    'checksum'    => $checksum, // ✅ use the same checksum
-]);
-
-$created++;
-            /*
-            |--------------------------------------------------------------------------
-            | Optional Admin Signature
-            |--------------------------------------------------------------------------
-            */
-
-            // $this->autoSignAdminSignature($invoice);
+            fclose($handle);
+        } else {
+            return response()->json(['message' => 'Could not open file'], 400);
         }
 
-        DB::commit();
+        // STEP 2: Map all rows
+        $mappedRows = array_map(fn($row) => $this->mapClientRow($row), $rows);
+
+        // STEP 3: Get all emails from mapped rows
+        $emails = collect($mappedRows)
+            ->pluck('email')
+            ->filter()
+            ->toArray();
+
+        // STEP 4: Get existing emails in ONE query (performance fix)
+        $existingEmails = User::whereIn('email', $emails)
+            ->pluck('email')
+            ->toArray();
+
+      DB::transaction(function () use ($mappedRows, &$created, &$skipped, $existingEmails) {
+
+    $seenEmails = []; // ← track duplicates within the CSV itself
+
+    foreach ($mappedRows as $data) {
+
+        if (
+            empty($data['email']) ||
+            !filter_var($data['email'], FILTER_VALIDATE_EMAIL) ||
+            in_array($data['email'], $existingEmails) ||
+            in_array($data['email'], $seenEmails) // ← catch intra-CSV duplicates
+        ) {
+            $skipped++;
+            continue;
+        }
+
+        $seenEmails[] = $data['email']; // ← mark as seen
+
+        $clientName    = $data['name'];
+        $cleanName     = strtolower(str_replace(' ', '', $clientName));
+        $plainPassword = $cleanName . '@lahza@2026';
+
+        $user = User::create([
+            'name'      => $clientName,
+            'email'     => $data['email'],
+            'password'  => Hash::make($plainPassword),
+            'role'      => 'client',
+            'user_type' => 'client',
+        ]);
+
+        Client::create([
+            'user_id'     => $user->id,
+            'client_type' => $data['client_type'],
+            'company'     => $data['company'],
+            'phone'       => $data['phone'],
+            'address'     => $data['address'],
+            'city'        => $data['city'],
+            'country'     => $data['country'],
+            'currency'    => $data['currency'],
+            'vat'         => $data['vat'],
+            'siren'       => $data['siren'],
+            'ice'         => $data['ice'],
+        ]);
+
+        $created++;
+    }
+});
+
+        // ✉️ Email sending skipped for now — re-enable when ready:
+        // foreach ($createdUsers as $item) {
+        //     try {
+        //         Mail::to($item['user']->email)->send(new WelcomeMail($item['user'], $item['password']));
+        //         Log::info('Welcome email sent', ['email' => $item['user']->email]);
+        //     } catch (\Exception $e) {
+        //         Log::error('Failed to send welcome email', ['email' => $item['user']->email, 'error' => $e->getMessage()]);
+        //     }
+        // }
 
         return response()->json([
-            'message' => 'Invoices imported successfully',
+            'message' => 'File imported successfully',
             'created' => $created,
             'skipped' => $skipped,
         ]);
-
-    } catch (\Throwable $e) {
-
-        DB::rollBack();
-
-        return response()->json([
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
+
+    // ─────────────────────────────────────────────────────────────
+    // UPLOAD INVOICES
+    // ─────────────────────────────────────────────────────────────
+
+    public function uploadInvoices(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt'
+        ]);
+
+        $file    = fopen($request->file('file'), 'r');
+        $header  = fgetcsv($file);
+        $skipped = 0;
+        $created = 0;
+
+        DB::beginTransaction();
+
+        try {
+            while (($row = fgetcsv($file)) !== false) {
+
+                // MAP raw Zoho/simple row → normalized fields
+                $data = $this->mapInvoiceRow(array_combine($header, $row));
+
+                /*
+                |--------------------------------------------------------------------------
+                | Validate Required Fields
+                |--------------------------------------------------------------------------
+                */
+                $validation = validator($data, [
+                    'invoice_date' => 'required|date',
+                    'due_date'     => 'required|date',
+                    'status'       => 'required|in:draft,sent,unpaid,partially_paid,paid,overdue',
+                    'total_amount' => 'required|numeric',
+                    'balance_due'  => 'required|numeric',
+                ]);
+
+                if ($validation->fails()) {
+                    $skipped++;
+                    continue;
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Find Client Using USER NAME or COMPANY NAME
+                |--------------------------------------------------------------------------
+                */
+                $client     = null;
+                $clientName = $data['client_name'] ?? null;
+
+                if (!empty($clientName)) {
+                    $clientName = strtolower(trim($clientName));
+
+                    $client = Client::whereHas('user', function ($q) use ($clientName) {
+                        $q->whereRaw('LOWER(name) = ?', [$clientName]);
+                    })->orWhereRaw('LOWER(company) = ?', [$clientName])->first();
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Generate Checksum and Skip Duplicates
+                |--------------------------------------------------------------------------
+                */
+                $normalizedData = [
+                    'client_name'  => strtolower(trim($data['client_name'] ?? '')),
+                    'invoice_date' => $data['invoice_date'],
+                    'due_date'     => $data['due_date'],
+                    'total_amount' => round(floatval($data['total_amount']), 2),
+                ];
+
+                $checksum = md5(json_encode($normalizedData));
+
+                if (Invoice::where('checksum', $checksum)->exists()) {
+                    $skipped++;
+                    continue;
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Create Invoice
+                |--------------------------------------------------------------------------
+                */
+                $invoice = Invoice::create([
+                    'client_id'    => $client?->id,
+                    'invoice_date' => $data['invoice_date'],
+                    'due_date'     => $data['due_date'],
+                    'status'       => $data['status'],
+                    'total_amount' => $data['total_amount'],
+                    'balance_due'  => $data['balance_due'],
+                    // 'description'  => $data['description'],
+                    'notes'        => $data['notes'],
+                    'checksum'     => $checksum,
+                ]);
+
+                $created++;
+
+                /*
+                |--------------------------------------------------------------------------
+                | Optional Admin Signature
+                |--------------------------------------------------------------------------
+                */
+                // $this->autoSignAdminSignature($invoice);
+            }
+
+            fclose($file);
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Invoices imported successfully',
+                'created' => $created,
+                'skipped' => $skipped,
+            ]);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+            fclose($file);
+
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // UPLOAD SERVICES (unchanged)
+    // ─────────────────────────────────────────────────────────────
 
     public function uploadServices(Request $request)
     {
@@ -345,27 +321,24 @@ $created++;
 
         $file = $request->file('file');
 
-
-        $rows = array_map('str_getcsv', file($file->getRealPath()));
+        $rows   = array_map('str_getcsv', file($file->getRealPath()));
         $header = array_map('trim', array_shift($rows));
 
         $inserted = 0;
-        $skipped = 0;
+        $skipped  = 0;
 
         foreach ($rows as $index => $row) {
             $rowData = array_combine($header, $row);
-
 
             if (Service::where('name', $rowData['name'])->exists()) {
                 $skipped++;
                 continue;
             }
 
-
             $checksum = md5(json_encode([
-                $rowData['name'] ?? '',
+                $rowData['name']        ?? '',
                 $rowData['description'] ?? '',
-                $rowData['base_price'] ?? 0
+                $rowData['base_price']  ?? 0,
             ]));
 
             if (Service::where('checksum', $checksum)->exists()) {
@@ -374,9 +347,9 @@ $created++;
             }
 
             Service::create([
-                'name'        => $rowData['name'] ?? 'Unnamed Service',
+                'name'        => $rowData['name']        ?? 'Unnamed Service',
                 'description' => $rowData['description'] ?? null,
-                'base_price'  => $rowData['base_price'] ?? 0,
+                'base_price'  => $rowData['base_price']  ?? 0,
                 'checksum'    => $checksum,
                 'created_at'  => now(),
                 'updated_at'  => now(),
@@ -386,10 +359,10 @@ $created++;
         }
 
         return response()->json([
-            'message' => 'Services processed',
-            'inserted' => $inserted,
+            'message'            => 'Services processed',
+            'inserted'           => $inserted,
             'skipped_duplicates' => $skipped,
-            'total_rows' => count($rows),
+            'total_rows'         => count($rows),
         ]);
     }
 }
