@@ -18,34 +18,46 @@ class csvController extends Controller
     // MAPPERS
     // ─────────────────────────────────────────────────────────────
 
- private function mapClientRow(array $data): array
-{
-    $clientTypeMap = [
-        'business'   => 'company',
-        'company'    => 'company',
-        'individual' => 'individual',
-        'b2b'        => 'company',
-        'b2c'        => 'individual',
-    ];
+    private function mapClientRow(array $data): array
+    {
+        $clientTypeMap = [
+            'business'   => 'company',
+            'company'    => 'company',
+            'individual' => 'individual',
+            'b2b'        => 'company',
+            'b2c'        => 'individual',
+        ];
 
-    $rawType    = strtolower(trim($data['Customer Sub Type'] ?? $data['client_type'] ?? ''));
-    $clientType = $clientTypeMap[$rawType] ?? null;
+        $rawType    = strtolower(trim($data['Customer Sub Type'] ?? $data['client_type'] ?? ''));
+        $clientType = $clientTypeMap[$rawType] ?? null;
 
-    return [
-        'email'       => trim($data['EmailID'] ?? $data['email'] ?? ''),
-        'name'        => trim($data['Display Name'] ?? $data['name'] ?? $data['Company Name'] ?? 'Client'),
-        'company'     => $data['Company Name']    ?? $data['company']      ?? null,
-        'client_type' => $clientType,
-        'phone'       => $data['Phone']           ?? $data['Billing Phone'] ?? $data['phone'] ?? null,
-        'address'     => $data['Billing Address'] ?? $data['address']      ?? null,
-        'city'        => $data['Billing City']    ?? $data['city']         ?? null,
-        'country'     => $data['Billing Country'] ?? $data['country']      ?? null,
-        'currency'    => $data['Currency Code']   ?? $data['currency']     ?? null,
-        'vat'         => $data['CF.TVA']          ?? $data['vat']          ?? null,
-        'siren'       => $data['CF.SIREN']        ?? $data['siren']        ?? null,
-        'ice'         => $data['CF.ICE']          ?? $data['ice']          ?? null,
-    ];
-}
+        // ✅ FIX: Display Name fallback chain → First+Last → Company → 'Client'
+        $firstName = trim($data['First Name'] ?? '');
+        $lastName  = trim($data['Last Name']  ?? '');
+        $fullName  = trim("$firstName $lastName");
+
+        $name = trim($data['Display Name'] ?? '')
+            ?: $fullName
+            ?: trim($data['Company Name'] ?? '')
+            ?: 'Client';
+
+        return [
+            // ✅ FIX: email lowercased at source
+            'email'       => strtolower(trim($data['EmailID'] ?? $data['email'] ?? '')),
+            'name'        => $name,
+            'company'     => $data['Company Name']    ?? $data['company']       ?? null,
+            'client_type' => $clientType,
+            'phone'       => $data['Phone']           ?? $data['Billing Phone'] ?? $data['phone'] ?? null,
+            'address'     => $data['Billing Address'] ?? $data['address']       ?? null,
+            'city'        => $data['Billing City']    ?? $data['city']          ?? null,
+            'country'     => $data['Billing Country'] ?? $data['country']       ?? null,
+            'currency'    => $data['Currency Code']   ?? $data['currency']      ?? null,
+            // ✅ FIX: CF.TVA added (second CSV file has it, first doesn't — both handled)
+            'vat'         => $data['CF.TVA']          ?? $data['vat']           ?? null,
+            'siren'       => $data['CF.SIREN']        ?? $data['siren']         ?? null,
+            'ice'         => $data['CF.ICE']          ?? $data['ice']           ?? null,
+        ];
+    }
 
     private function mapInvoiceRow(array $data): array
     {
@@ -57,6 +69,7 @@ class csvController extends Controller
             'overdue'        => 'overdue',
             'partially paid' => 'partially_paid',
             'partially_paid' => 'partially_paid',
+            'closed'         => 'paid', // ✅ Zoho "Closed" = paid
         ];
 
         $rawStatus = strtolower(trim($data['Invoice Status'] ?? $data['status'] ?? 'draft'));
@@ -69,8 +82,12 @@ class csvController extends Controller
             'status'       => $status,
             'total_amount' => $data['Total']              ?? $data['total_amount'] ?? 0,
             'balance_due'  => $data['Balance']            ?? $data['balance_due']  ?? 0,
-            // 'description'  => $data['Terms & Conditions'] ?? $data['description'] ?? null,
             'notes'        => $data['Notes']              ?? $data['notes']        ?? null,
+            // ✅ Service linking via Item Name
+            'item_name'    => trim($data['Item Name']     ?? ''),
+            'quantity'     => $data['Quantity']           ?? 1,      // ← add
+            'unit_price'   => $data['Item Price']         ?? 0,      // ← add
+            'tax'          => $data['Item Tax1 %']        ?? 0,
         ];
     }
 
@@ -110,64 +127,67 @@ class csvController extends Controller
         // STEP 2: Map all rows
         $mappedRows = array_map(fn($row) => $this->mapClientRow($row), $rows);
 
-        // STEP 3: Get all emails from mapped rows
+        // STEP 3: Get all emails from mapped rows — ✅ normalized to lowercase
         $emails = collect($mappedRows)
             ->pluck('email')
             ->filter()
+            ->map(fn($e) => strtolower($e))
             ->toArray();
 
-        // STEP 4: Get existing emails in ONE query (performance fix)
+        // STEP 4: Get existing emails in ONE query — ✅ also lowercased
         $existingEmails = User::whereIn('email', $emails)
             ->pluck('email')
+            ->map(fn($e) => strtolower($e))
             ->toArray();
 
-      DB::transaction(function () use ($mappedRows, &$created, &$skipped, $existingEmails) {
+        DB::transaction(function () use ($mappedRows, &$created, &$skipped, $existingEmails) {
 
-    $seenEmails = []; // ← track duplicates within the CSV itself
+            $seenEmails = []; // track duplicates within the CSV itself
 
-    foreach ($mappedRows as $data) {
+            foreach ($mappedRows as $data) {
 
-        if (
-            empty($data['email']) ||
-            !filter_var($data['email'], FILTER_VALIDATE_EMAIL) ||
-            in_array($data['email'], $existingEmails) ||
-            in_array($data['email'], $seenEmails) // ← catch intra-CSV duplicates
-        ) {
-            $skipped++;
-            continue;
-        }
+                // ✅ email already lowercased from mapper
+                if (
+                    empty($data['email']) ||
+                    !filter_var($data['email'], FILTER_VALIDATE_EMAIL) ||
+                    in_array($data['email'], $existingEmails) ||
+                    in_array($data['email'], $seenEmails)
+                ) {
+                    $skipped++;
+                    continue;
+                }
 
-        $seenEmails[] = $data['email']; // ← mark as seen
+                $seenEmails[] = $data['email'];
 
-        $clientName    = $data['name'];
-        $cleanName     = strtolower(str_replace(' ', '', $clientName));
-        $plainPassword = $cleanName . '@lahza@2026';
+                $clientName    = $data['name'];
+                $cleanName     = strtolower(str_replace(' ', '', $clientName));
+                $plainPassword = $cleanName . '@lahza@2026';
 
-        $user = User::create([
-            'name'      => $clientName,
-            'email'     => $data['email'],
-            'password'  => Hash::make($plainPassword),
-            'role'      => 'client',
-            'user_type' => 'client',
-        ]);
+                $user = User::create([
+                    'name'      => $clientName,
+                    'email'     => $data['email'],
+                    'password'  => Hash::make($plainPassword),
+                    'role'      => 'client',
+                    'user_type' => 'client',
+                ]);
 
-        Client::create([
-            'user_id'     => $user->id,
-            'client_type' => $data['client_type'],
-            'company'     => $data['company'],
-            'phone'       => $data['phone'],
-            'address'     => $data['address'],
-            'city'        => $data['city'],
-            'country'     => $data['country'],
-            'currency'    => $data['currency'],
-            'vat'         => $data['vat'],
-            'siren'       => $data['siren'],
-            'ice'         => $data['ice'],
-        ]);
+                Client::create([
+                    'user_id'     => $user->id,
+                    'client_type' => $data['client_type'],
+                    'company'     => $data['company'],
+                    'phone'       => $data['phone'],
+                    'address'     => $data['address'],
+                    'city'        => $data['city'],
+                    'country'     => $data['country'],
+                    'currency'    => $data['currency'],
+                    'vat'         => $data['vat'],
+                    'siren'       => $data['siren'],
+                    'ice'         => $data['ice'],
+                ]);
 
-        $created++;
-    }
-});
+                $created++;
+            }
+        });
 
         // ✉️ Email sending skipped for now — re-enable when ready:
         // foreach ($createdUsers as $item) {
@@ -245,6 +265,18 @@ class csvController extends Controller
 
                 /*
                 |--------------------------------------------------------------------------
+                | ✅ Find Service via Item Name
+                |--------------------------------------------------------------------------
+                */
+                $service  = null;
+                $itemName = $data['item_name'] ?? null;
+
+                if (!empty($itemName)) {
+                    $service = Service::whereRaw('LOWER(name) = ?', [strtolower($itemName)])->first();
+                }
+
+                /*
+                |--------------------------------------------------------------------------
                 | Generate Checksum and Skip Duplicates
                 |--------------------------------------------------------------------------
                 */
@@ -274,11 +306,31 @@ class csvController extends Controller
                     'status'       => $data['status'],
                     'total_amount' => $data['total_amount'],
                     'balance_due'  => $data['balance_due'],
-                    // 'description'  => $data['description'],
                     'notes'        => $data['notes'],
                     'checksum'     => $checksum,
                 ]);
 
+/*
+|--------------------------------------------------------------------------
+| ✅ Attach Service to Invoice if found
+|--------------------------------------------------------------------------
+*/
+if ($service && $invoice) {
+    $quantity       = floatval($data['quantity']   ?? 1);
+    $unitPrice      = floatval($data['unit_price'] ?? $service->base_price);
+    $tax            = floatval($data['tax']        ?? $service->tax_rate ?? 0);
+    $individualTotal = round($quantity * $unitPrice, 2);
+
+    DB::table('invoice_services')->insert([
+        'invoice_id'       => $invoice->id,
+        'service_id'       => $service->id,
+        'quantity'         => $quantity,
+        'tax'              => $tax,
+        'individual_total' => $individualTotal,
+        'created_at'       => now(),
+        'updated_at'       => now(),
+    ]);
+}
                 $created++;
 
                 /*
