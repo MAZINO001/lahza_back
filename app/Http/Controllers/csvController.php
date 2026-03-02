@@ -299,6 +299,9 @@ class csvController extends Controller
                 | Create Invoice
                 |--------------------------------------------------------------------------
                 */
+                // Determine currency from client if available
+                $currency = $client ? Invoice::determineCurrency($client) : 'MAD';
+
                 $invoice = Invoice::create([
                     'client_id'    => $client?->id,
                     'invoice_date' => $data['invoice_date'],
@@ -308,6 +311,7 @@ class csvController extends Controller
                     'balance_due'  => $data['balance_due'],
                     'notes'        => $data['notes'],
                     'checksum'     => $checksum,
+                    'currency'     => $currency,
                 ]);
 
 /*

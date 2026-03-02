@@ -71,6 +71,7 @@ public function store(Request $request)
         'status' => 'required|in:draft,sent,confirmed,signed,rejected',
         'notes' => 'nullable|string',
         'total_amount' => 'required|numeric',
+        'currency' => 'nullable|string|max:10|in:MAD,EUR,USD',
         'services' => 'nullable|array',
         'services.*.service_id' => 'required|exists:services,id',
         'services.*.quantity' => 'required|integer|min:1',
@@ -87,6 +88,14 @@ public function store(Request $request)
     ]);
 
     return DB::transaction(function () use ($validated) {
+        // Load client to determine currency if not provided
+        $client = \App\Models\Client::findOrFail($validated['client_id']);
+        
+        // Currency priority:
+        // 1. Admin-provided currency (EUR/USD/MAD) - takes precedence even if client is Moroccan
+        // 2. Auto-determined from client country (Morocco = MAD, else = EUR)
+        $currency = $validated['currency'] ?? Quotes::determineCurrency($client);
+        
         // Recalculate totals from services + subscriptions so quote total is always correct
         $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
         $totals = $subscriptionInvoiceService->calculateInvoiceTotals(
@@ -102,6 +111,7 @@ public function store(Request $request)
             'status' => $validated['status'],
             'notes' => $validated['notes'] ?? null,
             'total_amount' => $calculatedTotal,
+            'currency' => $currency,
             'has_projects' => is_array($validated['has_projects'] ?? null) 
                 ? json_encode($validated['has_projects']) 
                 : ($validated['has_projects'] ?? null),
@@ -275,6 +285,9 @@ public function createInvoiceFromQuote($id)
         ];
         $checksum = md5(json_encode($checksumData));
 
+        // Use quote currency, fallback to determining from client if quote doesn't have currency
+        $currency = $quote->currency ?? Invoice::determineCurrency($quote->client);
+
         // Create the invoice
         $invoice = Invoice::create([
             'client_id' => $quote->client_id,
@@ -288,6 +301,7 @@ public function createInvoiceFromQuote($id)
             'checksum' => $checksum,
             'description' => $quote->description,
             'has_projects' => $quote->has_projects,
+            'currency' => $currency,
         ]);
 
         // Add services to the invoice
@@ -400,6 +414,7 @@ public function createInvoiceFromQuote($id)
             'status' => 'required|in:draft,sent,confirmed,signed,rejected',
             'notes' => 'nullable|string',
             'total_amount' => 'required|numeric',
+            'currency' => 'nullable|string|max:10|in:MAD,EUR,USD',
             'services' => 'array',
             'services.*.service_id' => 'required|exists:services,id',
             'services.*.quantity' => 'required|integer|min:1',
@@ -414,6 +429,19 @@ public function createInvoiceFromQuote($id)
         ]);
 
         return DB::transaction(function () use ($quote, $validated) {
+            // Load client to determine currency if not provided
+            $client = \App\Models\Client::findOrFail($validated['client_id']);
+            
+            // Currency priority:
+            // 1. Admin-provided currency (EUR/USD/MAD) - takes precedence even if client is Moroccan
+            // 2. Auto-determined from client country (Morocco = MAD, else = EUR)
+            // 3. Keep existing quote currency
+            $currency = $validated['currency'] ?? null;
+            
+            if (!$currency) {
+                $currency = Quotes::determineCurrency($client) ?? $quote->currency;
+            }
+            
             /*
             |--------------------------------------------------------------------------
             | TOTALS CALCULATION (SERVICES + SUBSCRIPTIONS)
@@ -436,6 +464,7 @@ public function createInvoiceFromQuote($id)
                 'status' => $validated['status'],
                 'notes' => $validated['notes'],
                 'total_amount' => $calculatedTotal,
+                'currency' => $currency,
                 'has_projects' => is_array($validated["has_projects"])
                     ? json_encode($validated["has_projects"])
                     : $validated["has_projects"],
@@ -649,7 +678,7 @@ public function createInvoiceFromQuote($id)
             'totalHT' => $totalHT,
             'totalTVA' => $totalTVA,
             'totalTTC' => $totalTTC,
-            'currency' => $quote->client->currency ?? 'MAD',
+            'currency' => $quote->currency ?? $quote->client->currency ?? 'MAD',
             'adminSignatureBase64' => $adminSignatureBase64,
             'clientSignatureBase64' => $clientSignatureBase64,
         ]);

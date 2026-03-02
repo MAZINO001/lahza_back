@@ -597,7 +597,7 @@
                     <span>Sous-total (HT)</span>
                 </td>
                 <td>
-                    @php($currency = $type === 'invoice' ? $invoice->client?->currency ?? 'MAD' : $quote->client?->currency ?? 'MAD')
+                    @php($currency = $type === 'invoice' ? ($invoice->currency ?? $invoice->client?->currency ?? 'MAD') : ($quote->currency ?? $quote->client?->currency ?? 'MAD'))
                     @if ($type === 'invoice')
                         {{ number_format((float) ($invoice->total_amount ?? 0), 2, '.', ' ') }}
                     @else

@@ -49,7 +49,7 @@ class PdfController extends Controller
         $totalTTC += $ttc;
     }
 
-        $currency = $invoice->client->currency ?? 'MAD';
+        $currency = $invoice->currency ?? $invoice->client->currency ?? 'MAD';
 
         // client signature
         $clientSignatureBase64 = null;
@@ -116,7 +116,7 @@ class PdfController extends Controller
         $totalTTC += $ttc;
     }
 
-        $currency = $quote->client->currency ?? 'MAD';
+        $currency = $quote->currency ?? $quote->client->currency ?? 'MAD';
 
         $clientSignatureBase64 = null;
         if ($quote->clientSignature()) {

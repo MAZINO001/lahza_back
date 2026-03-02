@@ -17,6 +17,7 @@ class Quotes extends Model
         'has_projects',
         'total_amount',
         'description',
+        'currency',
     ];
 
     public function client()
@@ -138,6 +139,31 @@ public function getSubscriptionsTotal(): float
 public function getServicesTotal(): float
 {
     return $this->quoteServices()->sum('individual_total');
+}
+
+/**
+ * Determine currency based on client country.
+ * If client is in Morocco, returns MAD, otherwise EUR.
+ * 
+ * @param Client|null $client
+ * @return string
+ */
+public static function determineCurrency($client): string
+{
+    if (!$client || !$client->country) {
+        return 'MAD'; // Default to MAD if no client or country
+    }
+
+    $country = strtolower(trim($client->country));
+    
+    // Check for Morocco variations
+    $moroccoVariations = ['morocco', 'maroc', 'ma', 'morocco', 'المغرب'];
+    
+    if (in_array($country, $moroccoVariations)) {
+        return 'MAD';
+    }
+    
+    return 'EUR';
 }
 
 }

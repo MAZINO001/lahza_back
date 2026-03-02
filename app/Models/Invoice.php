@@ -23,6 +23,7 @@ class Invoice extends Model
         'has_projects',
         'description',
         'subscription_id',
+        'currency',
     ];
 
     protected $casts = [
@@ -169,5 +170,30 @@ public function allSubscriptionsActivated(): bool
     return $this->invoiceSubscriptions()
         ->whereNull('subscription_id')
         ->doesntExist();
+}
+
+/**
+ * Determine currency based on client country.
+ * If client is in Morocco, returns MAD, otherwise EUR.
+ * 
+ * @param Client|null $client
+ * @return string
+ */
+public static function determineCurrency($client): string
+{
+    if (!$client || !$client->country) {
+        return 'MAD'; // Default to MAD if no client or country
+    }
+
+    $country = strtolower(trim($client->country));
+    
+    // Check for Morocco variations
+    $moroccoVariations = ['morocco', 'maroc', 'ma', 'morocco', 'المغرب'];
+    
+    if (in_array($country, $moroccoVariations)) {
+        return 'MAD';
+    }
+    
+    return 'EUR';
 }
 }

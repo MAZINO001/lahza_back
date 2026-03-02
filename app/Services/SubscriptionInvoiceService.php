@@ -32,6 +32,9 @@ class SubscriptionInvoiceService
     ): array {
         return DB::transaction(function () use ($client, $plan, $planPrice, $customFieldValues) {
             
+            // Determine currency from client
+            $currency = Invoice::determineCurrency($client);
+
             // 1. Create the invoice
             $invoice = Invoice::create([
                 'client_id' => $client->id,
@@ -44,6 +47,7 @@ class SubscriptionInvoiceService
                 'balance_due' => $planPrice->price,
                 'description' => "Subscription plan: {$plan->name}",
                 'has_projects' => null,
+                'currency' => $currency,
             ]);
 
             // 2. Create invoice_subscription record

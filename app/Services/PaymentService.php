@@ -185,12 +185,15 @@ class PaymentService implements PaymentServiceInterface
             ? round(($servicesPart / $servicesTotal) * 100, 2)
             : 0;
 
+        // Use invoice currency, fallback to EUR if not set
+        $currency = $invoice->currency ?? 'EUR';
+
         $paymentData = [
             'invoice_id' => $invoice->id,
             'client_id' => $client->id,
             'total' => $invoice->total_amount,
             'amount' => $amount,
-            'currency' => 'eur',
+            'currency' => strtolower($currency),
             'payment_method' => $payment_type,
             'status' => $payment_status,
             'payment_url' => null,
@@ -211,11 +214,14 @@ class PaymentService implements PaymentServiceInterface
             // Handle Stripe payment
         Stripe::setApiKey(config('services.stripe.secret'));
 
+            // Stripe uses lowercase currency codes
+            $stripeCurrency = strtolower($currency);
+
             $session = Session::create([
                 'payment_method_types' => ['card'],
                 'line_items' => [[
                     'price_data' => [
-                        'currency' => 'usd',
+                        'currency' => $stripeCurrency,
                         'unit_amount' => $amount * 100,
                         'product_data' => [
                             'name' => "Payment for invoice #{$invoice->id} ({$payment_percentage}%)",
@@ -364,11 +370,15 @@ if ($newAmount > $currentBalanceDue + 0.0001) {
 
         \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
 
+        // Use invoice currency, fallback to payment currency or EUR
+        $currency = $invoice->currency ?? $payment->currency ?? 'EUR';
+        $stripeCurrency = strtolower($currency);
+
         $session = \Stripe\Checkout\Session::create([
             'payment_method_types' => ['card'],
             'line_items' => [[
                 'price_data' => [
-                    'currency' => 'usd',
+                    'currency' => $stripeCurrency,
                     'unit_amount' => (int)($newAmount * 100), // Ensure it is an integer for Stripe
                     'product_data' => [
                         'name' => "Updated payment for invoice #{$payment->invoice_id}"
@@ -401,8 +411,12 @@ if ($newAmount > $currentBalanceDue + 0.0001) {
         ? round(($servicesPart / $servicesTotal) * 100, 2)
         : 0;
 
+    // Use invoice currency, fallback to payment currency or EUR
+    $currency = $invoice->currency ?? $payment->currency ?? 'EUR';
+
     $payment->amount = round($newAmount, 2);
     $payment->percentage = $effectiveServicesPercentage;
+    $payment->currency = strtolower($currency);
     $payment->save();
     // RECALCULATE ALLOCATIONS BASED ON NEW PAYMENT AMOUNT
     $this->recalculatePaymentAllocations($payment);
@@ -640,13 +654,16 @@ protected function resetAllocationsPaidPercentage(Payment $payment): void
             throw new \Exception("Cannot create payment: The requested payment amount ($" . number_format($amountToPay, 2) . ") exceeds the remaining balance due ($" . number_format($currentBalanceDue, 2) . ") for invoice #{$invoice->id}.");
         }
 
+        // Use invoice currency, fallback to EUR if not set
+        $currency = $invoice->currency ?? 'EUR';
+
         // Create the new payment row
         $paymentData = [
             'invoice_id' => $invoice->id,
             'client_id' => $invoice->client_id,
             'amount' => $amountToPay,
             'total' => $amountToPay,
-            'currency' => 'usd',
+            'currency' => strtolower($currency),
             'status' => $status,
             'payment_method' => $payment_type,
             'payment_url' => null,
@@ -665,12 +682,15 @@ protected function resetAllocationsPaidPercentage(Payment $payment): void
             // Stripe payment
 Stripe::setApiKey(config('services.stripe.secret'));
 
+            // Stripe uses lowercase currency codes
+            $stripeCurrency = strtolower($currency);
+
             $session = Session::create([
                 'mode' => 'payment',
                 'payment_method_types' => ['card'],
                 'line_items' => [[
                     'price_data' => [
-                        'currency' => 'usd',
+                        'currency' => $stripeCurrency,
                         'unit_amount' => intval($amountToPay * 100),
                         'product_data' => [
                             'name' => "Additional Payment for Invoice #{$invoice->id}",
@@ -1259,11 +1279,15 @@ protected function cancelSubscriptionAllocations(Payment $payment): void
 
             \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
 
+            // Use invoice currency, fallback to payment currency or EUR
+            $currency = $invoice->currency ?? $payment->currency ?? 'EUR';
+            $stripeCurrency = strtolower($currency);
+
             $session = \Stripe\Checkout\Session::create([
                 'payment_method_types' => ['card'],
                 'line_items' => [[
                     'price_data' => [
-                        'currency' => 'usd',
+                        'currency' => $stripeCurrency,
                         'unit_amount' => (int)($newPaymentAmount * 100),
                         'product_data' => [
                             'name' => "Updated payment for invoice #{$payment->invoice_id}",

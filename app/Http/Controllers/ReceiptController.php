@@ -46,7 +46,7 @@ class ReceiptController extends Controller
             'total' => $payment->amount ?? $payment->total, // Use the actual payment amount
             'payment_method' => $this->formatPaymentMethod($payment),
             'transaction_id' => $payment->stripe_payment_intent_id ?? $payment->id ?? 'N/A',
-            'currency' => $payment->currency ?? $invoice->currency ?? 'MAD',
+            'currency' => $payment->currency ?? $invoice->currency ?? $invoice->client->currency ?? 'MAD',
             'companyInfo' => $companyInfo,
             'payment_percentage' => $paymentPercentage, // Pass percentage to view
         ];

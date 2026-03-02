@@ -75,6 +75,7 @@ public function store(Request $request)
         'notes' => 'nullable|string',
         'total_amount' => 'required|numeric',
         'balance_due' => 'required|numeric',
+        'currency' => 'nullable|string|max:10|in:MAD,EUR,USD',
         'payment_percentage' => 'nullable|numeric',
         'payment_status' => 'string',
         'payment_type' => 'string',
@@ -96,6 +97,25 @@ public function store(Request $request)
     ]);
 
     return DB::transaction(function () use ($validate) {
+        // Load client to determine currency if not provided
+        $client = \App\Models\Client::findOrFail($validate['client_id']);
+        
+        // Currency priority: 
+        // 1. Admin-provided currency (EUR/USD/MAD) - takes precedence even if client is Moroccan
+        // 2. Quote currency (if quote_id exists)
+        // 3. Auto-determined from client country (Morocco = MAD, else = EUR)
+        $currency = $validate['currency'] ?? null;
+        
+        if (!$currency && !empty($validate['quote_id'])) {
+            $quote = \App\Models\Quotes::find($validate['quote_id']);
+            if ($quote && $quote->currency) {
+                $currency = $quote->currency;
+            }
+        }
+        
+        if (!$currency) {
+            $currency = Invoice::determineCurrency($client);
+        }
 
         // Recalculate totals from services + subscriptions to avoid mismatches
         $subscriptionInvoiceService = app(\App\Services\SubscriptionInvoiceService::class);
@@ -116,6 +136,7 @@ public function store(Request $request)
             'total_amount' => $calculatedTotal,
             'balance_due' => $calculatedTotal,
             'description' => $validate["description"] ?? null,
+            'currency' => $currency,
             'has_projects' => is_array($validate["has_projects"])
                 ? json_encode($validate["has_projects"])
                 : $validate["has_projects"],
@@ -346,6 +367,7 @@ public function sendInvoice(Request $request, Invoice $invoice)
         'notes' => 'nullable|string',
         'total_amount' => 'required|numeric',
         'balance_due' => 'required|numeric',
+        'currency' => 'nullable|string|max:10|in:MAD,EUR,USD',
         'services' => 'array',
         'services.*.service_id' => 'required|exists:services,id',
         'services.*.quantity' => 'required|integer|min:1',
@@ -366,6 +388,18 @@ public function sendInvoice(Request $request, Invoice $invoice)
     ]);
 
     return DB::transaction(function () use ($invoice, $validate, $oldStatus) {
+        // Load client to determine currency if not provided
+        $client = \App\Models\Client::findOrFail($validate['client_id']);
+        
+        // Currency priority:
+        // 1. Admin-provided currency (EUR/USD/MAD) - takes precedence even if client is Moroccan
+        // 2. Auto-determined from client country (Morocco = MAD, else = EUR)
+        // 3. Keep existing invoice currency
+        $currency = $validate['currency'] ?? null;
+        
+        if (!$currency) {
+            $currency = Invoice::determineCurrency($client) ?? $invoice->currency;
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -395,6 +429,7 @@ public function sendInvoice(Request $request, Invoice $invoice)
             // Keep balance_due behaviour as-is (driven by request / existing flows)
             'balance_due' => $validate['balance_due'],
             'description' => $validate['description'] ?? null,
+            'currency' => $currency,
         ]);
 
         /*
@@ -535,7 +570,7 @@ public function sendInvoice(Request $request, Invoice $invoice)
             $totalTTC += $ttc;
         }
 
-        $currency = $invoice->client->currency ?? 'MAD';
+        $currency = $invoice->currency ?? $invoice->client->currency ?? 'MAD';
 
         $pdf = PDF::loadView('pdf.document', [
             'invoice' => $invoice,
