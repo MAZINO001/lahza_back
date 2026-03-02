@@ -672,6 +672,11 @@ public function createInvoiceFromQuote($id)
             $totalHT += $ht; $totalTVA += ($ttc - $ht); $totalTTC += $ttc;
         }
 
+        // Detect language from URL parameter (lang=eng or default to fr)
+        $lang = request()->get('lang', 'fr');
+        $locale = ($lang === 'eng' || $lang === 'en') ? 'en' : 'fr';
+        app()->setLocale($locale);
+
         $pdf = PDF::loadView('pdf.document', [
             'quote' => $quote,
             'type' => 'quote',

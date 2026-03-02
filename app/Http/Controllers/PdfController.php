@@ -16,6 +16,11 @@ class PdfController extends Controller
     {
         $user = Auth::user();
 
+        // Detect language from URL parameter (lang=eng or default to fr)
+        $lang = request()->get('lang', 'fr');
+        $locale = ($lang === 'eng' || $lang === 'en') ? 'en' : 'fr';
+        app()->setLocale($locale);
+
         $invoice = Invoice::with(['client', 'invoiceServices.service', 'files'])->findOrFail($id);
      // 🔐 AUTHORIZATION CHECK
         if ($user->role !== 'admin') {
@@ -51,27 +56,36 @@ class PdfController extends Controller
 
         $currency = $invoice->currency ?? $invoice->client->currency ?? 'MAD';
 
-        // client signature
+        // Admin signature
+        $adminSignatureBase64 = null;
+        if ($invoice->adminSignature()) {
+            $adminSignatureBase64 = $this->getImageBase64($invoice->adminSignature()->path);
+        } else {
+            $adminSignatureBase64 = $this->getDefaultAdminSignatureBase64();
+        }
+
+        // Client signature
         $clientSignatureBase64 = null;
         if ($invoice->clientSignature()) {
             $clientSignatureBase64 = $this->getImageBase64($invoice->clientSignature()->path);
         }
 
-     $companyInfo = CompanyInfo::first();
+        $companyInfo = CompanyInfo::first();
 
-    $pdf = PDF::loadView(
-        'pdf.document',
-        compact(
-            'invoice',
-            'type',
-            'totalHT',
-            'totalTVA',
-            'totalTTC',
-            'currency',
-            'clientSignatureBase64',
-            'companyInfo'  // ← ADD THIS
-        )
-    );
+        $pdf = PDF::loadView(
+            'pdf.document',
+            compact(
+                'invoice',
+                'type',
+                'totalHT',
+                'totalTVA',
+                'totalTTC',
+                'currency',
+                'adminSignatureBase64',
+                'clientSignatureBase64',
+                'companyInfo'
+            )
+        );
 
         return response($pdf->output(), 200)
             ->header('Content-Type', 'application/pdf')
@@ -82,6 +96,12 @@ class PdfController extends Controller
     public function quote($id)
     {
         $user = Auth::user();
+        
+        // Detect language from URL parameter (lang=eng or default to fr)
+        $lang = request()->get('lang', 'fr');
+        $locale = ($lang === 'eng' || $lang === 'en') ? 'en' : 'fr';
+        app()->setLocale($locale);
+        
         $quote = Quotes::with(['client', 'files', 'services'])->findOrFail($id);
             $quote = Quotes::with(['client', 'files', 'services'])
         ->findOrFail($id);
@@ -118,26 +138,36 @@ class PdfController extends Controller
 
         $currency = $quote->currency ?? $quote->client->currency ?? 'MAD';
 
+        // Admin signature
+        $adminSignatureBase64 = null;
+        if ($quote->adminSignature()) {
+            $adminSignatureBase64 = $this->getImageBase64($quote->adminSignature()->path);
+        } else {
+            $adminSignatureBase64 = $this->getDefaultAdminSignatureBase64();
+        }
+
+        // Client signature
         $clientSignatureBase64 = null;
         if ($quote->clientSignature()) {
             $clientSignatureBase64 = $this->getImageBase64($quote->clientSignature()->path);
         }
 
-$companyInfo = CompanyInfo::first();
+        $companyInfo = CompanyInfo::first();
 
-    $pdf = PDF::loadView(
-        'pdf.document',
-        compact(
-            'quote',
-            'type',
-            'totalHT',
-            'totalTVA',
-            'totalTTC',
-            'currency',
-            'clientSignatureBase64',
-            'companyInfo'
-        )
-    );
+        $pdf = PDF::loadView(
+            'pdf.document',
+            compact(
+                'quote',
+                'type',
+                'totalHT',
+                'totalTVA',
+                'totalTTC',
+                'currency',
+                'adminSignatureBase64',
+                'clientSignatureBase64',
+                'companyInfo'
+            )
+        );
 
         return response($pdf->output(), 200)
             ->header('Content-Type', 'application/pdf')

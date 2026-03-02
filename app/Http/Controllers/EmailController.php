@@ -33,6 +33,11 @@ class EmailController extends Controller
         $type = $validated['type'];
         $id = $validated['id'];
 
+        // Detect language from URL parameter (lang=eng or default to fr)
+        $lang = request()->get('lang', 'fr');
+        $locale = ($lang === 'eng' || $lang === 'en') ? 'en' : 'fr';
+        app()->setLocale($locale);
+
         if ($type === 'invoice') {
             $invoice = Invoice::with(['client', 'invoiceServices.service', 'files'])->findOrFail($id);
 

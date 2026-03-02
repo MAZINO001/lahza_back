@@ -572,6 +572,11 @@ public function sendInvoice(Request $request, Invoice $invoice)
 
         $currency = $invoice->currency ?? $invoice->client->currency ?? 'MAD';
 
+        // Detect language from URL parameter (lang=eng or default to fr)
+        $lang = request()->get('lang', 'fr');
+        $locale = ($lang === 'eng' || $lang === 'en') ? 'en' : 'fr';
+        app()->setLocale($locale);
+
         $pdf = PDF::loadView('pdf.document', [
             'invoice' => $invoice,
             'type' => 'invoice',

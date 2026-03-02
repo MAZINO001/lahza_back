@@ -458,9 +458,9 @@
         <div class="invoice-title">
             <h2>
                 @if ($type === 'invoice')
-                    FACTURE
+                    {{ __('pdf.invoice') }}
                 @else
-                    DEVIS
+                    {{ __('pdf.quote') }}
                 @endif
             </h2>
         </div>
@@ -479,11 +479,11 @@
                 </div>
                 <div>
                     @if ($type === 'invoice')
-                        <p>N° de facture</p>
+                        <p>{{ __('pdf.invoice_number') }}</p>
                         <h3>{{ sprintf('INV-%05d', $invoice->id ?? 0) }}</h3>
                         <h3 class="doc_status">{{ $invoice->status }}</h3>
                     @else
-                        <p>N° de devis</p>
+                        <p>{{ __('pdf.quote_number') }}</p>
                         <h3>{{ sprintf('Q-%05d', $quote->id ?? 0) }}</h3>
                         <h3 class="doc_status">{{ $quote->status }}</h3>
                     @endif
@@ -494,17 +494,17 @@
                     <thead>
                         <tr>
                             @if ($type === 'invoice')
-                                <th>Date de facture</th>
-                                <th>Date d'échéance</th>
+                                <th>{{ __('pdf.invoice_date') }}</th>
+                                <th>{{ __('pdf.due_date') }}</th>
                             @else
-                                <th>Date du devis</th>
-                                <th>Date d'échéance</th>
+                                <th>{{ __('pdf.quote_date') }}</th>
+                                <th>{{ __('pdf.due_date') }}</th>
                             @endif
                         </tr>
                     </thead>
                     @if ($type === 'quote')
                         <div class="objective">
-                            <strong>objective :</strong><br>
+                            <strong>{{ __('pdf.objective') }}</strong><br>
                             @if ($quote->description)
                                 {{ $quote->description }}
                             @else
@@ -512,7 +512,7 @@
                         </div>
                     @else
                         <div class="objective">
-                            <strong>objective :</strong><br>
+                            <strong>{{ __('pdf.objective') }}</strong><br>
                             @if ($invoice->description)
                                 {{ $invoice->description }}
                             @else
@@ -541,11 +541,11 @@
         <table class="items-table" border="1">
             <thead>
                 <tr>
-                    <th>Article & Description</th>
-                    <th>Quantité</th>
-                    <th>Tva</th>
-                    <th>Montant HT</th>
-                    <th>Montant TTC</th>
+                    <th>{{ __('pdf.article_description') }}</th>
+                    <th>{{ __('pdf.quantity') }}</th>
+                    <th>{{ __('pdf.tax') }}</th>
+                    <th>{{ __('pdf.amount_ht') }}</th>
+                    <th>{{ __('pdf.amount_ttc') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -594,7 +594,7 @@
             </tbody>
             <tr>
                 <td colspan="4" class="Sous-total">
-                    <span>Sous-total (HT)</span>
+                    <span>{{ __('pdf.subtotal_ht') }}</span>
                 </td>
                 <td>
                     @php($currency = $type === 'invoice' ? ($invoice->currency ?? $invoice->client?->currency ?? 'MAD') : ($quote->currency ?? $quote->client?->currency ?? 'MAD'))
@@ -610,25 +610,25 @@
         <div class="totals">
             <div class="notes">
                 @if ($type === 'invoice')
-                    {{ $invoice->notes ?? 'Merci de votre confiance.' }}
+                    {{ $invoice->notes ?? __('pdf.default_notes') }}
                 @else
-                    {{ $quote->notes ?? 'Merci de votre confiance.' }}
+                    {{ $quote->notes ?? __('pdf.default_notes') }}
                 @endif
             </div>
 
             <div class="total_container">
                 <div class="total_container_ht">
-                    <span>Total HT</span>
+                    <span>{{ __('pdf.total_ht') }}</span>
                     <span>{{ number_format($totalHT, 2, '.', ' ') }} {{ $currency }}</span>
                 </div>
 
                 <div class="total_container_ht">
-                    <span>Total TVA</span>
+                    <span>{{ __('pdf.total_tax') }}</span>
                     <span>{{ number_format($totalTVA, 2, '.', ' ') }} {{ $currency }}</span>
                 </div>
 
                 <div class="total_container_ttc">
-                    <span>Total TTC</span>
+                    <span>{{ __('pdf.total_ttc') }}</span>
                     <span>{{ number_format($totalTTC, 2, '.', ' ') }} {{ $currency }}</span>
                 </div>
             </div>
@@ -638,23 +638,21 @@
         <div class="last">
             <div class="payment-info">
                 <div class="bank-details">
-                    <p><b><strong class="mode">Mode de paiement :</strong></b> Par virement ou Chèque</p>
+                    <p><b><strong class="mode">{{ __('pdf.payment_method') }}</strong></b> {{ __('pdf.payment_method_value') }}</p>
                     <div class="bank-info">
-                        <p><strong>Banque :</strong>{{ $companyInfo?->bank_name ?? 'ATTIJARI WAFABANK' }} </p>
-                        <p><strong>Nom du compte :</strong>{{ $companyInfo?->account_name ?? 'LAHZA HM' }}</p>
-                        <p><strong>R.I.B :</strong>{{ $companyInfo?->rib ?? '007640001433200000026029' }}</p>
-                        <p><strong>SWIFT :</strong>{{ $companyInfo?->swift ?? 'BCMAMAMC' }}</p>
-                        <p><strong>ICE :</strong>{{ $companyInfo?->ma_ice ?? '002 056 959 000 039' }} </p>
-                        <p><strong>RC :</strong>{{ $companyInfo?->ma_rc ?? '88049' }} </p>
+                        <p><strong>{{ __('pdf.bank') }}</strong>{{ $companyInfo?->bank_name ?? 'ATTIJARI WAFABANK' }} </p>
+                        <p><strong>{{ __('pdf.account_name') }}</strong>{{ $companyInfo?->account_name ?? 'LAHZA HM' }}</p>
+                        <p><strong>{{ __('pdf.rib') }}</strong>{{ $companyInfo?->rib ?? '007640001433200000026029' }}</p>
+                        <p><strong>{{ __('pdf.swift') }}</strong>{{ $companyInfo?->swift ?? 'BCMAMAMC' }}</p>
+                        <p><strong>{{ __('pdf.ice') }}</strong>{{ $companyInfo?->ma_ice ?? '002 056 959 000 039' }} </p>
+                        <p><strong>{{ __('pdf.rc') }}</strong>{{ $companyInfo?->ma_rc ?? '88049' }} </p>
                     </div>
                 </div>
             </div>
             <div class="footer">
                 <div class="conditions">
-                    <strong>Conditions d'utilisation</strong><br>
-                    {{ $companyInfo?->terms_and_conditions ??
-                        "En signant la facture, le client accepte sans réserves nos conditions. Pour plus d'informations,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            consultez les politiques de notre entreprise sur : https://lahza.ma/politique-de-confidentialite/" }}
+                    <strong>{{ __('pdf.terms_title') }}</strong><br>
+                    {{ $companyInfo?->terms_and_conditions ?? __('pdf.default_terms') }}
                 </div>
             </div>
 
