@@ -57,6 +57,43 @@ class ActivityLoggerService
     }
 
     /**
+     * Log an activity with explicit user context (for use in queued jobs where Auth is not available).
+     */
+    public function logWithUser(
+        ?int $userId,
+        ?string $userRole,
+        string $action,
+        ?string $tableName = null,
+        ?int $recordId = null,
+        ?string $ipAddress = null,
+        ?string $userAgent = null,
+        array $properties = [],
+        $newValue = null
+    ): ActivityLog {
+        $deviceType = $this->detectDevice($userAgent ?? '');
+
+        $logData = [
+            'user_id'     => $userId,
+            'user_role'   => $userRole,
+            'action'      => $action,
+            'table_name'  => $tableName,
+            'record_id'   => $recordId,
+            'ip_address'  => $ipAddress,
+            'user_agent'  => $userAgent,
+            'device'      => $deviceType,
+        ];
+
+        if (!empty($properties)) {
+            $logData['properties'] = json_encode($properties);
+        }
+        if ($newValue !== null) {
+            $logData['new_values'] = is_string($newValue) ? $newValue : json_encode($newValue);
+        }
+
+        return ActivityLog::create($logData);
+    }
+
+    /**
      * Detects the client device from the user-agent string
      *
      * @param string $userAgent
