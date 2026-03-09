@@ -48,7 +48,7 @@ class InvoicesController extends Controller
             ['invoiceServices', 'client.user:id,name', 'files', 'projects'])->when($user->role === 'client', function ($query) use ($user) {
             $clientId = $user->client()->first()->id ?? 0;
             $query->where('client_id', $clientId);
-        })->get();
+        })->latest()->get();
         $allServices = Service::all();
 
         // Add signature URLs to each invoice

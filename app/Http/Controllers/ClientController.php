@@ -17,8 +17,7 @@ public function index()
 {
     // Order by latest created
     $clients = Client::with('user:id,name,email')
-                     ->orderBy('created_at', 'desc') // latest first
-                     ->get();
+                     ->latest()->get();
 
     $clients = $clients->map(function ($client) {
 
