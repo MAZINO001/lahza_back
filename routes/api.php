@@ -244,6 +244,7 @@ Route::delete('/files-delete/{id}', [FileController::class, 'delete']);
         Route::put('/payments/{payment}', [PaymentController::class, 'updatePayment']);
         Route::put('/payments/allocation/{allocation}', [PaymentController::class, 'updateAllocation']);
         Route::get('/payments/{payment}', [PaymentController::class, 'show']);
+        Route::put('/validatePayments/{payment}', [PaymentController::class, 'handleManualPayment']);
 
         Route::put('/cancelPayment/{payment}', [PaymentController::class, 'cancelPayment']);
         Route::get('getRemaining/{invoice}', [PaymentController::class, 'getRemaining']);
@@ -375,4 +376,4 @@ Route::delete('/files-delete/{id}', [FileController::class, 'delete']);
     
     // Client subscriptions
     Route::get('/clients/{client}/subscription', [SubscriptionController::class, 'getActiveSubscription']);
-        Route::put('/validatePayments/{payment}', [PaymentController::class, 'handleManualPayment']);
+
