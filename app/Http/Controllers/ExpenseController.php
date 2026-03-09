@@ -9,7 +9,7 @@ class ExpenseController extends Controller
 {
     public function index()
     {
-        return Expense::with(['project', 'client', 'invoice', 'user'])->get();
+        return Expense::with(['project', 'client', 'invoice', 'user'])->latest()->get();
     }
 
     public function show(Expense $expense)

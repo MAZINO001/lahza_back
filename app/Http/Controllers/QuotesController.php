@@ -21,6 +21,12 @@ use App\Mail\QuoteCreatedMail;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use App\Models\QuoteSubscription;
 use App\Models\InvoiceSubscription;
+use App\Jobs\SendQuoteEmailJob;
+use App\Jobs\SendInvoiceCreatedFromQuoteJob;
+use App\Jobs\CreatePaymentLinkJob;
+use App\Jobs\LogActivityJob;
+use App\Jobs\CreateDraftProjectFromQuoteJob;
+use App\Jobs\UpdateProjectsOnQuoteSignedJob;
 class QuotesController extends Controller
 {
     protected $paymentService;
@@ -43,7 +49,7 @@ class QuotesController extends Controller
         $user = Auth::user();
         $quotes = Quotes::with(['quoteServices', 'client.user:id,name,email', 'files', 'projects'])->when($user->role ==='client',function($query) use ($user){
             $query->where('client_id', $user->client->id);
-        })->get();
+        })->latest()->get();
         $allServices = Service::all();
 
         // Add signature URLs to each quote
@@ -157,17 +163,19 @@ public function store(Request $request)
         $quote->has_client_signature = $clientSignature !== null;
         $quote->has_admin_signature = $quote->adminSignature() !== null;
 
-        // Create draft project(s) for quote path (PATH 1)
-        $this->projectCreationService->createDraftProjectFromQuote($quote);
+        // Create draft project(s) for quote path (PATH 1) — dispatched for instant response
+        CreateDraftProjectFromQuoteJob::dispatch($quote);
 
-        // Send quote created email with PDF attachment
+        // Dispatch job to send quote created email with PDF attachment
         // Only send email if status is NOT 'draft'
         if ($validated['status'] !== 'draft') {
-        $this->sendQuoteCreatedEmail($quote, $validated['attachment_file_ids'] ?? []);
+            SendQuoteEmailJob::dispatch($quote, $validated['attachment_file_ids'] ?? []);
         }
-        
-        // Log activity
-        $this->activityLogger->log(
+
+        // Log activity asynchronously
+        LogActivityJob::dispatch(
+            Auth::id(),
+            Auth::user()->role ?? null,
             'clients_details',
             'quotes',
             $quote->client->id,
@@ -336,8 +344,8 @@ public function createInvoiceFromQuote($id)
             $this->autoSignAdminSignature($invoice);
         }
 
-        // Update quote-based projects: draft → pending + link to invoice
-        $this->projectCreationService->updateProjectsOnQuoteSigned($quote, $invoice);
+        // Update quote-based projects: draft → pending + link to invoice — dispatched for instant response
+        UpdateProjectsOnQuoteSignedJob::dispatch($quote, $invoice);
 
         // Load invoice relationships
         $invoice->load('projects', 'invoiceSubscriptions.plan');
@@ -362,21 +370,24 @@ public function createInvoiceFromQuote($id)
             $paymentPercentage = 50.0;
         }
 
-        // Create payment link (allocations are now handled inside PaymentService)
-        $response = $this->paymentService->createPaymentLink(
+        $quote->update(['status' => 'billed']);
+        
+        // Dispatch job to create payment link and send invoice created email
+        // This runs asynchronously to speed up invoice creation
+        CreatePaymentLinkJob::dispatch(
             $invoice,
             $paymentPercentage,
             'pending',
-            $paymentMethod
+            $paymentMethod,
+            [], // No attachment file IDs
+            true, // Send invoice created email
+            $quote // Pass quote for invoice created email
         );
 
-        $quote->update(['status' => 'billed']);
-        
-        // Send invoice email
-        $this->sendInvoiceCreatedEmail($quote, $invoice, $response);
-
-        // Log activity
-        $this->activityLogger->log(
+        // Log activity asynchronously
+        LogActivityJob::dispatch(
+            Auth::id(),
+            Auth::user()->role ?? null,
             'clients_details',
             'invoices',
             $invoice->client->id,
@@ -395,9 +406,12 @@ public function createInvoiceFromQuote($id)
         );
 
         return response()->json([
-            'message' => 'Invoice created successfully',
+            'message' => 'Invoice created successfully. Payment link is being created and will be sent via email.',
             'invoice' => $invoice->load('services', 'projects', 'invoiceSubscriptions.plan'),
-            'payment' => $response['payment_method']
+            'payment' => [
+                'status' => 'processing',
+                'message' => 'Payment link is being created and will be sent via email shortly.'
+            ]
         ], 201);
     });
 }
@@ -601,8 +615,8 @@ public function createInvoiceFromQuote($id)
         $quote->load('client.user', 'quoteServices', 'files');
 
         try {
-            // Send email with PDF
-            $this->sendQuoteCreatedEmail($quote,$request->attachment_file_ids ?? []);
+            // Dispatch job to send email with PDF
+            SendQuoteEmailJob::dispatch($quote, $request->attachment_file_ids ?? []);
 
         } catch (\Exception $e) {
             // Rollback status if email fails
@@ -620,8 +634,10 @@ public function createInvoiceFromQuote($id)
             ], 500);
         }
 
-        // Log activity
-        $this->activityLogger->log(
+        // Log activity asynchronously
+        LogActivityJob::dispatch(
+            Auth::id(),
+            Auth::user()->role ?? null,
             'clients_details',
             'quotes',
             $quote->client->id,
@@ -643,150 +659,6 @@ public function createInvoiceFromQuote($id)
         ], 200);
     });
 }
-    private function sendQuoteCreatedEmail($quote, $attachmentFileIds = [])
-{
-    try {
-        $clientEmail = $quote->client->user->email ?? null;
-
-        if (!$clientEmail || !$quote->client->user->allowsMail('quotes')) {
-            return;
-        }
-
-        // --- PDF GENERATION ---
-        $adminSignatureBase64 = $quote->adminSignature() 
-            ? $this->getImageBase64($quote->adminSignature()->path) 
-            : $this->getDefaultAdminSignatureBase64();
-            
-        $clientSignatureBase64 = $quote->clientSignature() 
-            ? $this->getImageBase64($quote->clientSignature()->path) 
-            : null;
-
-        $quote->load('quoteServices', 'services', 'files');
-
-        // Totals calculation (Keep your existing logic here)
-        $totalHT = 0; $totalTVA = 0; $totalTTC = 0;
-        foreach ($quote->quoteServices ?? [] as $line) {
-            $ttc = (float) ($line->individual_total ?? 0);
-            $rate = ((float) ($line->tax ?? 0)) / 100;
-            $ht = $rate > 0 ? $ttc / (1 + $rate) : $ttc;
-            $totalHT += $ht; $totalTVA += ($ttc - $ht); $totalTTC += $ttc;
-        }
-
-        // Detect language from URL parameter (lang=eng or default to fr)
-        $lang = request()->get('lang', 'fr');
-        $locale = ($lang === 'eng' || $lang === 'en') ? 'en' : 'fr';
-        app()->setLocale($locale);
-
-        $pdf = PDF::loadView('pdf.document', [
-            'quote' => $quote,
-            'type' => 'quote',
-            'totalHT' => $totalHT,
-            'totalTVA' => $totalTVA,
-            'totalTTC' => $totalTTC,
-            'currency' => $quote->currency ?? $quote->client->currency ?? 'MAD',
-            'adminSignatureBase64' => $adminSignatureBase64,
-            'clientSignatureBase64' => $clientSignatureBase64,
-        ]);
-
-        // --- NEW STORAGE LOGIC ---
-        // 1. Define a relative path (relative to storage/app)
-        $relativePdfPath = 'reports/quote_' . $quote->id . '_' . uniqid() . '.pdf';
-
-        // 2. Save the PDF using Storage instead of $pdf->save()
-        // This ensures the directory is created and permissions are correct for the queue
-        Storage::disk('local')->put($relativePdfPath, $pdf->output());
-
-        // 3. Initialize the array with our relative path
-        $attachmentPaths = [Storage::disk('local')->path($relativePdfPath)];
-        // 4. Add additional attachments (ensure they are also relative)
-        if (!empty($attachmentFileIds)) {
-            $attachmentFiles = \App\Models\File::whereIn('id', $attachmentFileIds)->get();
-            
-            foreach ($attachmentFiles as $file) {
-                // We only want the path stored in the DB (e.g., 'uploads/image.png')
-                // Not the full Storage::path()!
-                $attachmentPaths[] = Storage::disk($file->disk)->path($file->path);
-            }
-        }
-
-        // 5. Queue the mail passing the RELATIVE paths and the disk name
-Mail::to($clientEmail)->send(
-    new QuoteCreatedMail($quote, $attachmentPaths)
-);
-        Log::info('Quote email successfully queued', ['quote_id' => $quote->id]);
-
-    } catch (\Exception $e) {
-        Log::error('Queue Error: ' . $e->getMessage());
-    }
-}
-    /**
-     * Get image as base64 data URI
-     */
-    private function getImageBase64($path)
-    {
-        try {
-            $fullPath = Storage::disk('public')->path($path);
-            if (file_exists($fullPath)) {
-                $imageData = Storage::disk('public')->get($path);
-                $mimeType = mime_content_type($fullPath) ?: 'image/png';
-                return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
-            }
-        } catch (\Exception $e) {
-            Log::error('Error converting image to base64: ' . $e->getMessage());
-        }
-        return null;
-    }
-
-    /**
-     * Get default admin signature as base64
-     */
-    private function getDefaultAdminSignatureBase64()
-    {
-        try {
-            $defaultPath = public_path('images/admin_signature.png');
-            if (file_exists($defaultPath)) {
-                $imageData = file_get_contents($defaultPath);
-                $mimeType = mime_content_type($defaultPath);
-                return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
-            }
-        } catch (\Exception $e) {
-            Log::error('Error getting default admin signature base64: ' . $e->getMessage());
-        }
-        return null;
-    }
-
-    /**
-     * Send invoice created email
-     */
-    private function sendInvoiceCreatedEmail($quote, $invoice, $paymentResponse)
-    {
-        try {
-            $email = 'mangaka.wir@gmail.com';
-            
-            $invoiceNumber = 'INVOICE-' . str_pad($quote->id, 6, '0', STR_PAD_LEFT);
-            
-            $data = [
-                'quote' => $quote,
-                'invoice' => $invoice,
-                'client' => $quote->client,
-                'client_id' => $quote->client_id,
-                'payment_url' => $paymentResponse['payment_url']??null,
-                'bank_info' => $paymentResponse['bank_info']??null,
-                'payment_method' => $paymentResponse['payment_method'],
-                'subject' => 'New Invoice Created - ' . $invoiceNumber,
-            ];
-        if($quote->client->user->allowsMail('quotes') || $quote->client->user->allowsMail('invoices')){
-            Mail::to($email)->send(new InvoiceCreatedMail($data));
-        }
-        } 
-        catch (\Exception $e) {
-            Log::error('Failed to send invoice email', [
-                'invoice_id' => $invoice->id,
-                'quote_id' => $quote->id,
-                'error' => $e->getMessage()
-            ]);   
-    }
-    }
 
     /**
      * Automatically sign with admin signature

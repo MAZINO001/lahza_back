@@ -15,7 +15,7 @@ class EventController extends Controller
 
     if ($user->role === 'admin') {
         // Admin sees all events
-        $events = Event::with('guests')->get();
+        $events = Event::with('guests')->latest()->get();
     } else {
         // Non-admin sees only assigned events via event_guests
         $events = Event::whereHas('guests', function ($query) use ($user) {
